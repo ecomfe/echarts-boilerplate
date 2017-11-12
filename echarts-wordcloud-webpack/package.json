@@ -1,0 +1,12 @@
+{
+  "name": "echarts-wordcloud-webapck",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "echarts": "^3.8.3",
+    "echarts-wordcloud": "^1.1.2",
+    "webpack": "^3.8.1"
+  }
+}

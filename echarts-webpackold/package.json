@@ -1,0 +1,15 @@
+{
+  "name": "echarts-webpackold",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "webpack": "1.14.0",
+    "echarts": "^3.8.3",
+    "echarts-wordcloud": "^1.1.2"
+  }
+}
