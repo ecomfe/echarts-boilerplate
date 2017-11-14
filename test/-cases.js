@@ -4,6 +4,7 @@
         'echarts-webpack/jump-bar.html',
         'echarts-webpack/jump-map.html',
         'echarts-webpack/dataTool.html',
+        'echarts-webpack/es-line.html',
         'echarts-webpackold/jump-bar.html',
         'echarts-webpackold/jump-map.html',
         'echarts-webpackold/dataTool.html',

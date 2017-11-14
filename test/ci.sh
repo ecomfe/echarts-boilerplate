@@ -1,10 +1,15 @@
-projList=("echarts-wordcloud-webpack")
+projList=(
+    "echarts-wordcloud-webpack"
+    "echarts-webpack"
+    "echarts-webpackold"
+    "echarts-liquidfill-webpack"
+)
 currPath=`pwd`
 basePath="$(cd `dirname $0`; pwd)/.."
 
 function run() {
 
-    node "${basePath}/../echarts/build/build.js" --release
+    # node "${basePath}/../echarts/build/build.js" --release
 
     for p in ${projList[@]}
     do

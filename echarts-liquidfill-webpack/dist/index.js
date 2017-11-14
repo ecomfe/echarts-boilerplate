@@ -111,10 +111,10 @@ var nativeSlice = arrayProto.slice;
 var nativeMap = arrayProto.map;
 var nativeReduce = arrayProto.reduce; // Avoid assign to an exported variable, for transforming to cjs.
 
-var injectedMap = {};
+var methods = {};
 
-function $inject(name, fn) {
-  injectedMap[name] = fn;
+function $override(name, fn) {
+  methods[name] = fn;
 }
 /**
  * Those data types can be cloned:
@@ -256,10 +256,10 @@ function defaults(target, source, overlay) {
 }
 
 var createCanvas = function () {
-  return injectedMap.createCanvas();
+  return methods.createCanvas();
 };
 
-injectedMap.createCanvas = function () {
+methods.createCanvas = function () {
   return document.createElement('canvas');
 }; // FIXME
 
@@ -718,7 +718,7 @@ function createHashMap(obj) {
 
 function noop() {}
 
-exports.$inject = $inject;
+exports.$override = $override;
 exports.clone = clone;
 exports.merge = merge;
 exports.mergeAll = mergeAll;
@@ -4151,9 +4151,9 @@ var loadingDefault = __webpack_require__(109);
  */
 var each = zrUtil.each;
 var parseClassType = ComponentModel.parseClassType;
-var version = '3.8.3';
+var version = '3.8.5';
 var dependencies = {
-  zrender: '3.7.2'
+  zrender: '3.7.4'
 };
 var PRIORITY_PROCESSOR_FILTER = 1000;
 var PRIORITY_PROCESSOR_STATISTIC = 5000;
@@ -6038,7 +6038,8 @@ exports.extendChartView = extendChartView;
 exports.setCanvasCreator = setCanvasCreator;
 exports.registerMap = registerMap;
 exports.getMap = getMap;
-exports.dataTool = dataTool;var ___ec_export = __webpack_require__(110);
+exports.dataTool = dataTool;
+var ___ec_export = __webpack_require__(110);
 (function () {
     for (var key in ___ec_export) {
         if (___ec_export.hasOwnProperty(key)) {
@@ -6400,10 +6401,10 @@ var TEXT_CACHE_MAX = 5000;
 var STYLE_REG = /\{([a-zA-Z0-9_]+)\|([^}]*)\}/g;
 var DEFAULT_FONT = '12px sans-serif'; // Avoid assign to an exported variable, for transforming to cjs.
 
-var injectedMap = {};
+var methods = {};
 
-function $inject(name, fn) {
-  injectedMap[name] = fn;
+function $override(name, fn) {
+  methods[name] = fn;
 }
 /**
  * @public
@@ -6766,11 +6767,11 @@ function getLineHeight(font) {
 
 
 function measureText(text, font) {
-  return injectedMap.measureText(text, font);
+  return methods.measureText(text, font);
 } // Avoid assign to an exported variable, for transforming to cjs.
 
 
-injectedMap.measureText = function (text, font) {
+methods.measureText = function (text, font) {
   var ctx = getContext();
   ctx.font = font || DEFAULT_FONT;
   return ctx.measureText(text);
@@ -7059,7 +7060,7 @@ function makeFont(style) {
 }
 
 exports.DEFAULT_FONT = DEFAULT_FONT;
-exports.$inject = $inject;
+exports.$override = $override;
 exports.getWidth = getWidth;
 exports.getBoundingRect = getBoundingRect;
 exports.adjustTextX = adjustTextX;
@@ -12618,7 +12619,7 @@ var instances = {}; // ZRender实例map索引
  * @type {string}
  */
 
-var version = '3.7.2';
+var version = '3.7.4';
 /**
  * Initializing a zrender instance
  * @param {HTMLElement} dom
@@ -28164,8 +28165,8 @@ echarts.extendChartView({
             echarts.graphic.setText(outsideTextRect.style, labelModel, color);
 
             var insideTextRect = new echarts.graphic.Rect(textOption);
-            var insColor = labelModel.get('insideColor')
-                || textStyle.get('insideColor');
+            var insColor = textStyle.get('insideColor')
+                || labelModel.get('insideColor');
             echarts.graphic.setText(insideTextRect.style, labelModel, insColor);
             insideTextRect.style.textFill = insColor;
 

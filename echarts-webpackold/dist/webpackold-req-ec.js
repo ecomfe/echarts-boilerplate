@@ -149,6 +149,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _echarts = __webpack_require__(2);
 
+	(function () {
+	  for (var key in _echarts) {
+	    if (_echarts == null || !_echarts.hasOwnProperty(key) || key === 'default' || key === '__esModule') return;
+	    exports[key] = _echarts[key];
+	  }
+	})();
 
 	var _export = __webpack_require__(103);
 
@@ -243,13 +249,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(447);
 
-	(function () {
-	  for (var key in _echarts) {
-	    if (_echarts == null || !_echarts.hasOwnProperty(key) || key === 'default' || key === '__esModule') return;
-	    exports[key] = _echarts[key];
-	  }
-	})();
-
 /***/ },
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
@@ -311,9 +310,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	var each = zrUtil.each;
 	var parseClassType = ComponentModel.parseClassType;
-	var version = '3.8.3';
+	var version = '3.8.5';
 	var dependencies = {
-	  zrender: '3.7.2'
+	  zrender: '3.7.4'
 	};
 	var PRIORITY_PROCESSOR_FILTER = 1000;
 	var PRIORITY_PROCESSOR_STATISTIC = 5000;
@@ -2198,7 +2197,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.setCanvasCreator = setCanvasCreator;
 	exports.registerMap = registerMap;
 	exports.getMap = getMap;
-	exports.dataTool = dataTool;var ___ec_export = __webpack_require__(103);
+	exports.dataTool = dataTool;
+	var ___ec_export = __webpack_require__(103);
 	(function () {
 	    for (var key in ___ec_export) {
 	        if (___ec_export.hasOwnProperty(key)) {
@@ -2272,7 +2272,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @type {string}
 	 */
 
-	var version = '3.7.2';
+	var version = '3.7.4';
 	/**
 	 * Initializing a zrender instance
 	 * @param {HTMLElement} dom
@@ -2852,7 +2852,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	var nativeFilter = arrayProto.filter;
 	var nativeSlice = arrayProto.slice;
 	var nativeMap = arrayProto.map;
-	var nativeReduce = arrayProto.reduce;
+	var nativeReduce = arrayProto.reduce; // Avoid assign to an exported variable, for transforming to cjs.
+
+	var methods = {};
+
+	function $override(name, fn) {
+	  methods[name] = fn;
+	}
 	/**
 	 * Those data types can be cloned:
 	 *     Plain object, Array, TypedArray, number, string, null, undefined.
@@ -2869,6 +2875,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {*} source
 	 * @return {*} new
 	 */
+
 
 	function clone(source) {
 	  if (source == null || typeof source != 'object') {
@@ -2992,6 +2999,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	var createCanvas = function () {
+	  return methods.createCanvas();
+	};
+
+	methods.createCanvas = function () {
 	  return document.createElement('canvas');
 	}; // FIXME
 
@@ -3450,12 +3461,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function noop() {}
 
-	var $inject = {
-	  createCanvas: function (f) {
-	    createCanvas = f;
-	    exports.createCanvas = f; 
-	  }
-	};
+	exports.$override = $override;
 	exports.clone = clone;
 	exports.merge = merge;
 	exports.mergeAll = mergeAll;
@@ -3491,7 +3497,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.isPrimitive = isPrimitive;
 	exports.createHashMap = createHashMap;
 	exports.noop = noop;
-	exports.$inject = $inject;
 
 /***/ },
 /* 8 */
@@ -11631,13 +11636,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	var textWidthCacheCounter = 0;
 	var TEXT_CACHE_MAX = 5000;
 	var STYLE_REG = /\{([a-zA-Z0-9_]+)\|([^}]*)\}/g;
-	var DEFAULT_FONT = '12px sans-serif';
+	var DEFAULT_FONT = '12px sans-serif'; // Avoid assign to an exported variable, for transforming to cjs.
+
+	var methods = {};
+
+	function $override(name, fn) {
+	  methods[name] = fn;
+	}
 	/**
 	 * @public
 	 * @param {string} text
 	 * @param {string} font
 	 * @return {number} width
 	 */
+
 
 	function getWidth(text, font) {
 	  font = font || DEFAULT_FONT;
@@ -11991,7 +12003,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 
-	var measureText = function (text, font) {
+	function measureText(text, font) {
+	  return methods.measureText(text, font);
+	} // Avoid assign to an exported variable, for transforming to cjs.
+
+
+	methods.measureText = function (text, font) {
 	  var ctx = getContext();
 	  ctx.font = font || DEFAULT_FONT;
 	  return ctx.measureText(text);
@@ -12279,13 +12296,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  style.fontFamily || 'sans-serif'].join(' ') || style.textFont || style.font;
 	}
 
-	var $inject = {
-	  measureText: function (f) {
-	    measureText = f;
-	    exports.measureText = f; 
-	  }
-	};
 	exports.DEFAULT_FONT = DEFAULT_FONT;
+	exports.$override = $override;
 	exports.getWidth = getWidth;
 	exports.getBoundingRect = getBoundingRect;
 	exports.adjustTextX = adjustTextX;
@@ -12297,7 +12309,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.parsePlainText = parsePlainText;
 	exports.parseRichText = parseRichText;
 	exports.makeFont = makeFont;
-	exports.$inject = $inject;
 
 /***/ },
 /* 37 */
@@ -72912,7 +72923,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  var textMeasureEl; // Overwrite measure text method
 
-	  textContain.$inject.measureText(function (text, textFont) {
+	  textContain.$override('measureText', function (text, textFont) {
 	    var doc = vmlCore.doc;
 
 	    if (!textMeasureEl) {
@@ -73166,17 +73177,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	var win = typeof window === 'undefined' ? null : window;
 	var vmlInited = false;
 	var doc = win && win.document;
-	var createNode;
+
+	function createNode(tagName) {
+	  return doCreateNode(tagName);
+	} // Avoid assign to an exported variable, for transforming to cjs.
+
+
+	var doCreateNode;
 
 	if (doc && !env.canvasSupported) {
 	  try {
 	    !doc.namespaces.zrvml && doc.namespaces.add('zrvml', urn);
 
-	    createNode = function (tagName) {
+	    doCreateNode = function (tagName) {
 	      return doc.createElement('<zrvml:' + tagName + ' class="zrvml">');
 	    };
 	  } catch (e) {
-	    createNode = function (tagName) {
+	    doCreateNode = function (tagName) {
 	      return doc.createElement('<' + tagName + ' xmlns="' + urn + '" class="zrvml">');
 	    };
 	  }
@@ -73728,10 +73745,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  el.__dirty && textHelper.normalizeTextStyle(style, true);
 	  var text = style.text; // Convert to string
 
-	  text != null && (text += '');
-
-	  if (!text) {
+	  if (text == null) {
+	    // Draw no text only when text is set to null, but not ''
 	    return;
+	  } else {
+	    text += '';
 	  }
 
 	  var textSvgEl = el.__textSvgEl;
@@ -73918,6 +73936,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createElement = _core.createElement;
 
+	var util = __webpack_require__(7);
+
+	var each = util.each;
+
 	var zrLog = __webpack_require__(23);
 
 	var Path = __webpack_require__(55);
@@ -73931,10 +73953,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	var GradientManager = __webpack_require__(452);
 
 	var ClippathManager = __webpack_require__(454);
-
-	var _util = __webpack_require__(7);
-
-	var each = _util.each;
 
 	var _graphic = __webpack_require__(448);
 
@@ -74001,26 +74019,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	/**
 	 * @alias module:zrender/svg/Painter
+	 * @constructor
+	 * @param {HTMLElement} root 绘图容器
+	 * @param {module:zrender/Storage} storage
+	 * @param {Object} opts
 	 */
 
 
-	var SVGPainter = function (root, storage) {
+	var SVGPainter = function (root, storage, opts) {
 	  this.root = root;
 	  this.storage = storage;
+	  this._opts = opts = util.extend({}, opts || {});
 	  var svgRoot = createElement('svg');
 	  svgRoot.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 	  svgRoot.setAttribute('version', '1.1');
 	  svgRoot.setAttribute('baseProfile', 'full');
 	  svgRoot.style['user-select'] = 'none';
+	  svgRoot.style.cssText = 'position:absolute;left:0;top:0;';
 	  this.gradientManager = new GradientManager(svgRoot);
 	  this.clipPathManager = new ClippathManager(svgRoot);
 	  var viewport = document.createElement('div');
-	  viewport.style.cssText = 'overflow: hidden;';
+	  viewport.style.cssText = 'overflow:hidden;position:relative';
 	  this._svgRoot = svgRoot;
 	  this._viewport = viewport;
 	  root.appendChild(viewport);
 	  viewport.appendChild(svgRoot);
-	  this.resize();
+	  this.resize(opts.width, opts.height);
 	  this._visibleList = [];
 	};
 
@@ -74062,10 +74086,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	      if (!displayable.invisible) {
 	        if (displayable.__dirty) {
-	          svgProxy && svgProxy.brush(displayable);
-	          var el = getSvgElement(displayable) || getTextSvgElement(displayable); // Update clipPath
+	          svgProxy && svgProxy.brush(displayable); // Update clipPath
 
-	          this.clipPathManager.update(displayable, el); // Update gradient
+	          this.clipPathManager.update(displayable); // Update gradient
 
 	          if (displayable.style) {
 	            this.gradientManager.update(displayable.style.fill);
@@ -74175,15 +74198,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return defs[0];
 	    }
 	  },
-	  resize: function () {
-	    var width = this._getWidth();
+	  resize: function (width, height) {
+	    var viewport = this._viewport; // FIXME Why ?
 
-	    var height = this._getHeight();
+	    viewport.style.display = 'none'; // Save input w/h
+
+	    var opts = this._opts;
+	    width != null && (opts.width = width);
+	    height != null && (opts.height = height);
+	    width = this._getSize(0);
+	    height = this._getSize(1);
+	    viewport.style.display = '';
 
 	    if (this._width !== width && this._height !== height) {
 	      this._width = width;
 	      this._height = height;
-	      var viewportStyle = this._viewport.style;
+	      var viewportStyle = viewport.style;
 	      viewportStyle.width = width + 'px';
 	      viewportStyle.height = height + 'px';
 	      var svgRoot = this._svgRoot; // Set width by 'svgRoot.width = width' is invalid
@@ -74192,21 +74222,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	      svgRoot.setAttribute('height', height);
 	    }
 	  },
+
+	  /**
+	   * 获取绘图区域宽度
+	   */
 	  getWidth: function () {
-	    return this._getWidth();
+	    return this._width;
 	  },
+
+	  /**
+	   * 获取绘图区域高度
+	   */
 	  getHeight: function () {
-	    return this._getHeight();
+	    return this._height;
 	  },
-	  _getWidth: function () {
-	    var root = this.root;
+	  _getSize: function (whIdx) {
+	    var opts = this._opts;
+	    var wh = ['width', 'height'][whIdx];
+	    var cwh = ['clientWidth', 'clientHeight'][whIdx];
+	    var plt = ['paddingLeft', 'paddingTop'][whIdx];
+	    var prb = ['paddingRight', 'paddingBottom'][whIdx];
+
+	    if (opts[wh] != null && opts[wh] !== 'auto') {
+	      return parseFloat(opts[wh]);
+	    }
+
+	    var root = this.root; // IE8 does not support getComputedStyle, but it use VML.
+
 	    var stl = document.defaultView.getComputedStyle(root);
-	    return (root.clientWidth || parseInt10(stl.width)) - parseInt10(stl.paddingLeft) - parseInt10(stl.paddingRight) | 0;
-	  },
-	  _getHeight: function () {
-	    var root = this.root;
-	    var stl = document.defaultView.getComputedStyle(root);
-	    return (root.clientHeight || parseInt10(stl.height)) - parseInt10(stl.paddingTop) - parseInt10(stl.paddingBottom) | 0;
+	    return (root[cwh] || parseInt10(stl[wh]) || parseInt10(root.style[wh])) - (parseInt10(stl[plt]) || 0) - (parseInt10(stl[prb]) || 0) | 0;
 	  },
 	  dispose: function () {
 	    this.root.innerHTML = '';
@@ -74929,11 +74973,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Update clipPath.
 	 *
 	 * @param {Displayable} displayable displayable element
-	 * @param {SVGElement}  svgElement  SVG element of displayable
 	 */
 
-	ClippathManager.prototype.update = function (displayable, svgElement) {
-	  this.updateDom(svgElement, displayable.__clipPaths, false);
+	ClippathManager.prototype.update = function (displayable) {
+	  var svgEl = this.getSvgElement(displayable);
+
+	  if (svgEl) {
+	    this.updateDom(svgEl, displayable.__clipPaths, false);
+	  }
+
 	  var textEl = this.getTextSvgElement(displayable);
 
 	  if (textEl) {
@@ -75006,7 +75054,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 
 	    var pathEl = this.getSvgElement(clipPath);
-	    clipPathEl.appendChild(pathEl);
+	    /**
+	     * Use `cloneNode()` here to appendChild to multiple parents,
+	     * which may happend when Text and other shapes are using the same
+	     * clipPath. Since Text will create an extra clipPath DOM due to
+	     * different transform rules.
+	     */
+
+	    clipPathEl.appendChild(pathEl.cloneNode());
 	    parentEl.setAttribute('clip-path', 'url(#' + id + ')');
 
 	    if (clipPaths.length > 1) {
