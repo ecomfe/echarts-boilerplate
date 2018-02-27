@@ -9,6 +9,9 @@ basePath="$(cd `dirname $0`; pwd)/.."
 
 function run() {
 
+    node ../../echarts/build/build.js --prepublish
+    node ../../zrender/build/build.js --prepublish
+
     # node "${basePath}/../echarts/build/build.js" --release
 
     for p in ${projList[@]}
