@@ -816,6 +816,24 @@ exports.noop = noop;
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var each = zrUtil.each;
 var isObject = zrUtil.isObject;
 var isArray = zrUtil.isArray;
@@ -853,6 +871,7 @@ function normalizeToArray(value) {
 
 
 function defaultEmphasis(opt, key, subOpts) {
+  // Caution: performance sensitive.
   if (opt) {
     opt[key] = opt[key] || {};
     opt.emphasis = opt.emphasis || {};
@@ -1289,7 +1308,25 @@ exports.getAttribute = getAttribute;
 /* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(global) {// (1) The code `if (__DEV__) ...` can be removed by build tool.
+/* WEBPACK VAR INJECTION */(function(global) {/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+// (1) The code `if (__DEV__) ...` can be removed by build tool.
 // (2) If intend to use `__DEV__`, this module should be imported. Use a global
 // variable `__DEV__` may cause that miss the declaration (see #6535), or the
 // declaration is behind of the using position (for example in `Model.extent`,
@@ -1309,7 +1346,7 @@ if (typeof dev === 'undefined') {
 
 var __DEV__ = dev;
 exports.__DEV__ = __DEV__;
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(42)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(82)))
 
 /***/ }),
 /* 3 */
@@ -1633,363 +1670,26 @@ exports.max = max;
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Displayable = __webpack_require__(25);
-
 var zrUtil = __webpack_require__(0);
 
-var PathProxy = __webpack_require__(26);
-
-var pathContain = __webpack_require__(98);
-
-var Pattern = __webpack_require__(52);
-
-var getCanvasPattern = Pattern.prototype.getCanvasPattern;
-var abs = Math.abs;
-var pathProxyForDraw = new PathProxy(true);
-/**
- * @alias module:zrender/graphic/Path
- * @extends module:zrender/graphic/Displayable
- * @constructor
- * @param {Object} opts
- */
-
-function Path(opts) {
-  Displayable.call(this, opts);
-  /**
-   * @type {module:zrender/core/PathProxy}
-   * @readOnly
-   */
-
-  this.path = null;
-}
-
-Path.prototype = {
-  constructor: Path,
-  type: 'path',
-  __dirtyPath: true,
-  strokeContainThreshold: 5,
-  brush: function (ctx, prevEl) {
-    var style = this.style;
-    var path = this.path || pathProxyForDraw;
-    var hasStroke = style.hasStroke();
-    var hasFill = style.hasFill();
-    var fill = style.fill;
-    var stroke = style.stroke;
-    var hasFillGradient = hasFill && !!fill.colorStops;
-    var hasStrokeGradient = hasStroke && !!stroke.colorStops;
-    var hasFillPattern = hasFill && !!fill.image;
-    var hasStrokePattern = hasStroke && !!stroke.image;
-    style.bind(ctx, this, prevEl);
-    this.setTransform(ctx);
-
-    if (this.__dirty) {
-      var rect; // Update gradient because bounding rect may changed
-
-      if (hasFillGradient) {
-        rect = rect || this.getBoundingRect();
-        this._fillGradient = style.getGradient(ctx, fill, rect);
-      }
-
-      if (hasStrokeGradient) {
-        rect = rect || this.getBoundingRect();
-        this._strokeGradient = style.getGradient(ctx, stroke, rect);
-      }
-    } // Use the gradient or pattern
-
-
-    if (hasFillGradient) {
-      // PENDING If may have affect the state
-      ctx.fillStyle = this._fillGradient;
-    } else if (hasFillPattern) {
-      ctx.fillStyle = getCanvasPattern.call(fill, ctx);
-    }
-
-    if (hasStrokeGradient) {
-      ctx.strokeStyle = this._strokeGradient;
-    } else if (hasStrokePattern) {
-      ctx.strokeStyle = getCanvasPattern.call(stroke, ctx);
-    }
-
-    var lineDash = style.lineDash;
-    var lineDashOffset = style.lineDashOffset;
-    var ctxLineDash = !!ctx.setLineDash; // Update path sx, sy
-
-    var scale = this.getGlobalScale();
-    path.setScale(scale[0], scale[1]); // Proxy context
-    // Rebuild path in following 2 cases
-    // 1. Path is dirty
-    // 2. Path needs javascript implemented lineDash stroking.
-    //    In this case, lineDash information will not be saved in PathProxy
-
-    if (this.__dirtyPath || lineDash && !ctxLineDash && hasStroke) {
-      path.beginPath(ctx); // Setting line dash before build path
-
-      if (lineDash && !ctxLineDash) {
-        path.setLineDash(lineDash);
-        path.setLineDashOffset(lineDashOffset);
-      }
-
-      this.buildPath(path, this.shape, false); // Clear path dirty flag
-
-      if (this.path) {
-        this.__dirtyPath = false;
-      }
-    } else {
-      // Replay path building
-      ctx.beginPath();
-      this.path.rebuildPath(ctx);
-    }
-
-    hasFill && path.fill(ctx);
-
-    if (lineDash && ctxLineDash) {
-      ctx.setLineDash(lineDash);
-      ctx.lineDashOffset = lineDashOffset;
-    }
-
-    hasStroke && path.stroke(ctx);
-
-    if (lineDash && ctxLineDash) {
-      // PENDING
-      // Remove lineDash
-      ctx.setLineDash([]);
-    } // Draw rect text
-
-
-    if (style.text != null) {
-      // Only restore transform when needs draw text.
-      this.restoreTransform(ctx);
-      this.drawRectText(ctx, this.getBoundingRect());
-    }
-  },
-  // When bundling path, some shape may decide if use moveTo to begin a new subpath or closePath
-  // Like in circle
-  buildPath: function (ctx, shapeCfg, inBundle) {},
-  createPathProxy: function () {
-    this.path = new PathProxy();
-  },
-  getBoundingRect: function () {
-    var rect = this._rect;
-    var style = this.style;
-    var needsUpdateRect = !rect;
-
-    if (needsUpdateRect) {
-      var path = this.path;
-
-      if (!path) {
-        // Create path on demand.
-        path = this.path = new PathProxy();
-      }
-
-      if (this.__dirtyPath) {
-        path.beginPath();
-        this.buildPath(path, this.shape, false);
-      }
-
-      rect = path.getBoundingRect();
-    }
-
-    this._rect = rect;
-
-    if (style.hasStroke()) {
-      // Needs update rect with stroke lineWidth when
-      // 1. Element changes scale or lineWidth
-      // 2. Shape is changed
-      var rectWithStroke = this._rectWithStroke || (this._rectWithStroke = rect.clone());
-
-      if (this.__dirty || needsUpdateRect) {
-        rectWithStroke.copy(rect); // FIXME Must after updateTransform
-
-        var w = style.lineWidth; // PENDING, Min line width is needed when line is horizontal or vertical
-
-        var lineScale = style.strokeNoScale ? this.getLineScale() : 1; // Only add extra hover lineWidth when there are no fill
-
-        if (!style.hasFill()) {
-          w = Math.max(w, this.strokeContainThreshold || 4);
-        } // Consider line width
-        // Line scale can't be 0;
-
-
-        if (lineScale > 1e-10) {
-          rectWithStroke.width += w / lineScale;
-          rectWithStroke.height += w / lineScale;
-          rectWithStroke.x -= w / lineScale / 2;
-          rectWithStroke.y -= w / lineScale / 2;
-        }
-      } // Return rect with stroke
-
-
-      return rectWithStroke;
-    }
-
-    return rect;
-  },
-  contain: function (x, y) {
-    var localPos = this.transformCoordToLocal(x, y);
-    var rect = this.getBoundingRect();
-    var style = this.style;
-    x = localPos[0];
-    y = localPos[1];
-
-    if (rect.contain(x, y)) {
-      var pathData = this.path.data;
-
-      if (style.hasStroke()) {
-        var lineWidth = style.lineWidth;
-        var lineScale = style.strokeNoScale ? this.getLineScale() : 1; // Line scale can't be 0;
-
-        if (lineScale > 1e-10) {
-          // Only add extra hover lineWidth when there are no fill
-          if (!style.hasFill()) {
-            lineWidth = Math.max(lineWidth, this.strokeContainThreshold);
-          }
-
-          if (pathContain.containStroke(pathData, lineWidth / lineScale, x, y)) {
-            return true;
-          }
-        }
-      }
-
-      if (style.hasFill()) {
-        return pathContain.contain(pathData, x, y);
-      }
-    }
-
-    return false;
-  },
-
-  /**
-   * @param  {boolean} dirtyPath
-   */
-  dirty: function (dirtyPath) {
-    if (dirtyPath == null) {
-      dirtyPath = true;
-    } // Only mark dirty, not mark clean
-
-
-    if (dirtyPath) {
-      this.__dirtyPath = dirtyPath;
-      this._rect = null;
-    }
-
-    this.__dirty = true;
-    this.__zr && this.__zr.refresh(); // Used as a clipping path
-
-    if (this.__clipTarget) {
-      this.__clipTarget.dirty();
-    }
-  },
-
-  /**
-   * Alias for animate('shape')
-   * @param {boolean} loop
-   */
-  animateShape: function (loop) {
-    return this.animate('shape', loop);
-  },
-  // Overwrite attrKV
-  attrKV: function (key, value) {
-    // FIXME
-    if (key === 'shape') {
-      this.setShape(value);
-      this.__dirtyPath = true;
-      this._rect = null;
-    } else {
-      Displayable.prototype.attrKV.call(this, key, value);
-    }
-  },
-
-  /**
-   * @param {Object|string} key
-   * @param {*} value
-   */
-  setShape: function (key, value) {
-    var shape = this.shape; // Path from string may not have shape
-
-    if (shape) {
-      if (zrUtil.isObject(key)) {
-        for (var name in key) {
-          if (key.hasOwnProperty(name)) {
-            shape[name] = key[name];
-          }
-        }
-      } else {
-        shape[key] = value;
-      }
-
-      this.dirty(true);
-    }
-
-    return this;
-  },
-  getLineScale: function () {
-    var m = this.transform; // Get the line scale.
-    // Determinant of `m` means how much the area is enlarged by the
-    // transformation. So its square root can be used as a scale factor
-    // for width.
-
-    return m && abs(m[0] - 1) > 1e-10 && abs(m[3] - 1) > 1e-10 ? Math.sqrt(abs(m[0] * m[3] - m[2] * m[1])) : 1;
-  }
-};
-/**
- * 扩展一个 Path element, 比如星形，圆等。
- * Extend a path element
- * @param {Object} props
- * @param {string} props.type Path type
- * @param {Function} props.init Initialize
- * @param {Function} props.buildPath Overwrite buildPath method
- * @param {Object} [props.style] Extended default style config
- * @param {Object} [props.shape] Extended default shape config
- */
-
-Path.extend = function (defaults) {
-  var Sub = function (opts) {
-    Path.call(this, opts);
-
-    if (defaults.style) {
-      // Extend default style
-      this.style.extendFrom(defaults.style, false);
-    } // Extend default shape
-
-
-    var defaultShape = defaults.shape;
-
-    if (defaultShape) {
-      this.shape = this.shape || {};
-      var thisShape = this.shape;
-
-      for (var name in defaultShape) {
-        if (!thisShape.hasOwnProperty(name) && defaultShape.hasOwnProperty(name)) {
-          thisShape[name] = defaultShape[name];
-        }
-      }
-    }
-
-    defaults.init && defaults.init.call(this, opts);
-  };
-
-  zrUtil.inherits(Sub, Path); // FIXME 不能 extend position, rotation 等引用对象
-
-  for (var name in defaults) {
-    // Extending prototype values and methods
-    if (name !== 'style' && name !== 'shape') {
-      Sub.prototype[name] = defaults[name];
-    }
-  }
-
-  return Sub;
-};
-
-zrUtil.inherits(Path, Displayable);
-var _default = Path;
-module.exports = _default;
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var zrUtil = __webpack_require__(0);
-
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var RADIAN_EPSILON = 1e-4;
 
 function _trim(str) {
@@ -2477,6 +2177,361 @@ exports.reformIntervals = reformIntervals;
 exports.isNumeric = isNumeric;
 
 /***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var Displayable = __webpack_require__(26);
+
+var zrUtil = __webpack_require__(0);
+
+var PathProxy = __webpack_require__(27);
+
+var pathContain = __webpack_require__(99);
+
+var Pattern = __webpack_require__(52);
+
+var getCanvasPattern = Pattern.prototype.getCanvasPattern;
+var abs = Math.abs;
+var pathProxyForDraw = new PathProxy(true);
+/**
+ * @alias module:zrender/graphic/Path
+ * @extends module:zrender/graphic/Displayable
+ * @constructor
+ * @param {Object} opts
+ */
+
+function Path(opts) {
+  Displayable.call(this, opts);
+  /**
+   * @type {module:zrender/core/PathProxy}
+   * @readOnly
+   */
+
+  this.path = null;
+}
+
+Path.prototype = {
+  constructor: Path,
+  type: 'path',
+  __dirtyPath: true,
+  strokeContainThreshold: 5,
+  brush: function (ctx, prevEl) {
+    var style = this.style;
+    var path = this.path || pathProxyForDraw;
+    var hasStroke = style.hasStroke();
+    var hasFill = style.hasFill();
+    var fill = style.fill;
+    var stroke = style.stroke;
+    var hasFillGradient = hasFill && !!fill.colorStops;
+    var hasStrokeGradient = hasStroke && !!stroke.colorStops;
+    var hasFillPattern = hasFill && !!fill.image;
+    var hasStrokePattern = hasStroke && !!stroke.image;
+    style.bind(ctx, this, prevEl);
+    this.setTransform(ctx);
+
+    if (this.__dirty) {
+      var rect; // Update gradient because bounding rect may changed
+
+      if (hasFillGradient) {
+        rect = rect || this.getBoundingRect();
+        this._fillGradient = style.getGradient(ctx, fill, rect);
+      }
+
+      if (hasStrokeGradient) {
+        rect = rect || this.getBoundingRect();
+        this._strokeGradient = style.getGradient(ctx, stroke, rect);
+      }
+    } // Use the gradient or pattern
+
+
+    if (hasFillGradient) {
+      // PENDING If may have affect the state
+      ctx.fillStyle = this._fillGradient;
+    } else if (hasFillPattern) {
+      ctx.fillStyle = getCanvasPattern.call(fill, ctx);
+    }
+
+    if (hasStrokeGradient) {
+      ctx.strokeStyle = this._strokeGradient;
+    } else if (hasStrokePattern) {
+      ctx.strokeStyle = getCanvasPattern.call(stroke, ctx);
+    }
+
+    var lineDash = style.lineDash;
+    var lineDashOffset = style.lineDashOffset;
+    var ctxLineDash = !!ctx.setLineDash; // Update path sx, sy
+
+    var scale = this.getGlobalScale();
+    path.setScale(scale[0], scale[1]); // Proxy context
+    // Rebuild path in following 2 cases
+    // 1. Path is dirty
+    // 2. Path needs javascript implemented lineDash stroking.
+    //    In this case, lineDash information will not be saved in PathProxy
+
+    if (this.__dirtyPath || lineDash && !ctxLineDash && hasStroke) {
+      path.beginPath(ctx); // Setting line dash before build path
+
+      if (lineDash && !ctxLineDash) {
+        path.setLineDash(lineDash);
+        path.setLineDashOffset(lineDashOffset);
+      }
+
+      this.buildPath(path, this.shape, false); // Clear path dirty flag
+
+      if (this.path) {
+        this.__dirtyPath = false;
+      }
+    } else {
+      // Replay path building
+      ctx.beginPath();
+      this.path.rebuildPath(ctx);
+    }
+
+    hasFill && path.fill(ctx);
+
+    if (lineDash && ctxLineDash) {
+      ctx.setLineDash(lineDash);
+      ctx.lineDashOffset = lineDashOffset;
+    }
+
+    hasStroke && path.stroke(ctx);
+
+    if (lineDash && ctxLineDash) {
+      // PENDING
+      // Remove lineDash
+      ctx.setLineDash([]);
+    } // Draw rect text
+
+
+    if (style.text != null) {
+      // Only restore transform when needs draw text.
+      this.restoreTransform(ctx);
+      this.drawRectText(ctx, this.getBoundingRect());
+    }
+  },
+  // When bundling path, some shape may decide if use moveTo to begin a new subpath or closePath
+  // Like in circle
+  buildPath: function (ctx, shapeCfg, inBundle) {},
+  createPathProxy: function () {
+    this.path = new PathProxy();
+  },
+  getBoundingRect: function () {
+    var rect = this._rect;
+    var style = this.style;
+    var needsUpdateRect = !rect;
+
+    if (needsUpdateRect) {
+      var path = this.path;
+
+      if (!path) {
+        // Create path on demand.
+        path = this.path = new PathProxy();
+      }
+
+      if (this.__dirtyPath) {
+        path.beginPath();
+        this.buildPath(path, this.shape, false);
+      }
+
+      rect = path.getBoundingRect();
+    }
+
+    this._rect = rect;
+
+    if (style.hasStroke()) {
+      // Needs update rect with stroke lineWidth when
+      // 1. Element changes scale or lineWidth
+      // 2. Shape is changed
+      var rectWithStroke = this._rectWithStroke || (this._rectWithStroke = rect.clone());
+
+      if (this.__dirty || needsUpdateRect) {
+        rectWithStroke.copy(rect); // FIXME Must after updateTransform
+
+        var w = style.lineWidth; // PENDING, Min line width is needed when line is horizontal or vertical
+
+        var lineScale = style.strokeNoScale ? this.getLineScale() : 1; // Only add extra hover lineWidth when there are no fill
+
+        if (!style.hasFill()) {
+          w = Math.max(w, this.strokeContainThreshold || 4);
+        } // Consider line width
+        // Line scale can't be 0;
+
+
+        if (lineScale > 1e-10) {
+          rectWithStroke.width += w / lineScale;
+          rectWithStroke.height += w / lineScale;
+          rectWithStroke.x -= w / lineScale / 2;
+          rectWithStroke.y -= w / lineScale / 2;
+        }
+      } // Return rect with stroke
+
+
+      return rectWithStroke;
+    }
+
+    return rect;
+  },
+  contain: function (x, y) {
+    var localPos = this.transformCoordToLocal(x, y);
+    var rect = this.getBoundingRect();
+    var style = this.style;
+    x = localPos[0];
+    y = localPos[1];
+
+    if (rect.contain(x, y)) {
+      var pathData = this.path.data;
+
+      if (style.hasStroke()) {
+        var lineWidth = style.lineWidth;
+        var lineScale = style.strokeNoScale ? this.getLineScale() : 1; // Line scale can't be 0;
+
+        if (lineScale > 1e-10) {
+          // Only add extra hover lineWidth when there are no fill
+          if (!style.hasFill()) {
+            lineWidth = Math.max(lineWidth, this.strokeContainThreshold);
+          }
+
+          if (pathContain.containStroke(pathData, lineWidth / lineScale, x, y)) {
+            return true;
+          }
+        }
+      }
+
+      if (style.hasFill()) {
+        return pathContain.contain(pathData, x, y);
+      }
+    }
+
+    return false;
+  },
+
+  /**
+   * @param  {boolean} dirtyPath
+   */
+  dirty: function (dirtyPath) {
+    if (dirtyPath == null) {
+      dirtyPath = true;
+    } // Only mark dirty, not mark clean
+
+
+    if (dirtyPath) {
+      this.__dirtyPath = dirtyPath;
+      this._rect = null;
+    }
+
+    this.__dirty = true;
+    this.__zr && this.__zr.refresh(); // Used as a clipping path
+
+    if (this.__clipTarget) {
+      this.__clipTarget.dirty();
+    }
+  },
+
+  /**
+   * Alias for animate('shape')
+   * @param {boolean} loop
+   */
+  animateShape: function (loop) {
+    return this.animate('shape', loop);
+  },
+  // Overwrite attrKV
+  attrKV: function (key, value) {
+    // FIXME
+    if (key === 'shape') {
+      this.setShape(value);
+      this.__dirtyPath = true;
+      this._rect = null;
+    } else {
+      Displayable.prototype.attrKV.call(this, key, value);
+    }
+  },
+
+  /**
+   * @param {Object|string} key
+   * @param {*} value
+   */
+  setShape: function (key, value) {
+    var shape = this.shape; // Path from string may not have shape
+
+    if (shape) {
+      if (zrUtil.isObject(key)) {
+        for (var name in key) {
+          if (key.hasOwnProperty(name)) {
+            shape[name] = key[name];
+          }
+        }
+      } else {
+        shape[key] = value;
+      }
+
+      this.dirty(true);
+    }
+
+    return this;
+  },
+  getLineScale: function () {
+    var m = this.transform; // Get the line scale.
+    // Determinant of `m` means how much the area is enlarged by the
+    // transformation. So its square root can be used as a scale factor
+    // for width.
+
+    return m && abs(m[0] - 1) > 1e-10 && abs(m[3] - 1) > 1e-10 ? Math.sqrt(abs(m[0] * m[3] - m[2] * m[1])) : 1;
+  }
+};
+/**
+ * 扩展一个 Path element, 比如星形，圆等。
+ * Extend a path element
+ * @param {Object} props
+ * @param {string} props.type Path type
+ * @param {Function} props.init Initialize
+ * @param {Function} props.buildPath Overwrite buildPath method
+ * @param {Object} [props.style] Extended default style config
+ * @param {Object} [props.shape] Extended default shape config
+ */
+
+Path.extend = function (defaults) {
+  var Sub = function (opts) {
+    Path.call(this, opts);
+
+    if (defaults.style) {
+      // Extend default style
+      this.style.extendFrom(defaults.style, false);
+    } // Extend default shape
+
+
+    var defaultShape = defaults.shape;
+
+    if (defaultShape) {
+      this.shape = this.shape || {};
+      var thisShape = this.shape;
+
+      for (var name in defaultShape) {
+        if (!thisShape.hasOwnProperty(name) && defaultShape.hasOwnProperty(name)) {
+          thisShape[name] = defaultShape[name];
+        }
+      }
+    }
+
+    defaults.init && defaults.init.call(this, opts);
+  };
+
+  zrUtil.inherits(Sub, Path); // FIXME 不能 extend position, rotation 等引用对象
+
+  for (var name in defaults) {
+    // Extending prototype values and methods
+    if (name !== 'style' && name !== 'shape') {
+      Sub.prototype[name] = defaults[name];
+    }
+  }
+
+  return Sub;
+};
+
+zrUtil.inherits(Path, Displayable);
+var _default = Path;
+module.exports = _default;
+
+/***/ }),
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -2670,15 +2725,15 @@ module.exports = _default;
 
 var zrUtil = __webpack_require__(0);
 
-var pathTool = __webpack_require__(97);
+var pathTool = __webpack_require__(98);
 
-var colorTool = __webpack_require__(23);
+var colorTool = __webpack_require__(24);
 
 var matrix = __webpack_require__(15);
 
 var vector = __webpack_require__(3);
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var Transformable = __webpack_require__(46);
 
@@ -2686,59 +2741,59 @@ var ZImage = __webpack_require__(54);
 
 exports.Image = ZImage;
 
-var Group = __webpack_require__(22);
+var Group = __webpack_require__(23);
 
 exports.Group = Group;
 
-var Text = __webpack_require__(104);
+var Text = __webpack_require__(105);
 
 exports.Text = Text;
 
-var Circle = __webpack_require__(105);
+var Circle = __webpack_require__(106);
 
 exports.Circle = Circle;
 
-var Sector = __webpack_require__(106);
+var Sector = __webpack_require__(107);
 
 exports.Sector = Sector;
 
-var Ring = __webpack_require__(107);
+var Ring = __webpack_require__(108);
 
 exports.Ring = Ring;
 
-var Polygon = __webpack_require__(108);
+var Polygon = __webpack_require__(109);
 
 exports.Polygon = Polygon;
 
-var Polyline = __webpack_require__(111);
+var Polyline = __webpack_require__(112);
 
 exports.Polyline = Polyline;
 
-var Rect = __webpack_require__(112);
+var Rect = __webpack_require__(113);
 
 exports.Rect = Rect;
 
-var Line = __webpack_require__(113);
+var Line = __webpack_require__(114);
 
 exports.Line = Line;
 
-var BezierCurve = __webpack_require__(114);
+var BezierCurve = __webpack_require__(115);
 
 exports.BezierCurve = BezierCurve;
 
-var Arc = __webpack_require__(115);
+var Arc = __webpack_require__(116);
 
 exports.Arc = Arc;
 
-var CompoundPath = __webpack_require__(116);
+var CompoundPath = __webpack_require__(117);
 
 exports.CompoundPath = CompoundPath;
 
-var LinearGradient = __webpack_require__(117);
+var LinearGradient = __webpack_require__(118);
 
 exports.LinearGradient = LinearGradient;
 
-var RadialGradient = __webpack_require__(118);
+var RadialGradient = __webpack_require__(119);
 
 exports.RadialGradient = RadialGradient;
 
@@ -2746,9 +2801,28 @@ var BoundingRect = __webpack_require__(6);
 
 exports.BoundingRect = BoundingRect;
 
-var IncrementalDisplayable = __webpack_require__(119);
+var IncrementalDisplayable = __webpack_require__(120);
 
 exports.IncrementalDisplayable = IncrementalDisplayable;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var round = Math.round;
 var mathMax = Math.max;
 var mathMin = Math.min;
@@ -3770,7 +3844,7 @@ exports.createIcon = createIcon;
  */
 var env = {};
 
-if (typeof wx !== 'undefined') {
+if (typeof wx === 'object' && typeof wx.getSystemInfoSync === 'function') {
   // In Weixin Application
   env = {
     browser: {},
@@ -3928,24 +4002,272 @@ module.exports = _default;
 
 var zrUtil = __webpack_require__(0);
 
+var Model = __webpack_require__(10);
+
+var componentUtil = __webpack_require__(28);
+
+var _clazz = __webpack_require__(11);
+
+var enableClassManagement = _clazz.enableClassManagement;
+var parseClassType = _clazz.parseClassType;
+
+var _model = __webpack_require__(1);
+
+var makeInner = _model.makeInner;
+
+var layout = __webpack_require__(17);
+
+var boxLayoutMixin = __webpack_require__(122);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+/**
+ * Component model
+ *
+ * @module echarts/model/Component
+ */
+var inner = makeInner();
+/**
+ * @alias module:echarts/model/Component
+ * @constructor
+ * @param {Object} option
+ * @param {module:echarts/model/Model} parentModel
+ * @param {module:echarts/model/Model} ecModel
+ */
+
+var ComponentModel = Model.extend({
+  type: 'component',
+
+  /**
+   * @readOnly
+   * @type {string}
+   */
+  id: '',
+
+  /**
+   * Because simplified concept is probably better, series.name (or component.name)
+   * has been having too many resposibilities:
+   * (1) Generating id (which requires name in option should not be modified).
+   * (2) As an index to mapping series when merging option or calling API (a name
+   * can refer to more then one components, which is convinient is some case).
+   * (3) Display.
+   * @readOnly
+   */
+  name: '',
+
+  /**
+   * @readOnly
+   * @type {string}
+   */
+  mainType: '',
+
+  /**
+   * @readOnly
+   * @type {string}
+   */
+  subType: '',
+
+  /**
+   * @readOnly
+   * @type {number}
+   */
+  componentIndex: 0,
+
+  /**
+   * @type {Object}
+   * @protected
+   */
+  defaultOption: null,
+
+  /**
+   * @type {module:echarts/model/Global}
+   * @readOnly
+   */
+  ecModel: null,
+
+  /**
+   * key: componentType
+   * value:  Component model list, can not be null.
+   * @type {Object.<string, Array.<module:echarts/model/Model>>}
+   * @readOnly
+   */
+  dependentModels: [],
+
+  /**
+   * @type {string}
+   * @readOnly
+   */
+  uid: null,
+
+  /**
+   * Support merge layout params.
+   * Only support 'box' now (left/right/top/bottom/width/height).
+   * @type {string|Object} Object can be {ignoreSize: true}
+   * @readOnly
+   */
+  layoutMode: null,
+  $constructor: function (option, parentModel, ecModel, extraOpt) {
+    Model.call(this, option, parentModel, ecModel, extraOpt);
+    this.uid = componentUtil.getUID('ec_cpt_model');
+  },
+  init: function (option, parentModel, ecModel, extraOpt) {
+    this.mergeDefaultAndTheme(option, ecModel);
+  },
+  mergeDefaultAndTheme: function (option, ecModel) {
+    var layoutMode = this.layoutMode;
+    var inputPositionParams = layoutMode ? layout.getLayoutParams(option) : {};
+    var themeModel = ecModel.getTheme();
+    zrUtil.merge(option, themeModel.get(this.mainType));
+    zrUtil.merge(option, this.getDefaultOption());
+
+    if (layoutMode) {
+      layout.mergeLayoutParam(option, inputPositionParams, layoutMode);
+    }
+  },
+  mergeOption: function (option, extraOpt) {
+    zrUtil.merge(this.option, option, true);
+    var layoutMode = this.layoutMode;
+
+    if (layoutMode) {
+      layout.mergeLayoutParam(this.option, option, layoutMode);
+    }
+  },
+  // Hooker after init or mergeOption
+  optionUpdated: function (newCptOption, isInit) {},
+  getDefaultOption: function () {
+    var fields = inner(this);
+
+    if (!fields.defaultOption) {
+      var optList = [];
+      var Class = this.constructor;
+
+      while (Class) {
+        var opt = Class.prototype.defaultOption;
+        opt && optList.push(opt);
+        Class = Class.superClass;
+      }
+
+      var defaultOption = {};
+
+      for (var i = optList.length - 1; i >= 0; i--) {
+        defaultOption = zrUtil.merge(defaultOption, optList[i], true);
+      }
+
+      fields.defaultOption = defaultOption;
+    }
+
+    return fields.defaultOption;
+  },
+  getReferringComponents: function (mainType) {
+    return this.ecModel.queryComponents({
+      mainType: mainType,
+      index: this.get(mainType + 'Index', true),
+      id: this.get(mainType + 'Id', true)
+    });
+  }
+}); // Reset ComponentModel.extend, add preConstruct.
+// clazzUtil.enableClassExtend(
+//     ComponentModel,
+//     function (option, parentModel, ecModel, extraOpt) {
+//         // Set dependentModels, componentIndex, name, id, mainType, subType.
+//         zrUtil.extend(this, extraOpt);
+//         this.uid = componentUtil.getUID('componentModel');
+//         // this.setReadOnly([
+//         //     'type', 'id', 'uid', 'name', 'mainType', 'subType',
+//         //     'dependentModels', 'componentIndex'
+//         // ]);
+//     }
+// );
+// Add capability of registerClass, getClass, hasClass, registerSubTypeDefaulter and so on.
+
+enableClassManagement(ComponentModel, {
+  registerWhenExtend: true
+});
+componentUtil.enableSubTypeDefaulter(ComponentModel); // Add capability of ComponentModel.topologicalTravel.
+
+componentUtil.enableTopologicalTravel(ComponentModel, getDependencies);
+
+function getDependencies(componentType) {
+  var deps = [];
+  zrUtil.each(ComponentModel.getClassesByMainType(componentType), function (Clazz) {
+    deps = deps.concat(Clazz.prototype.dependencies || []);
+  }); // Ensure main type.
+
+  deps = zrUtil.map(deps, function (type) {
+    return parseClassType(type).main;
+  }); // Hack dataset for convenience.
+
+  if (componentType !== 'dataset' && zrUtil.indexOf(deps, 'dataset') <= 0) {
+    deps.unshift('dataset');
+  }
+
+  return deps;
+}
+
+zrUtil.mixin(ComponentModel, boxLayoutMixin);
+var _default = ComponentModel;
+module.exports = _default;
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var zrUtil = __webpack_require__(0);
+
 var env = __webpack_require__(8);
 
 var _model = __webpack_require__(1);
 
 var makeInner = _model.makeInner;
 
-var _clazz = __webpack_require__(10);
+var _clazz = __webpack_require__(11);
 
 var enableClassExtend = _clazz.enableClassExtend;
 var enableClassCheck = _clazz.enableClassCheck;
 
-var lineStyleMixin = __webpack_require__(94);
+var lineStyleMixin = __webpack_require__(95);
 
-var areaStyleMixin = __webpack_require__(95);
+var areaStyleMixin = __webpack_require__(96);
 
-var textStyleMixin = __webpack_require__(96);
+var textStyleMixin = __webpack_require__(97);
 
-var itemStyleMixin = __webpack_require__(120);
+var itemStyleMixin = __webpack_require__(121);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @module echarts/model/Model
@@ -4127,7 +4449,7 @@ var _default = Model;
 module.exports = _default;
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
@@ -4136,6 +4458,24 @@ var __DEV__ = _config.__DEV__;
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var TYPE_DELIMITER = '.';
 var IS_CONTAINER = '___EC__COMPONENT__CONTAINER___';
 /**
@@ -4375,216 +4715,6 @@ exports.enableClassManagement = enableClassManagement;
 exports.setReadOnly = setReadOnly;
 
 /***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var zrUtil = __webpack_require__(0);
-
-var Model = __webpack_require__(9);
-
-var componentUtil = __webpack_require__(27);
-
-var _clazz = __webpack_require__(10);
-
-var enableClassManagement = _clazz.enableClassManagement;
-var parseClassType = _clazz.parseClassType;
-
-var _model = __webpack_require__(1);
-
-var makeInner = _model.makeInner;
-
-var layout = __webpack_require__(17);
-
-var boxLayoutMixin = __webpack_require__(121);
-
-/**
- * Component model
- *
- * @module echarts/model/Component
- */
-var inner = makeInner();
-/**
- * @alias module:echarts/model/Component
- * @constructor
- * @param {Object} option
- * @param {module:echarts/model/Model} parentModel
- * @param {module:echarts/model/Model} ecModel
- */
-
-var ComponentModel = Model.extend({
-  type: 'component',
-
-  /**
-   * @readOnly
-   * @type {string}
-   */
-  id: '',
-
-  /**
-   * Because simplified concept is probably better, series.name (or component.name)
-   * has been having too many resposibilities:
-   * (1) Generating id (which requires name in option should not be modified).
-   * (2) As an index to mapping series when merging option or calling API (a name
-   * can refer to more then one components, which is convinient is some case).
-   * (3) Display.
-   * @readOnly
-   */
-  name: '',
-
-  /**
-   * @readOnly
-   * @type {string}
-   */
-  mainType: '',
-
-  /**
-   * @readOnly
-   * @type {string}
-   */
-  subType: '',
-
-  /**
-   * @readOnly
-   * @type {number}
-   */
-  componentIndex: 0,
-
-  /**
-   * @type {Object}
-   * @protected
-   */
-  defaultOption: null,
-
-  /**
-   * @type {module:echarts/model/Global}
-   * @readOnly
-   */
-  ecModel: null,
-
-  /**
-   * key: componentType
-   * value:  Component model list, can not be null.
-   * @type {Object.<string, Array.<module:echarts/model/Model>>}
-   * @readOnly
-   */
-  dependentModels: [],
-
-  /**
-   * @type {string}
-   * @readOnly
-   */
-  uid: null,
-
-  /**
-   * Support merge layout params.
-   * Only support 'box' now (left/right/top/bottom/width/height).
-   * @type {string|Object} Object can be {ignoreSize: true}
-   * @readOnly
-   */
-  layoutMode: null,
-  $constructor: function (option, parentModel, ecModel, extraOpt) {
-    Model.call(this, option, parentModel, ecModel, extraOpt);
-    this.uid = componentUtil.getUID('ec_cpt_model');
-  },
-  init: function (option, parentModel, ecModel, extraOpt) {
-    this.mergeDefaultAndTheme(option, ecModel);
-  },
-  mergeDefaultAndTheme: function (option, ecModel) {
-    var layoutMode = this.layoutMode;
-    var inputPositionParams = layoutMode ? layout.getLayoutParams(option) : {};
-    var themeModel = ecModel.getTheme();
-    zrUtil.merge(option, themeModel.get(this.mainType));
-    zrUtil.merge(option, this.getDefaultOption());
-
-    if (layoutMode) {
-      layout.mergeLayoutParam(option, inputPositionParams, layoutMode);
-    }
-  },
-  mergeOption: function (option, extraOpt) {
-    zrUtil.merge(this.option, option, true);
-    var layoutMode = this.layoutMode;
-
-    if (layoutMode) {
-      layout.mergeLayoutParam(this.option, option, layoutMode);
-    }
-  },
-  // Hooker after init or mergeOption
-  optionUpdated: function (newCptOption, isInit) {},
-  getDefaultOption: function () {
-    var fields = inner(this);
-
-    if (!fields.defaultOption) {
-      var optList = [];
-      var Class = this.constructor;
-
-      while (Class) {
-        var opt = Class.prototype.defaultOption;
-        opt && optList.push(opt);
-        Class = Class.superClass;
-      }
-
-      var defaultOption = {};
-
-      for (var i = optList.length - 1; i >= 0; i--) {
-        defaultOption = zrUtil.merge(defaultOption, optList[i], true);
-      }
-
-      fields.defaultOption = defaultOption;
-    }
-
-    return fields.defaultOption;
-  },
-  getReferringComponents: function (mainType) {
-    return this.ecModel.queryComponents({
-      mainType: mainType,
-      index: this.get(mainType + 'Index', true),
-      id: this.get(mainType + 'Id', true)
-    });
-  }
-}); // Reset ComponentModel.extend, add preConstruct.
-// clazzUtil.enableClassExtend(
-//     ComponentModel,
-//     function (option, parentModel, ecModel, extraOpt) {
-//         // Set dependentModels, componentIndex, name, id, mainType, subType.
-//         zrUtil.extend(this, extraOpt);
-//         this.uid = componentUtil.getUID('componentModel');
-//         // this.setReadOnly([
-//         //     'type', 'id', 'uid', 'name', 'mainType', 'subType',
-//         //     'dependentModels', 'componentIndex'
-//         // ]);
-//     }
-// );
-// Add capability of registerClass, getClass, hasClass, registerSubTypeDefaulter and so on.
-
-enableClassManagement(ComponentModel, {
-  registerWhenExtend: true
-});
-componentUtil.enableSubTypeDefaulter(ComponentModel); // Add capability of ComponentModel.topologicalTravel.
-
-componentUtil.enableTopologicalTravel(ComponentModel, getDependencies);
-
-function getDependencies(componentType) {
-  var deps = [];
-  zrUtil.each(ComponentModel.getClassesByMainType(componentType), function (Clazz) {
-    deps = deps.concat(Clazz.prototype.dependencies || []);
-  }); // Ensure main type.
-
-  deps = zrUtil.map(deps, function (type) {
-    return parseClassType(type).main;
-  }); // Hack dataset for convenience.
-
-  if (componentType !== 'dataset' && zrUtil.indexOf(deps, 'dataset') <= 0) {
-    deps.unshift('dataset');
-  }
-
-  return deps;
-}
-
-zrUtil.mixin(ComponentModel, boxLayoutMixin);
-var _default = ComponentModel;
-module.exports = _default;
-
-/***/ }),
 /* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -4592,7 +4722,26 @@ var zrUtil = __webpack_require__(0);
 
 var textContain = __webpack_require__(16);
 
-var numberUtil = __webpack_require__(5);
+var numberUtil = __webpack_require__(4);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * 每三位默认加,格式化
@@ -4627,9 +4776,19 @@ function toCamelCase(str, upperCaseFirst) {
 }
 
 var normalizeCssArray = zrUtil.normalizeCssArray;
+var replaceReg = /([&<>"'])/g;
+var replaceMap = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  '\'': '&#39;'
+};
 
 function encodeHTML(source) {
-  return String(source).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return source == null ? '' : (source + '').replace(replaceReg, function (str, c) {
+    return replaceMap[c];
+  });
 }
 
 var TPL_VAR_ALIAS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -5835,7 +5994,7 @@ exports.clone = clone;
 
 var BoundingRect = __webpack_require__(6);
 
-var imageHelper = __webpack_require__(32);
+var imageHelper = __webpack_require__(33);
 
 var _util = __webpack_require__(0);
 
@@ -6531,12 +6690,30 @@ var zrUtil = __webpack_require__(0);
 
 var BoundingRect = __webpack_require__(6);
 
-var _number = __webpack_require__(5);
+var _number = __webpack_require__(4);
 
 var parsePercent = _number.parsePercent;
 
 var formatUtil = __webpack_require__(12);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // Layout helpers for each component positioning
 var each = zrUtil.each;
 /**
@@ -7022,17 +7199,36 @@ var _util = __webpack_require__(0);
 var createHashMap = _util.createHashMap;
 var isTypedArray = _util.isTypedArray;
 
-var _clazz = __webpack_require__(10);
+var _clazz = __webpack_require__(11);
 
 var enableClassCheck = _clazz.enableClassCheck;
 
-var _sourceType = __webpack_require__(28);
+var _sourceType = __webpack_require__(19);
 
 var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
 var SERIES_LAYOUT_BY_COLUMN = _sourceType.SERIES_LAYOUT_BY_COLUMN;
 var SOURCE_FORMAT_UNKNOWN = _sourceType.SOURCE_FORMAT_UNKNOWN;
 var SOURCE_FORMAT_TYPED_ARRAY = _sourceType.SOURCE_FORMAT_TYPED_ARRAY;
 var SOURCE_FORMAT_KEYED_COLUMNS = _sourceType.SOURCE_FORMAT_KEYED_COLUMNS;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * [sourceFormat]
@@ -7153,6 +7349,47 @@ module.exports = _default;
 
 /***/ }),
 /* 19 */
+/***/ (function(module, exports) {
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+// Avoid typo.
+var SOURCE_FORMAT_ORIGINAL = 'original';
+var SOURCE_FORMAT_ARRAY_ROWS = 'arrayRows';
+var SOURCE_FORMAT_OBJECT_ROWS = 'objectRows';
+var SOURCE_FORMAT_KEYED_COLUMNS = 'keyedColumns';
+var SOURCE_FORMAT_UNKNOWN = 'unknown'; // ??? CHANGE A NAME
+
+var SOURCE_FORMAT_TYPED_ARRAY = 'typedArray';
+var SERIES_LAYOUT_BY_COLUMN = 'column';
+var SERIES_LAYOUT_BY_ROW = 'row';
+exports.SOURCE_FORMAT_ORIGINAL = SOURCE_FORMAT_ORIGINAL;
+exports.SOURCE_FORMAT_ARRAY_ROWS = SOURCE_FORMAT_ARRAY_ROWS;
+exports.SOURCE_FORMAT_OBJECT_ROWS = SOURCE_FORMAT_OBJECT_ROWS;
+exports.SOURCE_FORMAT_KEYED_COLUMNS = SOURCE_FORMAT_KEYED_COLUMNS;
+exports.SOURCE_FORMAT_UNKNOWN = SOURCE_FORMAT_UNKNOWN;
+exports.SOURCE_FORMAT_TYPED_ARRAY = SOURCE_FORMAT_TYPED_ARRAY;
+exports.SERIES_LAYOUT_BY_COLUMN = SERIES_LAYOUT_BY_COLUMN;
+exports.SERIES_LAYOUT_BY_ROW = SERIES_LAYOUT_BY_ROW;
+
+/***/ }),
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
@@ -7172,19 +7409,37 @@ var _model = __webpack_require__(1);
 var getDataItemValue = _model.getDataItemValue;
 var isDataItemOption = _model.isDataItemOption;
 
-var _number = __webpack_require__(5);
+var _number = __webpack_require__(4);
 
 var parseDate = _number.parseDate;
 
 var Source = __webpack_require__(18);
 
-var _sourceType = __webpack_require__(28);
+var _sourceType = __webpack_require__(19);
 
 var SOURCE_FORMAT_TYPED_ARRAY = _sourceType.SOURCE_FORMAT_TYPED_ARRAY;
 var SOURCE_FORMAT_ARRAY_ROWS = _sourceType.SOURCE_FORMAT_ARRAY_ROWS;
 var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
 var SOURCE_FORMAT_OBJECT_ROWS = _sourceType.SOURCE_FORMAT_OBJECT_ROWS;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // TODO
 // ??? refactor? check the outer usage of data provider.
 // merge with defaultDimValueGetter?
@@ -7301,16 +7556,16 @@ var providerMethods = {
     count: function () {
       return this._data ? this._data.length / this._dimSize : 0;
     },
-    getItem: function (idx) {
+    getItem: function (idx, out) {
       idx = idx - this._offset;
-      var item = [];
+      out = out || [];
       var offset = this._dimSize * idx;
 
       for (var i = 0; i < this._dimSize; i++) {
-        item[i] = this._data[offset + i];
+        out[i] = this._data[offset + i];
       }
 
-      return item;
+      return out;
     },
     appendData: function (newData) {
       this._data = newData;
@@ -7497,13 +7752,32 @@ exports.retrieveRawValue = retrieveRawValue;
 exports.retrieveRawAttr = retrieveRawAttr;
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(0);
 
 var each = _util.each;
 var isString = _util.isString;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Note that it is too complicated to support 3d stack by value
@@ -7619,7 +7893,7 @@ exports.enableDataStack = enableDataStack;
 exports.isDimensionStacked = isDimensionStacked;
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
@@ -7630,11 +7904,11 @@ var zrender = __webpack_require__(43);
 
 var zrUtil = __webpack_require__(0);
 
-var colorTool = __webpack_require__(23);
+var colorTool = __webpack_require__(24);
 
 var env = __webpack_require__(8);
 
-var timsort = __webpack_require__(31);
+var timsort = __webpack_require__(32);
 
 var Eventful = __webpack_require__(14);
 
@@ -7644,19 +7918,19 @@ var ExtensionAPI = __webpack_require__(65);
 
 var CoordinateSystemManager = __webpack_require__(37);
 
-var OptionManager = __webpack_require__(123);
+var OptionManager = __webpack_require__(124);
 
-var backwardCompat = __webpack_require__(124);
+var backwardCompat = __webpack_require__(125);
 
-var dataStack = __webpack_require__(126);
+var dataStack = __webpack_require__(127);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
 
 var SeriesModel = __webpack_require__(66);
 
-var ComponentView = __webpack_require__(128);
+var ComponentView = __webpack_require__(67);
 
-var ChartView = __webpack_require__(67);
+var ChartView = __webpack_require__(68);
 
 var graphic = __webpack_require__(7);
 
@@ -7678,23 +7952,34 @@ var lightTheme = __webpack_require__(134);
 
 var darkTheme = __webpack_require__(135);
 
-/*!
- * ECharts, a free, powerful charting and visualization library.
- *
- * Copyright (c) 2017, Baidu Inc.
- * All rights reserved.
- *
- * LICENSE
- * https://github.com/ecomfe/echarts/blob/master/LICENSE.txt
- */
+__webpack_require__(136);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var assert = zrUtil.assert;
 var each = zrUtil.each;
 var isFunction = zrUtil.isFunction;
 var isObject = zrUtil.isObject;
 var parseClassType = ComponentModel.parseClassType;
-var version = '4.0.2';
+var version = '4.1.0';
 var dependencies = {
-  zrender: '4.0.1'
+  zrender: '4.0.4'
 };
 var TEST_FRAME_REMAIN_TIME = 1;
 var PRIORITY_PROCESSOR_FILTER = 1000;
@@ -7725,7 +8010,6 @@ var PRIORITY = {
 // All events will be triggered out side main process (i.e. when !this[IN_MAIN_PROCESS]).
 
 var IN_MAIN_PROCESS = '__flagInMainProcess';
-var HAS_GRADIENT_OR_PATTERN_BG = '__hasGradientOrPatternBg';
 var OPTION_UPDATED = '__optionUpdated';
 var ACTION_REG = /^[a-zA-Z0-9_]+$/;
 
@@ -8084,7 +8368,7 @@ echartsProto.getSvgDataUrl = function () {
   zrUtil.each(list, function (el) {
     el.stopAnimation(true);
   });
-  return zr.painter.pathToSvg();
+  return zr.painter.pathToDataUrl();
 };
 /**
  * @return {string}
@@ -8355,7 +8639,7 @@ var updateMethods = {
       return;
     }
 
-    ecModel.restoreData(payload);
+    scheduler.restoreData(ecModel, payload);
     scheduler.performSeriesTasks(ecModel); // TODO
     // Save total ecModel here for undo/redo (after restoring data and before processing data).
     // Undo (restoration of total ecModel) can be carried out in 'action' or outside API call.
@@ -8367,49 +8651,27 @@ var updateMethods = {
     // stream modes after data processing, where the filtered data is used to
     // deteming whether use progressive rendering.
 
-    updateStreamModes(this, ecModel); // stackSeriesData(ecModel);
+    updateStreamModes(this, ecModel); // We update stream modes before coordinate system updated, then the modes info
+    // can be fetched when coord sys updating (consider the barGrid extent fix). But
+    // the drawback is the full coord info can not be fetched. Fortunately this full
+    // coord is not requied in stream mode updater currently.
 
     coordSysMgr.update(ecModel, api);
     clearColorPalette(ecModel);
     scheduler.performVisualTasks(ecModel, payload);
     render(this, ecModel, api, payload); // Set background
 
-    var backgroundColor = ecModel.get('backgroundColor') || 'transparent';
-    var painter = zr.painter; // TODO all use clearColor ?
+    var backgroundColor = ecModel.get('backgroundColor') || 'transparent'; // In IE8
 
-    if (painter.isSingleCanvas && painter.isSingleCanvas()) {
-      zr.configLayer(0, {
-        clearColor: backgroundColor
-      });
+    if (!env.canvasSupported) {
+      var colorArr = colorTool.parse(backgroundColor);
+      backgroundColor = colorTool.stringify(colorArr, 'rgb');
+
+      if (colorArr[3] === 0) {
+        backgroundColor = 'transparent';
+      }
     } else {
-      // In IE8
-      if (!env.canvasSupported) {
-        var colorArr = colorTool.parse(backgroundColor);
-        backgroundColor = colorTool.stringify(colorArr, 'rgb');
-
-        if (colorArr[3] === 0) {
-          backgroundColor = 'transparent';
-        }
-      }
-
-      if (backgroundColor.colorStops || backgroundColor.image) {
-        // Gradient background
-        // FIXME Fixed layer？
-        zr.configLayer(0, {
-          clearColor: backgroundColor
-        });
-        this[HAS_GRADIENT_OR_PATTERN_BG] = true;
-        this._dom.style.background = 'transparent';
-      } else {
-        if (this[HAS_GRADIENT_OR_PATTERN_BG]) {
-          zr.configLayer(0, {
-            clearColor: null
-          });
-        }
-
-        this[HAS_GRADIENT_OR_PATTERN_BG] = false;
-        this._dom.style.background = backgroundColor;
-      }
+      zr.setBackgroundColor(backgroundColor);
     }
 
     performPostUpdateFuncs(ecModel, api); // console.profile && console.profileEnd('update');
@@ -8560,10 +8822,18 @@ function updateDirectly(ecIns, method, payload, mainType, subType) {
     query: query
   };
   subType && (condition.subType = subType); // subType may be '' by parseClassType;
-  // If dispatchAction before setOption, do nothing.
 
-  ecModel && ecModel.eachComponent(condition, function (model, index) {
-    callView(ecIns[mainType === 'series' ? '_chartsMap' : '_componentsMap'][model.__viewId]);
+  var excludeSeriesId = payload.excludeSeriesId;
+
+  if (excludeSeriesId != null) {
+    excludeSeriesId = zrUtil.createHashMap(modelUtil.normalizeToArray(excludeSeriesId));
+  } // If dispatchAction before setOption, do nothing.
+
+
+  ecModel && ecModel.eachComponent(condition, function (model) {
+    if (!excludeSeriesId || excludeSeriesId.get(model.id) == null) {
+      callView(ecIns[mainType === 'series' ? '_chartsMap' : '_componentsMap'][model.__viewId]);
+    }
   }, ecIns);
 
   function callView(view) {
@@ -9676,7 +9946,7 @@ exports.setCanvasCreator = setCanvasCreator;
 exports.registerMap = registerMap;
 exports.getMap = getMap;
 exports.dataTool = dataTool;
-var ___ec_export = __webpack_require__(136);
+var ___ec_export = __webpack_require__(137);
 (function () {
     for (var key in ___ec_export) {
         if (___ec_export.hasOwnProperty(key)) {
@@ -9686,7 +9956,7 @@ var ___ec_export = __webpack_require__(136);
 })();
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
@@ -10003,7 +10273,7 @@ var _default = Group;
 module.exports = _default;
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var LRU = __webpack_require__(48);
@@ -10474,6 +10744,12 @@ function lift(color, level) {
       } else {
         colorArr[i] = (255 - colorArr[i]) * level + colorArr[i] | 0;
       }
+
+      if (colorArr[i] > 255) {
+        colorArr[i] = 255;
+      } else if (color[i] < 0) {
+        colorArr[i] = 0;
+      }
     }
 
     return stringify(colorArr, colorArr.length === 4 ? 'rgba' : 'rgb');
@@ -10629,7 +10905,7 @@ exports.modifyAlpha = modifyAlpha;
 exports.stringify = stringify;
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports) {
 
 var dpr = 1; // If in browser environment
@@ -10658,7 +10934,7 @@ exports.debugMode = debugMode;
 exports.devicePixelRatio = devicePixelRatio;
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
@@ -10667,7 +10943,7 @@ var Style = __webpack_require__(50);
 
 var Element = __webpack_require__(45);
 
-var RectText = __webpack_require__(90);
+var RectText = __webpack_require__(91);
 
 /**
  * 可绘制的图形基类
@@ -10919,7 +11195,7 @@ var _default = Displayable;
 module.exports = _default;
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var curve = __webpack_require__(13);
@@ -10930,7 +11206,7 @@ var bbox = __webpack_require__(58);
 
 var BoundingRect = __webpack_require__(6);
 
-var _config = __webpack_require__(24);
+var _config = __webpack_require__(25);
 
 var dpr = _config.devicePixelRatio;
 
@@ -11687,14 +11963,33 @@ var _default = PathProxy;
 module.exports = _default;
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var _clazz = __webpack_require__(10);
+var _clazz = __webpack_require__(11);
 
 var parseClassType = _clazz.parseClassType;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var base = 0;
 /**
  * @public
@@ -11872,30 +12167,578 @@ exports.enableSubTypeDefaulter = enableSubTypeDefaulter;
 exports.enableTopologicalTravel = enableTopologicalTravel;
 
 /***/ }),
-/* 28 */
-/***/ (function(module, exports) {
+/* 29 */
+/***/ (function(module, exports, __webpack_require__) {
 
-// Avoid typo.
-var SOURCE_FORMAT_ORIGINAL = 'original';
-var SOURCE_FORMAT_ARRAY_ROWS = 'arrayRows';
-var SOURCE_FORMAT_OBJECT_ROWS = 'objectRows';
-var SOURCE_FORMAT_KEYED_COLUMNS = 'keyedColumns';
-var SOURCE_FORMAT_UNKNOWN = 'unknown'; // ??? CHANGE A NAME
+var _config = __webpack_require__(2);
 
-var SOURCE_FORMAT_TYPED_ARRAY = 'typedArray';
-var SERIES_LAYOUT_BY_COLUMN = 'column';
-var SERIES_LAYOUT_BY_ROW = 'row';
-exports.SOURCE_FORMAT_ORIGINAL = SOURCE_FORMAT_ORIGINAL;
-exports.SOURCE_FORMAT_ARRAY_ROWS = SOURCE_FORMAT_ARRAY_ROWS;
-exports.SOURCE_FORMAT_OBJECT_ROWS = SOURCE_FORMAT_OBJECT_ROWS;
-exports.SOURCE_FORMAT_KEYED_COLUMNS = SOURCE_FORMAT_KEYED_COLUMNS;
-exports.SOURCE_FORMAT_UNKNOWN = SOURCE_FORMAT_UNKNOWN;
-exports.SOURCE_FORMAT_TYPED_ARRAY = SOURCE_FORMAT_TYPED_ARRAY;
-exports.SERIES_LAYOUT_BY_COLUMN = SERIES_LAYOUT_BY_COLUMN;
-exports.SERIES_LAYOUT_BY_ROW = SERIES_LAYOUT_BY_ROW;
+var __DEV__ = _config.__DEV__;
+
+var _model = __webpack_require__(1);
+
+var makeInner = _model.makeInner;
+var getDataItemValue = _model.getDataItemValue;
+
+var _referHelper = __webpack_require__(64);
+
+var getCoordSysDefineBySeries = _referHelper.getCoordSysDefineBySeries;
+
+var _util = __webpack_require__(0);
+
+var createHashMap = _util.createHashMap;
+var each = _util.each;
+var map = _util.map;
+var isArray = _util.isArray;
+var isString = _util.isString;
+var isObject = _util.isObject;
+var isTypedArray = _util.isTypedArray;
+var isArrayLike = _util.isArrayLike;
+var extend = _util.extend;
+var assert = _util.assert;
+
+var Source = __webpack_require__(18);
+
+var _sourceType = __webpack_require__(19);
+
+var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
+var SOURCE_FORMAT_ARRAY_ROWS = _sourceType.SOURCE_FORMAT_ARRAY_ROWS;
+var SOURCE_FORMAT_OBJECT_ROWS = _sourceType.SOURCE_FORMAT_OBJECT_ROWS;
+var SOURCE_FORMAT_KEYED_COLUMNS = _sourceType.SOURCE_FORMAT_KEYED_COLUMNS;
+var SOURCE_FORMAT_UNKNOWN = _sourceType.SOURCE_FORMAT_UNKNOWN;
+var SOURCE_FORMAT_TYPED_ARRAY = _sourceType.SOURCE_FORMAT_TYPED_ARRAY;
+var SERIES_LAYOUT_BY_ROW = _sourceType.SERIES_LAYOUT_BY_ROW;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+var inner = makeInner();
+/**
+ * @see {module:echarts/data/Source}
+ * @param {module:echarts/component/dataset/DatasetModel} datasetModel
+ * @return {string} sourceFormat
+ */
+
+function detectSourceFormat(datasetModel) {
+  var data = datasetModel.option.source;
+  var sourceFormat = SOURCE_FORMAT_UNKNOWN;
+
+  if (isTypedArray(data)) {
+    sourceFormat = SOURCE_FORMAT_TYPED_ARRAY;
+  } else if (isArray(data)) {
+    // FIXME Whether tolerate null in top level array?
+    for (var i = 0, len = data.length; i < len; i++) {
+      var item = data[i];
+
+      if (item == null) {
+        continue;
+      } else if (isArray(item)) {
+        sourceFormat = SOURCE_FORMAT_ARRAY_ROWS;
+        break;
+      } else if (isObject(item)) {
+        sourceFormat = SOURCE_FORMAT_OBJECT_ROWS;
+        break;
+      }
+    }
+  } else if (isObject(data)) {
+    for (var key in data) {
+      if (data.hasOwnProperty(key) && isArrayLike(data[key])) {
+        sourceFormat = SOURCE_FORMAT_KEYED_COLUMNS;
+        break;
+      }
+    }
+  } else if (data != null) {
+    throw new Error('Invalid data');
+  }
+
+  inner(datasetModel).sourceFormat = sourceFormat;
+}
+/**
+ * [Scenarios]:
+ * (1) Provide source data directly:
+ *     series: {
+ *         encode: {...},
+ *         dimensions: [...]
+ *         seriesLayoutBy: 'row',
+ *         data: [[...]]
+ *     }
+ * (2) Refer to datasetModel.
+ *     series: [{
+ *         encode: {...}
+ *         // Ignore datasetIndex means `datasetIndex: 0`
+ *         // and the dimensions defination in dataset is used
+ *     }, {
+ *         encode: {...},
+ *         seriesLayoutBy: 'column',
+ *         datasetIndex: 1
+ *     }]
+ *
+ * Get data from series itself or datset.
+ * @return {module:echarts/data/Source} source
+ */
+
+
+function getSource(seriesModel) {
+  return inner(seriesModel).source;
+}
+/**
+ * MUST be called before mergeOption of all series.
+ * @param {module:echarts/model/Global} ecModel
+ */
+
+
+function resetSourceDefaulter(ecModel) {
+  // `datasetMap` is used to make default encode.
+  inner(ecModel).datasetMap = createHashMap();
+}
+/**
+ * [Caution]:
+ * MUST be called after series option merged and
+ * before "series.getInitailData()" called.
+ *
+ * [The rule of making default encode]:
+ * Category axis (if exists) alway map to the first dimension.
+ * Each other axis occupies a subsequent dimension.
+ *
+ * [Why make default encode]:
+ * Simplify the typing of encode in option, avoiding the case like that:
+ * series: [{encode: {x: 0, y: 1}}, {encode: {x: 0, y: 2}}, {encode: {x: 0, y: 3}}],
+ * where the "y" have to be manually typed as "1, 2, 3, ...".
+ *
+ * @param {module:echarts/model/Series} seriesModel
+ */
+
+
+function prepareSource(seriesModel) {
+  var seriesOption = seriesModel.option;
+  var data = seriesOption.data;
+  var sourceFormat = isTypedArray(data) ? SOURCE_FORMAT_TYPED_ARRAY : SOURCE_FORMAT_ORIGINAL;
+  var fromDataset = false;
+  var seriesLayoutBy = seriesOption.seriesLayoutBy;
+  var sourceHeader = seriesOption.sourceHeader;
+  var dimensionsDefine = seriesOption.dimensions;
+  var datasetModel = getDatasetModel(seriesModel);
+
+  if (datasetModel) {
+    var datasetOption = datasetModel.option;
+    data = datasetOption.source;
+    sourceFormat = inner(datasetModel).sourceFormat;
+    fromDataset = true; // These settings from series has higher priority.
+
+    seriesLayoutBy = seriesLayoutBy || datasetOption.seriesLayoutBy;
+    sourceHeader == null && (sourceHeader = datasetOption.sourceHeader);
+    dimensionsDefine = dimensionsDefine || datasetOption.dimensions;
+  }
+
+  var completeResult = completeBySourceData(data, sourceFormat, seriesLayoutBy, sourceHeader, dimensionsDefine); // Note: dataset option does not have `encode`.
+
+  var encodeDefine = seriesOption.encode;
+
+  if (!encodeDefine && datasetModel) {
+    encodeDefine = makeDefaultEncode(seriesModel, datasetModel, data, sourceFormat, seriesLayoutBy, completeResult);
+  }
+
+  inner(seriesModel).source = new Source({
+    data: data,
+    fromDataset: fromDataset,
+    seriesLayoutBy: seriesLayoutBy,
+    sourceFormat: sourceFormat,
+    dimensionsDefine: completeResult.dimensionsDefine,
+    startIndex: completeResult.startIndex,
+    dimensionsDetectCount: completeResult.dimensionsDetectCount,
+    encodeDefine: encodeDefine
+  });
+} // return {startIndex, dimensionsDefine, dimensionsCount}
+
+
+function completeBySourceData(data, sourceFormat, seriesLayoutBy, sourceHeader, dimensionsDefine) {
+  if (!data) {
+    return {
+      dimensionsDefine: normalizeDimensionsDefine(dimensionsDefine)
+    };
+  }
+
+  var dimensionsDetectCount;
+  var startIndex;
+  var findPotentialName;
+
+  if (sourceFormat === SOURCE_FORMAT_ARRAY_ROWS) {
+    // Rule: Most of the first line are string: it is header.
+    // Caution: consider a line with 5 string and 1 number,
+    // it still can not be sure it is a head, because the
+    // 5 string may be 5 values of category columns.
+    if (sourceHeader === 'auto' || sourceHeader == null) {
+      arrayRowsTravelFirst(function (val) {
+        // '-' is regarded as null/undefined.
+        if (val != null && val !== '-') {
+          if (isString(val)) {
+            startIndex == null && (startIndex = 1);
+          } else {
+            startIndex = 0;
+          }
+        } // 10 is an experience number, avoid long loop.
+
+      }, seriesLayoutBy, data, 10);
+    } else {
+      startIndex = sourceHeader ? 1 : 0;
+    }
+
+    if (!dimensionsDefine && startIndex === 1) {
+      dimensionsDefine = [];
+      arrayRowsTravelFirst(function (val, index) {
+        dimensionsDefine[index] = val != null ? val : '';
+      }, seriesLayoutBy, data);
+    }
+
+    dimensionsDetectCount = dimensionsDefine ? dimensionsDefine.length : seriesLayoutBy === SERIES_LAYOUT_BY_ROW ? data.length : data[0] ? data[0].length : null;
+  } else if (sourceFormat === SOURCE_FORMAT_OBJECT_ROWS) {
+    if (!dimensionsDefine) {
+      dimensionsDefine = objectRowsCollectDimensions(data);
+      findPotentialName = true;
+    }
+  } else if (sourceFormat === SOURCE_FORMAT_KEYED_COLUMNS) {
+    if (!dimensionsDefine) {
+      dimensionsDefine = [];
+      findPotentialName = true;
+      each(data, function (colArr, key) {
+        dimensionsDefine.push(key);
+      });
+    }
+  } else if (sourceFormat === SOURCE_FORMAT_ORIGINAL) {
+    var value0 = getDataItemValue(data[0]);
+    dimensionsDetectCount = isArray(value0) && value0.length || 1;
+  } else if (sourceFormat === SOURCE_FORMAT_TYPED_ARRAY) {}
+
+  var potentialNameDimIndex;
+
+  if (findPotentialName) {
+    each(dimensionsDefine, function (dim, idx) {
+      if ((isObject(dim) ? dim.name : dim) === 'name') {
+        potentialNameDimIndex = idx;
+      }
+    });
+  }
+
+  return {
+    startIndex: startIndex,
+    dimensionsDefine: normalizeDimensionsDefine(dimensionsDefine),
+    dimensionsDetectCount: dimensionsDetectCount,
+    potentialNameDimIndex: potentialNameDimIndex // TODO: potentialIdDimIdx
+
+  };
+} // Consider dimensions defined like ['A', 'price', 'B', 'price', 'C', 'price'],
+// which is reasonable. But dimension name is duplicated.
+// Returns undefined or an array contains only object without null/undefiend or string.
+
+
+function normalizeDimensionsDefine(dimensionsDefine) {
+  if (!dimensionsDefine) {
+    // The meaning of null/undefined is different from empty array.
+    return;
+  }
+
+  var nameMap = createHashMap();
+  return map(dimensionsDefine, function (item, index) {
+    item = extend({}, isObject(item) ? item : {
+      name: item
+    }); // User can set null in dimensions.
+    // We dont auto specify name, othewise a given name may
+    // cause it be refered unexpectedly.
+
+    if (item.name == null) {
+      return item;
+    } // Also consider number form like 2012.
+
+
+    item.name += ''; // User may also specify displayName.
+    // displayName will always exists except user not
+    // specified or dim name is not specified or detected.
+    // (A auto generated dim name will not be used as
+    // displayName).
+
+    if (item.displayName == null) {
+      item.displayName = item.name;
+    }
+
+    var exist = nameMap.get(item.name);
+
+    if (!exist) {
+      nameMap.set(item.name, {
+        count: 1
+      });
+    } else {
+      item.name += '-' + exist.count++;
+    }
+
+    return item;
+  });
+}
+
+function arrayRowsTravelFirst(cb, seriesLayoutBy, data, maxLoop) {
+  maxLoop == null && (maxLoop = Infinity);
+
+  if (seriesLayoutBy === SERIES_LAYOUT_BY_ROW) {
+    for (var i = 0; i < data.length && i < maxLoop; i++) {
+      cb(data[i] ? data[i][0] : null, i);
+    }
+  } else {
+    var value0 = data[0] || [];
+
+    for (var i = 0; i < value0.length && i < maxLoop; i++) {
+      cb(value0[i], i);
+    }
+  }
+}
+
+function objectRowsCollectDimensions(data) {
+  var firstIndex = 0;
+  var obj;
+
+  while (firstIndex < data.length && !(obj = data[firstIndex++])) {} // jshint ignore: line
+
+
+  if (obj) {
+    var dimensions = [];
+    each(obj, function (value, key) {
+      dimensions.push(key);
+    });
+    return dimensions;
+  }
+} // ??? TODO merge to completedimensions, where also has
+// default encode making logic. And the default rule
+// should depends on series? consider 'map'.
+
+
+function makeDefaultEncode(seriesModel, datasetModel, data, sourceFormat, seriesLayoutBy, completeResult) {
+  var coordSysDefine = getCoordSysDefineBySeries(seriesModel);
+  var encode = {}; // var encodeTooltip = [];
+  // var encodeLabel = [];
+
+  var encodeItemName = [];
+  var encodeSeriesName = [];
+  var seriesType = seriesModel.subType; // ??? TODO refactor: provide by series itself.
+  // Consider the case: 'map' series is based on geo coordSys,
+  // 'graph', 'heatmap' can be based on cartesian. But can not
+  // give default rule simply here.
+
+  var nSeriesMap = createHashMap(['pie', 'map', 'funnel']);
+  var cSeriesMap = createHashMap(['line', 'bar', 'pictorialBar', 'scatter', 'effectScatter', 'candlestick', 'boxplot']); // Usually in this case series will use the first data
+  // dimension as the "value" dimension, or other default
+  // processes respectively.
+
+  if (coordSysDefine && cSeriesMap.get(seriesType) != null) {
+    var ecModel = seriesModel.ecModel;
+    var datasetMap = inner(ecModel).datasetMap;
+    var key = datasetModel.uid + '_' + seriesLayoutBy;
+    var datasetRecord = datasetMap.get(key) || datasetMap.set(key, {
+      categoryWayDim: 1,
+      valueWayDim: 0
+    }); // TODO
+    // Auto detect first time axis and do arrangement.
+
+    each(coordSysDefine.coordSysDims, function (coordDim) {
+      // In value way.
+      if (coordSysDefine.firstCategoryDimIndex == null) {
+        var dataDim = datasetRecord.valueWayDim++;
+        encode[coordDim] = dataDim; // ??? TODO give a better default series name rule?
+        // especially when encode x y specified.
+        // consider: when mutiple series share one dimension
+        // category axis, series name should better use
+        // the other dimsion name. On the other hand, use
+        // both dimensions name.
+
+        encodeSeriesName.push(dataDim); // encodeTooltip.push(dataDim);
+        // encodeLabel.push(dataDim);
+      } // In category way, category axis.
+      else if (coordSysDefine.categoryAxisMap.get(coordDim)) {
+          encode[coordDim] = 0;
+          encodeItemName.push(0);
+        } // In category way, non-category axis.
+        else {
+            var dataDim = datasetRecord.categoryWayDim++;
+            encode[coordDim] = dataDim; // encodeTooltip.push(dataDim);
+            // encodeLabel.push(dataDim);
+
+            encodeSeriesName.push(dataDim);
+          }
+    });
+  } // Do not make a complex rule! Hard to code maintain and not necessary.
+  // ??? TODO refactor: provide by series itself.
+  // [{name: ..., value: ...}, ...] like:
+  else if (nSeriesMap.get(seriesType) != null) {
+      // Find the first not ordinal. (5 is an experience value)
+      var firstNotOrdinal;
+
+      for (var i = 0; i < 5 && firstNotOrdinal == null; i++) {
+        if (!doGuessOrdinal(data, sourceFormat, seriesLayoutBy, completeResult.dimensionsDefine, completeResult.startIndex, i)) {
+          firstNotOrdinal = i;
+        }
+      }
+
+      if (firstNotOrdinal != null) {
+        encode.value = firstNotOrdinal;
+        var nameDimIndex = completeResult.potentialNameDimIndex || Math.max(firstNotOrdinal - 1, 0); // By default, label use itemName in charts.
+        // So we dont set encodeLabel here.
+
+        encodeSeriesName.push(nameDimIndex);
+        encodeItemName.push(nameDimIndex); // encodeTooltip.push(firstNotOrdinal);
+      }
+    } // encodeTooltip.length && (encode.tooltip = encodeTooltip);
+  // encodeLabel.length && (encode.label = encodeLabel);
+
+
+  encodeItemName.length && (encode.itemName = encodeItemName);
+  encodeSeriesName.length && (encode.seriesName = encodeSeriesName);
+  return encode;
+}
+/**
+ * If return null/undefined, indicate that should not use datasetModel.
+ */
+
+
+function getDatasetModel(seriesModel) {
+  var option = seriesModel.option; // Caution: consider the scenario:
+  // A dataset is declared and a series is not expected to use the dataset,
+  // and at the beginning `setOption({series: { noData })` (just prepare other
+  // option but no data), then `setOption({series: {data: [...]}); In this case,
+  // the user should set an empty array to avoid that dataset is used by default.
+
+  var thisData = option.data;
+
+  if (!thisData) {
+    return seriesModel.ecModel.getComponent('dataset', option.datasetIndex || 0);
+  }
+}
+/**
+ * The rule should not be complex, otherwise user might not
+ * be able to known where the data is wrong.
+ * The code is ugly, but how to make it neat?
+ *
+ * @param {module:echars/data/Source} source
+ * @param {number} dimIndex
+ * @return {boolean} Whether ordinal.
+ */
+
+
+function guessOrdinal(source, dimIndex) {
+  return doGuessOrdinal(source.data, source.sourceFormat, source.seriesLayoutBy, source.dimensionsDefine, source.startIndex, dimIndex);
+} // dimIndex may be overflow source data.
+
+
+function doGuessOrdinal(data, sourceFormat, seriesLayoutBy, dimensionsDefine, startIndex, dimIndex) {
+  var result; // Experience value.
+
+  var maxLoop = 5;
+
+  if (isTypedArray(data)) {
+    return false;
+  } // When sourceType is 'objectRows' or 'keyedColumns', dimensionsDefine
+  // always exists in source.
+
+
+  var dimName;
+
+  if (dimensionsDefine) {
+    dimName = dimensionsDefine[dimIndex];
+    dimName = isObject(dimName) ? dimName.name : dimName;
+  }
+
+  if (sourceFormat === SOURCE_FORMAT_ARRAY_ROWS) {
+    if (seriesLayoutBy === SERIES_LAYOUT_BY_ROW) {
+      var sample = data[dimIndex];
+
+      for (var i = 0; i < (sample || []).length && i < maxLoop; i++) {
+        if ((result = detectValue(sample[startIndex + i])) != null) {
+          return result;
+        }
+      }
+    } else {
+      for (var i = 0; i < data.length && i < maxLoop; i++) {
+        var row = data[startIndex + i];
+
+        if (row && (result = detectValue(row[dimIndex])) != null) {
+          return result;
+        }
+      }
+    }
+  } else if (sourceFormat === SOURCE_FORMAT_OBJECT_ROWS) {
+    if (!dimName) {
+      return;
+    }
+
+    for (var i = 0; i < data.length && i < maxLoop; i++) {
+      var item = data[i];
+
+      if (item && (result = detectValue(item[dimName])) != null) {
+        return result;
+      }
+    }
+  } else if (sourceFormat === SOURCE_FORMAT_KEYED_COLUMNS) {
+    if (!dimName) {
+      return;
+    }
+
+    var sample = data[dimName];
+
+    if (!sample || isTypedArray(sample)) {
+      return false;
+    }
+
+    for (var i = 0; i < sample.length && i < maxLoop; i++) {
+      if ((result = detectValue(sample[i])) != null) {
+        return result;
+      }
+    }
+  } else if (sourceFormat === SOURCE_FORMAT_ORIGINAL) {
+    for (var i = 0; i < data.length && i < maxLoop; i++) {
+      var item = data[i];
+      var val = getDataItemValue(item);
+
+      if (!isArray(val)) {
+        return false;
+      }
+
+      if ((result = detectValue(val[dimIndex])) != null) {
+        return result;
+      }
+    }
+  }
+
+  function detectValue(val) {
+    // Consider usage convenience, '1', '2' will be treated as "number".
+    // `isFinit('')` get `true`.
+    if (val != null && isFinite(val) && val !== '') {
+      return false;
+    } else if (isString(val) && val !== '-') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+exports.detectSourceFormat = detectSourceFormat;
+exports.getSource = getSource;
+exports.resetSourceDefaulter = resetSourceDefaulter;
+exports.prepareSource = prepareSource;
+exports.guessOrdinal = guessOrdinal;
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
@@ -11904,23 +12747,44 @@ var __DEV__ = _config.__DEV__;
 
 var zrUtil = __webpack_require__(0);
 
-var textContain = __webpack_require__(16);
+var OrdinalScale = __webpack_require__(140);
 
-var OrdinalScale = __webpack_require__(139);
+var IntervalScale = __webpack_require__(41);
 
-var IntervalScale = __webpack_require__(40);
+var Scale = __webpack_require__(31);
 
-var Scale = __webpack_require__(30);
+var numberUtil = __webpack_require__(4);
 
-var numberUtil = __webpack_require__(5);
+var _barGrid = __webpack_require__(141);
 
-var _barGrid = __webpack_require__(140);
+var prepareLayoutBarSeries = _barGrid.prepareLayoutBarSeries;
+var makeColumnLayout = _barGrid.makeColumnLayout;
+var retrieveColumnLayout = _barGrid.retrieveColumnLayout;
 
-var calBarWidthAndOffset = _barGrid.calBarWidthAndOffset;
-
-__webpack_require__(141);
+var BoundingRect = __webpack_require__(6);
 
 __webpack_require__(142);
+
+__webpack_require__(143);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Get axis scale extent before niced.
@@ -11996,7 +12860,7 @@ function getScaleExtent(scale, model) {
 
   (min == null || !isFinite(min)) && (min = NaN);
   (max == null || !isFinite(max)) && (max = NaN);
-  scale.setBlank(zrUtil.eqNaN(min) || zrUtil.eqNaN(max)); // Evaluate if axis needs cross zero
+  scale.setBlank(zrUtil.eqNaN(min) || zrUtil.eqNaN(max) || scaleType === 'ordinal' && !scale.getOrdinalMeta().categories.length); // Evaluate if axis needs cross zero
 
   if (model.getNeedCrossZero()) {
     // Axis is over zero and min is not set
@@ -12012,7 +12876,7 @@ function getScaleExtent(scale, model) {
   // is base axis
   // FIXME
   // (1) Consider support value axis, where below zero and axis `onZero` should be handled properly.
-  // (2) Refactor the logic with `barGrid`. Is it not need to `calBarWidthAndOffset` twice with different extent?
+  // (2) Refactor the logic with `barGrid`. Is it not need to `makeBarWidthAndOffsetInfo` twice with different extent?
   //     Should not depend on series type `bar`?
   // (3) Fix that might overlap when using dataZoom.
   // (4) Consider other chart types using `barGrid`?
@@ -12024,18 +12888,17 @@ function getScaleExtent(scale, model) {
   if (ecModel && scaleType === 'time'
   /*|| scaleType === 'interval' */
   ) {
-    var barSeriesModels = [];
+    var barSeriesModels = prepareLayoutBarSeries('bar', ecModel);
     var isBaseAxisAndHasBarSeries;
-    zrUtil.each(ecModel.getSeriesByType('bar'), function (seriesModel) {
-      if (seriesModel.coordinateSystem && seriesModel.coordinateSystem.type === 'cartesian2d') {
-        barSeriesModels.push(seriesModel);
-        isBaseAxisAndHasBarSeries |= seriesModel.getBaseAxis() === model.axis;
-      }
+    zrUtil.each(barSeriesModels, function (seriesModel) {
+      isBaseAxisAndHasBarSeries |= seriesModel.getBaseAxis() === model.axis;
     });
 
     if (isBaseAxisAndHasBarSeries) {
-      // Adjust axis min and max to account for overflow
-      var adjustedScale = adjustScaleForOverflow(min, max, model, barSeriesModels);
+      // Calculate placement of bars on axis
+      var barWidthAndOffset = makeColumnLayout(barSeriesModels); // Adjust axis min and max to account for overflow
+
+      var adjustedScale = adjustScaleForOverflow(min, max, model, barWidthAndOffset);
       min = adjustedScale.min;
       max = adjustedScale.max;
     }
@@ -12044,15 +12907,12 @@ function getScaleExtent(scale, model) {
   return [min, max];
 }
 
-function adjustScaleForOverflow(min, max, model, barSeriesModels) {
+function adjustScaleForOverflow(min, max, model, barWidthAndOffset) {
   // Get Axis Length
   var axisExtent = model.axis.getExtent();
-  var axisLength = axisExtent[1] - axisExtent[0]; // Calculate placement of bars on axis
+  var axisLength = axisExtent[1] - axisExtent[0]; // Get bars on current base axis and calculate min and max overflow
 
-  var barWidthAndOffset = calBarWidthAndOffset(barSeriesModels); // Get bars on current base axis and calculate min and max overflow
-
-  var baseAxisKey = model.axis.dim + model.axis.index;
-  var barsOnCurrentAxis = barWidthAndOffset[baseAxisKey];
+  var barsOnCurrentAxis = retrieveColumnLayout(barWidthAndOffset, model.axis);
 
   if (barsOnCurrentAxis === undefined) {
     return {
@@ -12151,68 +13011,18 @@ function ifAxisCrossZero(axis) {
   return !(min > 0 && max > 0 || min < 0 && max < 0);
 }
 /**
- * @param {Array.<number>} tickCoords In axis self coordinate.
- * @param {Array.<string>} labels
- * @param {string} font
- * @param {number} axisRotate 0: towards right horizontally, clock-wise is negative.
- * @param {number} [labelRotate=0] 0: towards right horizontally, clock-wise is negative.
- * @return {number}
+ * @param {module:echarts/coord/Axis} axis
+ * @return {Function} Label formatter function.
+ *         param: {number} tickValue,
+ *         param: {number} idx, the index in all ticks.
+ *                         If category axis, this param is not requied.
+ *         return: {string} label string.
  */
 
 
-function getAxisLabelInterval(tickCoords, labels, font, axisRotate, labelRotate) {
-  var textSpaceTakenRect;
-  var autoLabelInterval = 0;
-  var accumulatedLabelInterval = 0;
-  var rotation = (axisRotate - labelRotate) / 180 * Math.PI;
-  var step = 1;
-
-  if (labels.length > 40) {
-    // Simple optimization for large amount of labels
-    step = Math.floor(labels.length / 40);
-  }
-
-  for (var i = 0; i < tickCoords.length; i += step) {
-    var tickCoord = tickCoords[i]; // Not precise, do not consider align and vertical align
-    // and each distance from axis line yet.
-
-    var rect = textContain.getBoundingRect(labels[i], font, 'center', 'top');
-    rect.x += tickCoord * Math.cos(rotation);
-    rect.y += tickCoord * Math.sin(rotation); // Magic number
-
-    rect.width *= 1.3;
-    rect.height *= 1.3;
-
-    if (!textSpaceTakenRect) {
-      textSpaceTakenRect = rect.clone();
-    } // There is no space for current label;
-    else if (textSpaceTakenRect.intersect(rect)) {
-        accumulatedLabelInterval++;
-        autoLabelInterval = Math.max(autoLabelInterval, accumulatedLabelInterval);
-      } else {
-        textSpaceTakenRect.union(rect); // Reset
-
-        accumulatedLabelInterval = 0;
-      }
-  }
-
-  if (autoLabelInterval === 0 && step > 1) {
-    return step;
-  }
-
-  return (autoLabelInterval + 1) * step - 1;
-}
-/**
- * @param {Object} axis
- * @param {Function} labelFormatter
- * @return {Array.<string>}
- */
-
-
-function getFormattedLabels(axis, labelFormatter) {
-  var scale = axis.scale;
-  var labels = scale.getTicksLabels();
-  var ticks = scale.getTicks();
+function makeLabelFormatter(axis) {
+  var labelFormatter = axis.getLabelModel().get('formatter');
+  var categoryTickStart = axis.type === 'category' ? axis.scale.getExtent()[0] : null;
 
   if (typeof labelFormatter === 'string') {
     labelFormatter = function (tpl) {
@@ -12222,13 +13032,25 @@ function getFormattedLabels(axis, labelFormatter) {
     }(labelFormatter); // Consider empty array
 
 
-    return zrUtil.map(labels, labelFormatter);
+    return labelFormatter;
   } else if (typeof labelFormatter === 'function') {
-    return zrUtil.map(ticks, function (tick, idx) {
-      return labelFormatter(getAxisRawValue(axis, tick), idx);
-    }, this);
+    return function (tickValue, idx) {
+      // The original intention of `idx` is "the index of the tick in all ticks".
+      // But the previous implementation of category axis do not consider the
+      // `axisLabel.interval`, which cause that, for example, the `interval` is
+      // `1`, then the ticks "name5", "name7", "name9" are displayed, where the
+      // corresponding `idx` are `0`, `2`, `4`, but not `0`, `1`, `2`. So we keep
+      // the definition here for back compatibility.
+      if (categoryTickStart != null) {
+        idx = tickValue - categoryTickStart;
+      }
+
+      return labelFormatter(getAxisRawValue(axis, tickValue), idx);
+    };
   } else {
-    return labels;
+    return function (tick) {
+      return axis.scale.getLabel(tick);
+    };
   }
 }
 
@@ -12238,20 +13060,95 @@ function getAxisRawValue(axis, value) {
   // in category axis.
   return axis.type === 'category' ? axis.scale.getLabel(value) : value;
 }
+/**
+ * @param {module:echarts/coord/Axis} axis
+ * @return {module:zrender/core/BoundingRect} Be null/undefined if no labels.
+ */
+
+
+function estimateLabelUnionRect(axis) {
+  var axisModel = axis.model;
+  var scale = axis.scale;
+
+  if (!axisModel.get('axisLabel.show') || scale.isBlank()) {
+    return;
+  }
+
+  var isCategory = axis.type === 'category';
+  var realNumberScaleTicks;
+  var tickCount;
+  var categoryScaleExtent = scale.getExtent(); // Optimize for large category data, avoid call `getTicks()`.
+
+  if (isCategory) {
+    tickCount = scale.count();
+  } else {
+    realNumberScaleTicks = scale.getTicks();
+    tickCount = realNumberScaleTicks.length;
+  }
+
+  var axisLabelModel = axis.getLabelModel();
+  var labelFormatter = makeLabelFormatter(axis);
+  var rect;
+  var step = 1; // Simple optimization for large amount of labels
+
+  if (tickCount > 40) {
+    step = Math.ceil(tickCount / 40);
+  }
+
+  for (var i = 0; i < tickCount; i += step) {
+    var tickValue = realNumberScaleTicks ? realNumberScaleTicks[i] : categoryScaleExtent[0] + i;
+    var label = labelFormatter(tickValue);
+    var unrotatedSingleRect = axisLabelModel.getTextRect(label);
+    var singleRect = rotateTextRect(unrotatedSingleRect, axisLabelModel.get('rotate') || 0);
+    rect ? rect.union(singleRect) : rect = singleRect;
+  }
+
+  return rect;
+}
+
+function rotateTextRect(textRect, rotate) {
+  var rotateRadians = rotate * Math.PI / 180;
+  var boundingBox = textRect.plain();
+  var beforeWidth = boundingBox.width;
+  var beforeHeight = boundingBox.height;
+  var afterWidth = beforeWidth * Math.cos(rotateRadians) + beforeHeight * Math.sin(rotateRadians);
+  var afterHeight = beforeWidth * Math.sin(rotateRadians) + beforeHeight * Math.cos(rotateRadians);
+  var rotatedRect = new BoundingRect(boundingBox.x, boundingBox.y, afterWidth, afterHeight);
+  return rotatedRect;
+}
 
 exports.getScaleExtent = getScaleExtent;
 exports.niceScaleExtent = niceScaleExtent;
 exports.createScaleByModel = createScaleByModel;
 exports.ifAxisCrossZero = ifAxisCrossZero;
-exports.getAxisLabelInterval = getAxisLabelInterval;
-exports.getFormattedLabels = getFormattedLabels;
+exports.makeLabelFormatter = makeLabelFormatter;
 exports.getAxisRawValue = getAxisRawValue;
+exports.estimateLabelUnionRect = estimateLabelUnionRect;
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var clazzUtil = __webpack_require__(10);
+var clazzUtil = __webpack_require__(11);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * // Scale class management
@@ -12379,21 +13276,6 @@ Scale.prototype.setExtent = function (start, end) {
   }
 };
 /**
- * @return {Array.<string>}
- */
-
-
-Scale.prototype.getTicksLabels = function () {
-  var labels = [];
-  var ticks = this.getTicks();
-
-  for (var i = 0; i < ticks.length; i++) {
-    labels.push(this.getLabel(ticks[i]));
-  }
-
-  return labels;
-};
-/**
  * When axis extent depends on data and no data exists,
  * axis ticks should not be drawn, which is named 'blank'.
  */
@@ -12409,6 +13291,13 @@ Scale.prototype.isBlank = function () {
 Scale.prototype.setBlank = function (isBlank) {
   this._isBlank = isBlank;
 };
+/**
+ * @abstract
+ * @param {*} tick
+ * @return {string} label of the tick.
+ */
+
+Scale.prototype.getLabel = null;
 clazzUtil.enableClassExtend(Scale);
 clazzUtil.enableClassManagement(Scale, {
   registerWhenExtend: true
@@ -12417,7 +13306,7 @@ var _default = Scale;
 module.exports = _default;
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ (function(module, exports) {
 
 // https://github.com/mziccard/node-timsort
@@ -13086,7 +13975,7 @@ function sort(array, compare, lo, hi) {
 module.exports = sort;
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var LRU = __webpack_require__(48);
@@ -13179,7 +14068,7 @@ exports.createOrUpdateImage = createOrUpdateImage;
 exports.isImageReady = isImageReady;
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var Eventful = __webpack_require__(14);
@@ -13359,11 +14248,29 @@ exports.stop = stop;
 exports.notLeftMouse = notLeftMouse;
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // TODO Parse shadow style
 // TODO Only shallow path support
 function _default(properties) {
@@ -13398,7 +14305,7 @@ function _default(properties) {
 module.exports = _default;
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ (function(module, exports) {
 
 /**
@@ -13421,563 +14328,29 @@ var _default = Gradient;
 module.exports = _default;
 
 /***/ }),
-/* 36 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var _config = __webpack_require__(2);
-
-var __DEV__ = _config.__DEV__;
-
-var _model = __webpack_require__(1);
-
-var makeInner = _model.makeInner;
-var getDataItemValue = _model.getDataItemValue;
-
-var _referHelper = __webpack_require__(64);
-
-var getCoordSysDefineBySeries = _referHelper.getCoordSysDefineBySeries;
-
-var _util = __webpack_require__(0);
-
-var createHashMap = _util.createHashMap;
-var each = _util.each;
-var map = _util.map;
-var isArray = _util.isArray;
-var isString = _util.isString;
-var isObject = _util.isObject;
-var isTypedArray = _util.isTypedArray;
-var isArrayLike = _util.isArrayLike;
-var extend = _util.extend;
-var assert = _util.assert;
-
-var Source = __webpack_require__(18);
-
-var _sourceType = __webpack_require__(28);
-
-var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
-var SOURCE_FORMAT_ARRAY_ROWS = _sourceType.SOURCE_FORMAT_ARRAY_ROWS;
-var SOURCE_FORMAT_OBJECT_ROWS = _sourceType.SOURCE_FORMAT_OBJECT_ROWS;
-var SOURCE_FORMAT_KEYED_COLUMNS = _sourceType.SOURCE_FORMAT_KEYED_COLUMNS;
-var SOURCE_FORMAT_UNKNOWN = _sourceType.SOURCE_FORMAT_UNKNOWN;
-var SOURCE_FORMAT_TYPED_ARRAY = _sourceType.SOURCE_FORMAT_TYPED_ARRAY;
-var SERIES_LAYOUT_BY_ROW = _sourceType.SERIES_LAYOUT_BY_ROW;
-var inner = makeInner();
-/**
- * @see {module:echarts/data/Source}
- * @param {module:echarts/component/dataset/DatasetModel} datasetModel
- * @return {string} sourceFormat
- */
-
-function detectSourceFormat(datasetModel) {
-  var data = datasetModel.option.source;
-  var sourceFormat = SOURCE_FORMAT_UNKNOWN;
-
-  if (isTypedArray(data)) {
-    sourceFormat = SOURCE_FORMAT_TYPED_ARRAY;
-  } else if (isArray(data)) {
-    // FIXME Whether tolerate null in top level array?
-    for (var i = 0, len = data.length; i < len; i++) {
-      var item = data[i];
-
-      if (item == null) {
-        continue;
-      } else if (isArray(item)) {
-        sourceFormat = SOURCE_FORMAT_ARRAY_ROWS;
-        break;
-      } else if (isObject(item)) {
-        sourceFormat = SOURCE_FORMAT_OBJECT_ROWS;
-        break;
-      }
-    }
-  } else if (isObject(data)) {
-    for (var key in data) {
-      if (data.hasOwnProperty(key) && isArrayLike(data[key])) {
-        sourceFormat = SOURCE_FORMAT_KEYED_COLUMNS;
-        break;
-      }
-    }
-  } else if (data != null) {
-    throw new Error('Invalid data');
-  }
-
-  inner(datasetModel).sourceFormat = sourceFormat;
-}
-/**
- * [Scenarios]:
- * (1) Provide source data directly:
- *     series: {
- *         encode: {...},
- *         dimensions: [...]
- *         seriesLayoutBy: 'row',
- *         data: [[...]]
- *     }
- * (2) Refer to datasetModel.
- *     series: [{
- *         encode: {...}
- *         // Ignore datasetIndex means `datasetIndex: 0`
- *         // and the dimensions defination in dataset is used
- *     }, {
- *         encode: {...},
- *         seriesLayoutBy: 'column',
- *         datasetIndex: 1
- *     }]
- *
- * Get data from series itself or datset.
- * @return {module:echarts/data/Source} source
- */
-
-
-function getSource(seriesModel) {
-  return inner(seriesModel).source;
-}
-/**
- * MUST be called before mergeOption of all series.
- * @param {module:echarts/model/Global} ecModel
- */
-
-
-function resetSourceDefaulter(ecModel) {
-  // `datasetMap` is used to make default encode.
-  inner(ecModel).datasetMap = createHashMap();
-}
-/**
- * [Caution]:
- * MUST be called after series option merged and
- * before "series.getInitailData()" called.
- *
- * [The rule of making default encode]:
- * Category axis (if exists) alway map to the first dimension.
- * Each other axis occupies a subsequent dimension.
- *
- * [Why make default encode]:
- * Simplify the typing of encode in option, avoiding the case like that:
- * series: [{encode: {x: 0, y: 1}}, {encode: {x: 0, y: 2}}, {encode: {x: 0, y: 3}}],
- * where the "y" have to be manually typed as "1, 2, 3, ...".
- *
- * @param {module:echarts/model/Series} seriesModel
- */
-
-
-function prepareSource(seriesModel) {
-  var seriesOption = seriesModel.option;
-  var data = seriesOption.data;
-  var sourceFormat = isTypedArray(data) ? SOURCE_FORMAT_TYPED_ARRAY : SOURCE_FORMAT_ORIGINAL;
-  var fromDataset = false;
-  var seriesLayoutBy = seriesOption.seriesLayoutBy;
-  var sourceHeader = seriesOption.sourceHeader;
-  var dimensionsDefine = seriesOption.dimensions;
-  var datasetModel = getDatasetModel(seriesModel);
-
-  if (datasetModel) {
-    var datasetOption = datasetModel.option;
-    data = datasetOption.source;
-    sourceFormat = inner(datasetModel).sourceFormat;
-    fromDataset = true; // These settings from series has higher priority.
-
-    seriesLayoutBy = seriesLayoutBy || datasetOption.seriesLayoutBy;
-    sourceHeader == null && (sourceHeader = datasetOption.sourceHeader);
-    dimensionsDefine = dimensionsDefine || datasetOption.dimensions;
-  }
-
-  var completeResult = completeBySourceData(data, sourceFormat, seriesLayoutBy, sourceHeader, dimensionsDefine); // Note: dataset option does not have `encode`.
-
-  var encodeDefine = seriesOption.encode;
-
-  if (!encodeDefine && datasetModel) {
-    encodeDefine = makeDefaultEncode(seriesModel, datasetModel, data, sourceFormat, seriesLayoutBy, completeResult);
-  }
-
-  inner(seriesModel).source = new Source({
-    data: data,
-    fromDataset: fromDataset,
-    seriesLayoutBy: seriesLayoutBy,
-    sourceFormat: sourceFormat,
-    dimensionsDefine: completeResult.dimensionsDefine,
-    startIndex: completeResult.startIndex,
-    dimensionsDetectCount: completeResult.dimensionsDetectCount,
-    encodeDefine: encodeDefine
-  });
-} // return {startIndex, dimensionsDefine, dimensionsCount}
-
-
-function completeBySourceData(data, sourceFormat, seriesLayoutBy, sourceHeader, dimensionsDefine) {
-  if (!data) {
-    return {
-      dimensionsDefine: normalizeDimensionsDefine(dimensionsDefine)
-    };
-  }
-
-  var dimensionsDetectCount;
-  var startIndex;
-  var findPotentialName;
-
-  if (sourceFormat === SOURCE_FORMAT_ARRAY_ROWS) {
-    // Rule: Most of the first line are string: it is header.
-    // Caution: consider a line with 5 string and 1 number,
-    // it still can not be sure it is a head, because the
-    // 5 string may be 5 values of category columns.
-    if (sourceHeader === 'auto' || sourceHeader == null) {
-      arrayRowsTravelFirst(function (val) {
-        // '-' is regarded as null/undefined.
-        if (val != null && val !== '-') {
-          if (isString(val)) {
-            startIndex == null && (startIndex = 1);
-          } else {
-            startIndex = 0;
-          }
-        } // 10 is an experience number, avoid long loop.
-
-      }, seriesLayoutBy, data, 10);
-    } else {
-      startIndex = sourceHeader ? 1 : 0;
-    }
-
-    if (!dimensionsDefine && startIndex === 1) {
-      dimensionsDefine = [];
-      arrayRowsTravelFirst(function (val, index) {
-        dimensionsDefine[index] = val != null ? val : '';
-      }, seriesLayoutBy, data);
-    }
-
-    dimensionsDetectCount = dimensionsDefine ? dimensionsDefine.length : seriesLayoutBy === SERIES_LAYOUT_BY_ROW ? data.length : data[0] ? data[0].length : null;
-  } else if (sourceFormat === SOURCE_FORMAT_OBJECT_ROWS) {
-    if (!dimensionsDefine) {
-      dimensionsDefine = objectRowsCollectDimensions(data);
-      findPotentialName = true;
-    }
-  } else if (sourceFormat === SOURCE_FORMAT_KEYED_COLUMNS) {
-    if (!dimensionsDefine) {
-      dimensionsDefine = [];
-      findPotentialName = true;
-      each(data, function (colArr, key) {
-        dimensionsDefine.push(key);
-      });
-    }
-  } else if (sourceFormat === SOURCE_FORMAT_ORIGINAL) {
-    var value0 = getDataItemValue(data[0]);
-    dimensionsDetectCount = isArray(value0) && value0.length || 1;
-  } else if (sourceFormat === SOURCE_FORMAT_TYPED_ARRAY) {}
-
-  var potentialNameDimIndex;
-
-  if (findPotentialName) {
-    each(dimensionsDefine, function (dim, idx) {
-      if ((isObject(dim) ? dim.name : dim) === 'name') {
-        potentialNameDimIndex = idx;
-      }
-    });
-  }
-
-  return {
-    startIndex: startIndex,
-    dimensionsDefine: normalizeDimensionsDefine(dimensionsDefine),
-    dimensionsDetectCount: dimensionsDetectCount,
-    potentialNameDimIndex: potentialNameDimIndex // TODO: potentialIdDimIdx
-
-  };
-} // Consider dimensions defined like ['A', 'price', 'B', 'price', 'C', 'price'],
-// which is reasonable. But dimension name is duplicated.
-// Returns undefined or an array contains only object without null/undefiend or string.
-
-
-function normalizeDimensionsDefine(dimensionsDefine) {
-  if (!dimensionsDefine) {
-    // The meaning of null/undefined is different from empty array.
-    return;
-  }
-
-  var nameMap = createHashMap();
-  return map(dimensionsDefine, function (item, index) {
-    item = extend({}, isObject(item) ? item : {
-      name: item
-    }); // User can set null in dimensions.
-    // We dont auto specify name, othewise a given name may
-    // cause it be refered unexpectedly.
-
-    if (item.name == null) {
-      return item;
-    } // Also consider number form like 2012.
-
-
-    item.name += ''; // User may also specify displayName.
-    // displayName will always exists except user not
-    // specified or dim name is not specified or detected.
-    // (A auto generated dim name will not be used as
-    // displayName).
-
-    if (item.displayName == null) {
-      item.displayName = item.name;
-    }
-
-    var exist = nameMap.get(item.name);
-
-    if (!exist) {
-      nameMap.set(item.name, {
-        count: 1
-      });
-    } else {
-      item.name += '-' + exist.count++;
-    }
-
-    return item;
-  });
-}
-
-function arrayRowsTravelFirst(cb, seriesLayoutBy, data, maxLoop) {
-  maxLoop == null && (maxLoop = Infinity);
-
-  if (seriesLayoutBy === SERIES_LAYOUT_BY_ROW) {
-    for (var i = 0; i < data.length && i < maxLoop; i++) {
-      cb(data[i] ? data[i][0] : null, i);
-    }
-  } else {
-    var value0 = data[0] || [];
-
-    for (var i = 0; i < value0.length && i < maxLoop; i++) {
-      cb(value0[i], i);
-    }
-  }
-}
-
-function objectRowsCollectDimensions(data) {
-  var firstIndex = 0;
-  var obj;
-
-  while (firstIndex < data.length && !(obj = data[firstIndex++])) {} // jshint ignore: line
-
-
-  if (obj) {
-    var dimensions = [];
-    each(obj, function (value, key) {
-      dimensions.push(key);
-    });
-    return dimensions;
-  }
-} // ??? TODO merge to completedimensions, where also has
-// default encode making logic. And the default rule
-// should depends on series? consider 'map'.
-
-
-function makeDefaultEncode(seriesModel, datasetModel, data, sourceFormat, seriesLayoutBy, completeResult) {
-  var coordSysDefine = getCoordSysDefineBySeries(seriesModel);
-  var encode = {}; // var encodeTooltip = [];
-  // var encodeLabel = [];
-
-  var encodeItemName = [];
-  var encodeSeriesName = [];
-  var seriesType = seriesModel.subType; // ??? TODO refactor: provide by series itself.
-  // Consider the case: 'map' series is based on geo coordSys,
-  // 'graph', 'heatmap' can be based on cartesian. But can not
-  // give default rule simply here.
-
-  var nSeriesMap = createHashMap(['pie', 'map', 'funnel']);
-  var cSeriesMap = createHashMap(['line', 'bar', 'pictorialBar', 'scatter', 'effectScatter', 'candlestick', 'boxplot']); // Usually in this case series will use the first data
-  // dimension as the "value" dimension, or other default
-  // processes respectively.
-
-  if (coordSysDefine && cSeriesMap.get(seriesType) != null) {
-    var ecModel = seriesModel.ecModel;
-    var datasetMap = inner(ecModel).datasetMap;
-    var key = datasetModel.uid + '_' + seriesLayoutBy;
-    var datasetRecord = datasetMap.get(key) || datasetMap.set(key, {
-      categoryWayDim: 1,
-      valueWayDim: 0
-    }); // TODO
-    // Auto detect first time axis and do arrangement.
-
-    each(coordSysDefine.coordSysDims, function (coordDim) {
-      // In value way.
-      if (coordSysDefine.firstCategoryDimIndex == null) {
-        var dataDim = datasetRecord.valueWayDim++;
-        encode[coordDim] = dataDim; // ??? TODO give a better default series name rule?
-        // especially when encode x y specified.
-        // consider: when mutiple series share one dimension
-        // category axis, series name should better use
-        // the other dimsion name. On the other hand, use
-        // both dimensions name.
-
-        encodeSeriesName.push(dataDim); // encodeTooltip.push(dataDim);
-        // encodeLabel.push(dataDim);
-      } // In category way, category axis.
-      else if (coordSysDefine.categoryAxisMap.get(coordDim)) {
-          encode[coordDim] = 0;
-          encodeItemName.push(0);
-        } // In category way, non-category axis.
-        else {
-            var dataDim = datasetRecord.categoryWayDim++;
-            encode[coordDim] = dataDim; // encodeTooltip.push(dataDim);
-            // encodeLabel.push(dataDim);
-
-            encodeSeriesName.push(dataDim);
-          }
-    });
-  } // Do not make a complex rule! Hard to code maintain and not necessary.
-  // ??? TODO refactor: provide by series itself.
-  // [{name: ..., value: ...}, ...] like:
-  else if (nSeriesMap.get(seriesType) != null) {
-      // Find the first not ordinal. (5 is an experience value)
-      var firstNotOrdinal;
-
-      for (var i = 0; i < 5 && firstNotOrdinal == null; i++) {
-        if (!doGuessOrdinal(data, sourceFormat, seriesLayoutBy, completeResult.dimensionsDefine, completeResult.startIndex, i)) {
-          firstNotOrdinal = i;
-        }
-      }
-
-      if (firstNotOrdinal != null) {
-        encode.value = firstNotOrdinal;
-        var nameDimIndex = completeResult.potentialNameDimIndex || Math.max(firstNotOrdinal - 1, 0); // By default, label use itemName in charts.
-        // So we dont set encodeLabel here.
-
-        encodeSeriesName.push(nameDimIndex);
-        encodeItemName.push(nameDimIndex); // encodeTooltip.push(firstNotOrdinal);
-      }
-    } // encodeTooltip.length && (encode.tooltip = encodeTooltip);
-  // encodeLabel.length && (encode.label = encodeLabel);
-
-
-  encodeItemName.length && (encode.itemName = encodeItemName);
-  encodeSeriesName.length && (encode.seriesName = encodeSeriesName);
-  return encode;
-}
-/**
- * If return null/undefined, indicate that should not use datasetModel.
- */
-
-
-function getDatasetModel(seriesModel) {
-  var option = seriesModel.option; // Caution: consider the scenario:
-  // A dataset is declared and a series is not expected to use the dataset,
-  // and at the beginning `setOption({series: { noData })` (just prepare other
-  // option but no data), then `setOption({series: {data: [...]}); In this case,
-  // the user should set an empty array to avoid that dataset is used by default.
-
-  var thisData = option.data;
-
-  if (!thisData) {
-    return seriesModel.ecModel.getComponent('dataset', option.datasetIndex || 0);
-  }
-}
-/**
- * The rule should not be complex, otherwise user might not
- * be able to known where the data is wrong.
- * The code is ugly, but how to make it neat?
- *
- * @param {module:echars/data/Source} source
- * @param {number} dimIndex
- * @return {boolean} Whether ordinal.
- */
-
-
-function guessOrdinal(source, dimIndex) {
-  return doGuessOrdinal(source.data, source.sourceFormat, source.seriesLayoutBy, source.dimensionsDefine, source.startIndex, dimIndex);
-} // dimIndex may be overflow source data.
-
-
-function doGuessOrdinal(data, sourceFormat, seriesLayoutBy, dimensionsDefine, startIndex, dimIndex) {
-  var result; // Experience value.
-
-  var maxLoop = 5;
-
-  if (isTypedArray(data)) {
-    return false;
-  } // When sourceType is 'objectRows' or 'keyedColumns', dimensionsDefine
-  // always exists in source.
-
-
-  var dimName;
-
-  if (dimensionsDefine) {
-    dimName = dimensionsDefine[dimIndex];
-    dimName = isObject(dimName) ? dimName.name : dimName;
-  }
-
-  if (sourceFormat === SOURCE_FORMAT_ARRAY_ROWS) {
-    if (seriesLayoutBy === SERIES_LAYOUT_BY_ROW) {
-      var sample = data[dimIndex];
-
-      for (var i = 0; i < (sample || []).length && i < maxLoop; i++) {
-        if ((result = detectValue(sample[startIndex + i])) != null) {
-          return result;
-        }
-      }
-    } else {
-      for (var i = 0; i < data.length && i < maxLoop; i++) {
-        var row = data[startIndex + i];
-
-        if (row && (result = detectValue(row[dimIndex])) != null) {
-          return result;
-        }
-      }
-    }
-  } else if (sourceFormat === SOURCE_FORMAT_OBJECT_ROWS) {
-    if (!dimName) {
-      return;
-    }
-
-    for (var i = 0; i < data.length && i < maxLoop; i++) {
-      var item = data[i];
-
-      if (item && (result = detectValue(item[dimName])) != null) {
-        return result;
-      }
-    }
-  } else if (sourceFormat === SOURCE_FORMAT_KEYED_COLUMNS) {
-    if (!dimName) {
-      return;
-    }
-
-    var sample = data[dimName];
-
-    if (!sample || isTypedArray(sample)) {
-      return false;
-    }
-
-    for (var i = 0; i < sample.length && i < maxLoop; i++) {
-      if ((result = detectValue(sample[i])) != null) {
-        return result;
-      }
-    }
-  } else if (sourceFormat === SOURCE_FORMAT_ORIGINAL) {
-    for (var i = 0; i < data.length && i < maxLoop; i++) {
-      var item = data[i];
-      var val = getDataItemValue(item);
-
-      if (!isArray(val)) {
-        return false;
-      }
-
-      if ((result = detectValue(val[dimIndex])) != null) {
-        return result;
-      }
-    }
-  }
-
-  function detectValue(val) {
-    // Consider usage convenience, '1', '2' will be treated as "number".
-    // `isFinit('')` get `true`.
-    if (val != null && isFinite(val) && val !== '') {
-      return false;
-    } else if (isString(val) && val !== '-') {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-exports.detectSourceFormat = detectSourceFormat;
-exports.getSource = getSource;
-exports.resetSourceDefaulter = resetSourceDefaulter;
-exports.prepareSource = prepareSource;
-exports.guessOrdinal = guessOrdinal;
-
-/***/ }),
 /* 37 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var coordinateSystemCreators = {};
 
 function CoordinateSystemManager() {
@@ -14022,10 +14395,30 @@ module.exports = _default;
 var _util = __webpack_require__(0);
 
 var assert = _util.assert;
+var isArray = _util.isArray;
 
 var _config = __webpack_require__(2);
 
 var __DEV__ = _config.__DEV__;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @param {Object} define
@@ -14061,6 +14454,8 @@ var taskProto = Task.prototype;
  * @param {Object} performArgs
  * @param {number} [performArgs.step] Specified step.
  * @param {number} [performArgs.skip] Skip customer perform call.
+ * @param {number} [performArgs.modBy] Sampling window size.
+ * @param {number} [performArgs.modDataCount] Sampling count.
  */
 
 taskProto.perform = function (performArgs) {
@@ -14082,6 +14477,23 @@ taskProto.perform = function (performArgs) {
 
   if (this._plan && !skip) {
     planResult = this._plan(this.context);
+  } // Support sharding by mod, which changes the render sequence and makes the rendered graphic
+  // elements uniformed distributed when progress, especially when moving or zooming.
+
+
+  var lastModBy = normalizeModBy(this._modBy);
+  var lastModDataCount = this._modDataCount || 0;
+  var modBy = normalizeModBy(performArgs && performArgs.modBy);
+  var modDataCount = performArgs && performArgs.modDataCount || 0;
+
+  if (lastModBy !== modBy || lastModDataCount !== modDataCount) {
+    planResult = 'reset';
+  }
+
+  function normalizeModBy(val) {
+    !(val >= 1) && (val = 1); // jshint ignore:line
+
+    return val;
   }
 
   var forceFirstProgress;
@@ -14091,11 +14503,11 @@ taskProto.perform = function (performArgs) {
     forceFirstProgress = reset(this, skip);
   }
 
+  this._modBy = modBy;
+  this._modDataCount = modDataCount;
   var step = performArgs && performArgs.step;
 
   if (upTask) {
-    // ??? FIXME move to schedueler?
-    // this._dueEnd = Math.max(upTask._outputDueEnd, this._dueEnd);
     this._dueEnd = upTask._outputDueEnd;
   } // DataTask or overallTask
   else {
@@ -14107,10 +14519,19 @@ taskProto.perform = function (performArgs) {
   if (this._progress) {
     var start = this._dueIndex;
     var end = Math.min(step != null ? this._dueIndex + step : Infinity, this._dueEnd);
-    !skip && (forceFirstProgress || start < end) && this._progress({
-      start: start,
-      end: end
-    }, this.context);
+
+    if (!skip && (forceFirstProgress || start < end)) {
+      var progress = this._progress;
+
+      if (isArray(progress)) {
+        for (var i = 0; i < progress.length; i++) {
+          doProgress(this, progress[i], start, end, modBy, modDataCount);
+        }
+      } else {
+        doProgress(this, progress, start, end, modBy, modDataCount);
+      }
+    }
+
     this._dueIndex = end; // If no `outputDueEnd`, assume that output data and
     // input data is the same, so use `dueIndex` as `outputDueEnd`.
 
@@ -14126,14 +14547,54 @@ taskProto.perform = function (performArgs) {
   return this.unfinished();
 };
 
+var iterator = function () {
+  var end;
+  var current;
+  var modBy;
+  var modDataCount;
+  var winCount;
+  var it = {
+    reset: function (s, e, sStep, sCount) {
+      current = s;
+      end = e;
+      modBy = sStep;
+      modDataCount = sCount;
+      winCount = Math.ceil(modDataCount / modBy);
+      it.next = modBy > 1 && modDataCount > 0 ? modNext : sequentialNext;
+    }
+  };
+  return it;
+
+  function sequentialNext() {
+    return current < end ? current++ : null;
+  }
+
+  function modNext() {
+    var dataIndex = current % winCount * modBy + Math.ceil(current / winCount);
+    var result = current >= end ? null : dataIndex < modDataCount ? dataIndex // If modDataCount is smaller than data.count() (consider `appendData` case),
+    // Use normal linear rendering mode.
+    : current;
+    current++;
+    return result;
+  }
+}();
+
 taskProto.dirty = function () {
   this._dirty = true;
   this._onDirty && this._onDirty(this.context);
 };
-/**
- * @param {Object} [params]
- */
 
+function doProgress(taskIns, progress, start, end, modBy, modDataCount) {
+  iterator.reset(start, end, modBy, modDataCount);
+  taskIns._callingProgress = progress;
+
+  taskIns._callingProgress({
+    start: start,
+    end: end,
+    count: end - start,
+    next: iterator.next
+  }, taskIns.context);
+}
 
 function reset(taskIns, skip) {
   taskIns._dueIndex = taskIns._outputDueEnd = taskIns._dueEnd = 0;
@@ -14147,10 +14608,16 @@ function reset(taskIns, skip) {
     if (progress && progress.progress) {
       forceFirstProgress = progress.forceFirstProgress;
       progress = progress.progress;
+    } // To simplify no progress checking, array must has item.
+
+
+    if (isArray(progress) && !progress.length) {
+      progress = null;
     }
   }
 
   taskIns._progress = progress;
+  taskIns._modBy = taskIns._modDataCount = null;
   var downstream = taskIns._downstream;
   downstream && downstream.dirty();
   return forceFirstProgress;
@@ -14198,13 +14665,12 @@ taskProto.getDownstream = function () {
 };
 
 taskProto.setOutputEnd = function (end) {
-  // ??? FIXME: check
   // This only happend in dataTask, dataZoom, map, currently.
   // where dataZoom do not set end each time, but only set
   // when reset. So we should record the setted end, in case
   // that the stub of dataZoom perform again and earse the
   // setted end by upstream.
-  this._outputDueEnd = this._settedOutputEnd = end; // this._outputDueEnd = end;
+  this._outputDueEnd = this._settedOutputEnd = end;
 }; ///////////////////////////////////////////////////////////
 // For stream debug (Should be commented out after used!)
 // Usage: printTask(this, 'begin');
@@ -14256,6 +14722,51 @@ exports.createTask = createTask;
 /* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
+var _model = __webpack_require__(1);
+
+var makeInner = _model.makeInner;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+/**
+ * @return {string} If large mode changed, return string 'reset';
+ */
+function _default() {
+  var inner = makeInner();
+  return function (seriesModel) {
+    var fields = inner(seriesModel);
+    var pipelineContext = seriesModel.pipelineContext;
+    var originalLarge = fields.large;
+    var originalProgressive = fields.progressiveRender;
+    var large = fields.large = pipelineContext.large;
+    var progressive = fields.progressiveRender = pipelineContext.progressiveRender;
+    return !!(originalLarge ^ large || originalProgressive ^ progressive) && 'reset';
+  };
+}
+
+module.exports = _default;
+
+/***/ }),
+/* 40 */
+/***/ (function(module, exports, __webpack_require__) {
+
 var _util = __webpack_require__(0);
 
 var each = _util.each;
@@ -14265,6 +14776,25 @@ var assert = _util.assert;
 var _config = __webpack_require__(2);
 
 var __DEV__ = _config.__DEV__;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var OTHER_DIMENSIONS = createHashMap(['tooltip', 'label', 'itemName', 'itemId', 'seriesName']);
 
 function summarizeDimensions(data) {
@@ -14272,6 +14802,7 @@ function summarizeDimensions(data) {
   var encode = summary.encode = {};
   var notExtraCoordDimMap = createHashMap();
   var defaultedLabel = [];
+  var defaultedTooltip = [];
   each(data.dimensions, function (dimName) {
     var dimItem = data.getDimensionInfo(dimName);
     var coordDim = dimItem.coordDim;
@@ -14294,6 +14825,10 @@ function summarizeDimensions(data) {
         if (mayLabelDimType(dimItem.type)) {
           defaultedLabel[0] = dimName;
         }
+      }
+
+      if (dimItem.defaultTooltip) {
+        defaultedTooltip.push(dimName);
       }
     }
 
@@ -14332,11 +14867,12 @@ function summarizeDimensions(data) {
     defaultedLabel = encodeLabel.slice();
   }
 
-  var defaultedTooltip = defaultedLabel.slice();
   var encodeTooltip = encode.tooltip;
 
   if (encodeTooltip && encodeTooltip.length) {
     defaultedTooltip = encodeTooltip.slice();
+  } else if (!defaultedTooltip.length) {
+    defaultedTooltip = defaultedLabel.slice();
   }
 
   encode.defaultedLabel = defaultedLabel;
@@ -14371,16 +14907,35 @@ exports.summarizeDimensions = summarizeDimensions;
 exports.getDimensionTypeByAxis = getDimensionTypeByAxis;
 
 /***/ }),
-/* 40 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var numberUtil = __webpack_require__(5);
+var numberUtil = __webpack_require__(4);
 
 var formatUtil = __webpack_require__(12);
 
-var Scale = __webpack_require__(30);
+var Scale = __webpack_require__(31);
 
 var helper = __webpack_require__(75);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Interval scale
@@ -14438,20 +14993,6 @@ var IntervalScale = Scale.extend({
    */
   getTicks: function () {
     return helper.intervalScaleGetTicks(this._interval, this._extent, this._niceExtent, this._intervalPrecision);
-  },
-
-  /**
-   * @return {Array.<string>}
-   */
-  getTicksLabels: function () {
-    var labels = [];
-    var ticks = this.getTicks();
-
-    for (var i = 0; i < ticks.length; i++) {
-      labels.push(this.getLabel(ticks[i]));
-    }
-
-    return labels;
   },
 
   /**
@@ -14574,7 +15115,7 @@ var _default = IntervalScale;
 module.exports = _default;
 
 /***/ }),
-/* 41 */
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
@@ -14583,6 +15124,24 @@ var graphic = __webpack_require__(7);
 
 var BoundingRect = __webpack_require__(6);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // Symbol factory
 
 /**
@@ -14880,33 +15439,6 @@ function createSymbol(symbolType, x, y, w, h, color, keepAspect) {
 exports.createSymbol = createSymbol;
 
 /***/ }),
-/* 42 */
-/***/ (function(module, exports) {
-
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || Function("return this")() || (1,eval)("this");
-} catch(e) {
-	// This works if the window reference is available
-	if(typeof window === "object")
-		g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
-
-/***/ }),
 /* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -14916,15 +15448,15 @@ var env = __webpack_require__(8);
 
 var zrUtil = __webpack_require__(0);
 
-var Handler = __webpack_require__(82);
+var Handler = __webpack_require__(83);
 
-var Storage = __webpack_require__(84);
+var Storage = __webpack_require__(85);
 
-var Painter = __webpack_require__(88);
+var Painter = __webpack_require__(89);
 
-var Animation = __webpack_require__(91);
+var Animation = __webpack_require__(92);
 
-var HandlerProxy = __webpack_require__(92);
+var HandlerProxy = __webpack_require__(93);
 
 /*!
 * ZRender, a high performance 2d drawing library.
@@ -14945,7 +15477,7 @@ var instances = {}; // ZRender实例map索引
  * @type {string}
  */
 
-var version = '4.0.1';
+var version = '4.0.4';
 /**
  * Initializing a zrender instance
  * @param {HTMLElement} dom
@@ -15119,7 +15651,22 @@ ZRender.prototype = {
    * @param {number} [config.lastFrameAlpha=0.7] Motion blur factor. Larger value cause longer trailer
   */
   configLayer: function (zLevel, config) {
-    this.painter.configLayer(zLevel, config);
+    if (this.painter.configLayer) {
+      this.painter.configLayer(zLevel, config);
+    }
+
+    this._needsRefresh = true;
+  },
+
+  /**
+   * Set background color
+   * @param {string} backgroundColor
+   */
+  setBackgroundColor: function (backgroundColor) {
+    if (this.painter.setBackgroundColor) {
+      this.painter.setBackgroundColor(backgroundColor);
+    }
+
     this._needsRefresh = true;
   },
 
@@ -15377,7 +15924,7 @@ var Eventful = __webpack_require__(14);
 
 var Transformable = __webpack_require__(46);
 
-var Animatable = __webpack_require__(85);
+var Animatable = __webpack_require__(86);
 
 var zrUtil = __webpack_require__(0);
 
@@ -15933,9 +16480,9 @@ module.exports = _default;
 /* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Clip = __webpack_require__(86);
+var Clip = __webpack_require__(87);
 
-var color = __webpack_require__(23);
+var color = __webpack_require__(24);
 
 var _util = __webpack_require__(0);
 
@@ -16789,7 +17336,7 @@ module.exports = _default;
 /* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var _config = __webpack_require__(24);
+var _config = __webpack_require__(25);
 
 var debugMode = _config.debugMode;
 
@@ -17332,13 +17879,13 @@ module.exports = _default;
 /* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Displayable = __webpack_require__(25);
+var Displayable = __webpack_require__(26);
 
 var BoundingRect = __webpack_require__(6);
 
 var zrUtil = __webpack_require__(0);
 
-var imageHelper = __webpack_require__(32);
+var imageHelper = __webpack_require__(33);
 
 /**
  * @alias zrender/graphic/Image
@@ -17442,7 +17989,7 @@ var textContain = __webpack_require__(16);
 
 var roundRectHelper = __webpack_require__(56);
 
-var imageHelper = __webpack_require__(32);
+var imageHelper = __webpack_require__(33);
 
 var fixShadow = __webpack_require__(51);
 
@@ -17975,17 +18522,36 @@ var mixin = _util.mixin;
 
 var modelUtil = __webpack_require__(1);
 
-var Model = __webpack_require__(9);
+var Model = __webpack_require__(10);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
 
-var globalDefault = __webpack_require__(122);
+var globalDefault = __webpack_require__(123);
 
 var colorPaletteMixin = __webpack_require__(63);
 
-var _sourceHelper = __webpack_require__(36);
+var _sourceHelper = __webpack_require__(29);
 
 var resetSourceDefaulter = _sourceHelper.resetSourceDefaulter;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * ECharts global model
@@ -18015,7 +18581,6 @@ var OPTION_INNER_KEY = '\0_ec_inner';
  */
 
 var GlobalModel = Model.extend({
-  constructor: GlobalModel,
   init: function (option, parentModel, theme, optionManager) {
     theme = theme || {};
     this.option = null; // Mark as not initialized.
@@ -18391,6 +18956,9 @@ var GlobalModel = Model.extend({
   },
 
   /**
+   * Get series list before filtered by type.
+   * FIXME: rename to getRawSeriesByType?
+   *
    * @param {string} subType
    * @return {Array.<module:echarts/model/Series>}
    */
@@ -18903,8 +19471,9 @@ function windingLine(x0, y0, x1, y1, x, y) {
     dir = y1 < y0 ? 0.5 : -0.5;
   }
 
-  var x_ = t * (x1 - x0) + x0;
-  return x_ > x ? dir : 0;
+  var x_ = t * (x1 - x0) + x0; // If (x, y) on the line, considered as "contain".
+
+  return x_ === x ? Infinity : x_ > x ? dir : 0;
 }
 
 module.exports = windingLine;
@@ -18974,9 +19543,9 @@ module.exports = _default;
 /* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var smoothSpline = __webpack_require__(109);
+var smoothSpline = __webpack_require__(110);
 
-var smoothBezier = __webpack_require__(110);
+var smoothBezier = __webpack_require__(111);
 
 function buildPath(ctx, shape, closePath) {
   var points = shape.points;
@@ -19020,6 +19589,25 @@ var _model = __webpack_require__(1);
 
 var makeInner = _model.makeInner;
 var normalizeToArray = _model.normalizeToArray;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var inner = makeInner();
 
 function getNearestColorPalette(colors, requestColorNum) {
@@ -19092,6 +19680,25 @@ var _util = __webpack_require__(0);
 var createHashMap = _util.createHashMap;
 var retrieve = _util.retrieve;
 var each = _util.each;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Helper for model references.
@@ -19213,6 +19820,24 @@ exports.getCoordSysDefineBySeries = getCoordSysDefineBySeries;
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var echartsAPIList = ['getDom', 'getZr', 'getWidth', 'getHeight', 'getDevicePixelRatio', 'dispatchAction', 'isDisposed', 'on', 'off', 'getDataURL', 'getConnectedDataURL', 'getModel', 'getOption', 'getViewOfComponentModel', 'getViewOfSeriesModel']; // And `getCoordinateSystems` and `getComponentByElement` will be injected in echarts.js
 
 function ExtensionAPI(chartInstance) {
@@ -19245,11 +19870,11 @@ var getTooltipMarker = _format.getTooltipMarker;
 
 var modelUtil = __webpack_require__(1);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
 
 var colorPaletteMixin = __webpack_require__(63);
 
-var dataFormatMixin = __webpack_require__(127);
+var dataFormatMixin = __webpack_require__(128);
 
 var _layout = __webpack_require__(17);
 
@@ -19260,14 +19885,33 @@ var _task = __webpack_require__(38);
 
 var createTask = _task.createTask;
 
-var _sourceHelper = __webpack_require__(36);
+var _sourceHelper = __webpack_require__(29);
 
 var prepareSource = _sourceHelper.prepareSource;
 var getSource = _sourceHelper.getSource;
 
-var _dataProvider = __webpack_require__(19);
+var _dataProvider = __webpack_require__(20);
 
 var retrieveRawValue = _dataProvider.retrieveRawValue;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var inner = modelUtil.makeInner();
 var SeriesModel = ComponentModel.extend({
   type: 'series.__base__',
@@ -19391,7 +20035,7 @@ var SeriesModel = ComponentModel.extend({
     // Default data label emphasis `show`
     // FIXME Tree structure data ?
     // FIXME Performance ?
-    if (data) {
+    if (data && !zrUtil.isTypedArray(data)) {
       var props = ['show'];
 
       for (var i = 0; i < data.length; i++) {
@@ -19453,7 +20097,7 @@ var SeriesModel = ComponentModel.extend({
     if (task) {
       var context = task.context; // Consider case: filter, data sample.
 
-      if (context.data !== data && task.isOverallFilter) {
+      if (context.data !== data && task.modifyOutputEnd) {
         task.setOutputEnd(data.count());
       }
 
@@ -19757,15 +20401,77 @@ module.exports = _default;
 /* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
+var Group = __webpack_require__(23);
+
+var componentUtil = __webpack_require__(28);
+
+var clazzUtil = __webpack_require__(11);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+var Component = function () {
+  /**
+   * @type {module:zrender/container/Group}
+   * @readOnly
+   */
+  this.group = new Group();
+  /**
+   * @type {string}
+   * @readOnly
+   */
+
+  this.uid = componentUtil.getUID('viewComponent');
+};
+
+Component.prototype = {
+  constructor: Component,
+  init: function (ecModel, api) {},
+  render: function (componentModel, ecModel, api, payload) {},
+  dispose: function () {}
+};
+var componentProto = Component.prototype;
+
+componentProto.updateView = componentProto.updateLayout = componentProto.updateVisual = function (seriesModel, ecModel, api, payload) {// Do nothing;
+}; // Enable Component.extend.
+
+
+clazzUtil.enableClassExtend(Component); // Enable capability of registerClass, getClass, hasClass, registerSubTypeDefaulter and so on.
+
+clazzUtil.enableClassManagement(Component, {
+  registerWhenExtend: true
+});
+var _default = Component;
+module.exports = _default;
+
+/***/ }),
+/* 68 */
+/***/ (function(module, exports, __webpack_require__) {
+
 var _util = __webpack_require__(0);
 
 var each = _util.each;
 
-var Group = __webpack_require__(22);
+var Group = __webpack_require__(23);
 
-var componentUtil = __webpack_require__(27);
+var componentUtil = __webpack_require__(28);
 
-var clazzUtil = __webpack_require__(10);
+var clazzUtil = __webpack_require__(11);
 
 var modelUtil = __webpack_require__(1);
 
@@ -19773,8 +20479,26 @@ var _task = __webpack_require__(38);
 
 var createTask = _task.createTask;
 
-var createRenderPlanner = __webpack_require__(68);
+var createRenderPlanner = __webpack_require__(39);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var inner = modelUtil.makeInner();
 var renderPlanner = createRenderPlanner();
 
@@ -19957,10 +20681,10 @@ function renderTaskReset(context) {
   var api = context.api;
   var payload = context.payload; // ???! remove updateView updateVisual
 
-  var canProgressiveRender = seriesModel.pipelineContext.canProgressiveRender;
+  var progressiveRender = seriesModel.pipelineContext.progressiveRender;
   var view = context.view;
   var updateMethod = payload && inner(payload).updateMethod;
-  var methodName = canProgressiveRender ? 'incrementalPrepareRender' : updateMethod && view[updateMethod] ? updateMethod // `appendData` is also supported when data amount
+  var methodName = progressiveRender ? 'incrementalPrepareRender' : updateMethod && view[updateMethod] ? updateMethod // `appendData` is also supported when data amount
   // is less than progressive threshold.
   : 'render';
 
@@ -19992,35 +20716,27 @@ var _default = Chart;
 module.exports = _default;
 
 /***/ }),
-/* 68 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var _model = __webpack_require__(1);
-
-var makeInner = _model.makeInner;
-
-/**
- * @return {string} If large mode changed, return string 'reset';
- */
-function _default() {
-  var inner = makeInner();
-  return function (seriesModel) {
-    var fields = inner(seriesModel);
-    var pipelineContext = seriesModel.pipelineContext;
-    var originalLarge = fields.large;
-    var originalProgressive = fields.canProgressiveRender;
-    var large = fields.large = pipelineContext.large;
-    var progressive = fields.canProgressiveRender = pipelineContext.canProgressiveRender;
-    return !!(originalLarge ^ large || originalProgressive ^ progressive) && 'reset';
-  };
-}
-
-module.exports = _default;
-
-/***/ }),
 /* 69 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var ORIGIN_METHOD = '\0__throttleOriginMethod';
 var RATE = '\0__throttleRate';
 var THROTTLE_TYPE = '\0__throttleType';
@@ -20059,7 +20775,14 @@ function throttle(fn, delay, debounce) {
     var thisDebounce = debounceNextCall || debounce;
     debounceNextCall = null;
     diff = currCall - (thisDebounce ? lastCall : lastExec) - thisDelay;
-    clearTimeout(timer);
+    clearTimeout(timer); // Here we should make sure that: the `exec` SHOULD NOT be called later
+    // than a new call of `cb`, that is, preserving the command order. Consider
+    // calculating "scale rate" when roaming as an example. When a call of `cb`
+    // happens, either the `exec` is called dierectly, or the call is delayed.
+    // But the delayed call should never be later than next call of `cb`. Under
+    // this assurance, we can simply update view state each time `dispatchAction`
+    // triggered by user roaming, but not need to add extra code to avoid the
+    // state being "rolled-back".
 
     if (thisDebounce) {
       timer = setTimeout(exec, thisDelay);
@@ -20180,11 +20903,11 @@ var List = __webpack_require__(71);
 
 var createDimensions = __webpack_require__(72);
 
-var _sourceType = __webpack_require__(28);
+var _sourceType = __webpack_require__(19);
 
 var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
 
-var _dimensionHelper = __webpack_require__(39);
+var _dimensionHelper = __webpack_require__(40);
 
 var getDimensionTypeByAxis = _dimensionHelper.getDimensionTypeByAxis;
 
@@ -20200,9 +20923,28 @@ var getCoordSysDefineBySeries = _referHelper.getCoordSysDefineBySeries;
 
 var Source = __webpack_require__(18);
 
-var _dataStackHelper = __webpack_require__(20);
+var _dataStackHelper = __webpack_require__(21);
 
 var enableDataStack = _dataStackHelper.enableDataStack;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @param {module:echarts/data/Source|Array} source Or raw data.
@@ -20306,47 +21048,67 @@ module.exports = _default;
 /* 71 */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(global) {var _config = __webpack_require__(2);
+var _config = __webpack_require__(2);
 
 var __DEV__ = _config.__DEV__;
 
 var zrUtil = __webpack_require__(0);
 
-var Model = __webpack_require__(9);
+var Model = __webpack_require__(10);
 
-var DataDiffer = __webpack_require__(138);
+var DataDiffer = __webpack_require__(139);
 
 var Source = __webpack_require__(18);
 
-var _dataProvider = __webpack_require__(19);
+var _dataProvider = __webpack_require__(20);
 
 var defaultDimValueGetters = _dataProvider.defaultDimValueGetters;
 var DefaultDataProvider = _dataProvider.DefaultDataProvider;
 
-var _dimensionHelper = __webpack_require__(39);
+var _dimensionHelper = __webpack_require__(40);
 
 var summarizeDimensions = _dimensionHelper.summarizeDimensions;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * List for data storage
  * @module echarts/data/List
  */
 var isObject = zrUtil.isObject;
-var UNDEFINED = 'undefined';
-var globalObj = typeof window === UNDEFINED ? global : window; // Use prefix to avoid index to be the same as otherIdList[idx],
+var UNDEFINED = 'undefined'; // Use prefix to avoid index to be the same as otherIdList[idx],
 // which will cause weird udpate animation.
 
 var ID_PREFIX = 'e\0\0';
 var dataCtors = {
-  'float': typeof globalObj.Float64Array === UNDEFINED ? Array : globalObj.Float64Array,
-  'int': typeof globalObj.Int32Array === UNDEFINED ? Array : globalObj.Int32Array,
+  'float': typeof Float64Array === UNDEFINED ? Array : Float64Array,
+  'int': typeof Int32Array === UNDEFINED ? Array : Int32Array,
   // Ordinal data type can be string or int
   'ordinal': Array,
   'number': Array,
   'time': Array
-};
-var CtorUint32Array = typeof globalObj.Uint32Array === UNDEFINED ? Array : globalObj.Uint32Array;
-var CtorUint16Array = typeof globalObj.Uint16Array === UNDEFINED ? Array : globalObj.Uint16Array;
+}; // Caution: MUST not use `new CtorUint32Array(arr, 0, len)`, because the Ctor of array is
+// different from the Ctor of typed array.
+
+var CtorUint32Array = typeof Uint32Array === UNDEFINED ? Array : Uint32Array;
+var CtorUint16Array = typeof Uint16Array === UNDEFINED ? Array : Uint16Array;
 
 function getIndicesCtor(list) {
   // The possible max value in this._indicies is always this._rawCount despite of filtering.
@@ -20359,15 +21121,20 @@ function cloneChunk(originalChunk) {
   return Ctor === Array ? originalChunk.slice() : new Ctor(originalChunk);
 }
 
-var TRANSFERABLE_PROPERTIES = ['hasItemOption', '_nameList', '_idList', '_calculationInfo', '_invertedIndicesMap', '_rawData', '_rawExtent', '_chunkSize', '_chunkCount', '_dimValueGetter', '_count', '_rawCount', '_nameDimIdx', '_idDimIdx'];
+var TRANSFERABLE_PROPERTIES = ['hasItemOption', '_nameList', '_idList', '_invertedIndicesMap', '_rawData', '_chunkSize', '_chunkCount', '_dimValueGetter', '_count', '_rawCount', '_nameDimIdx', '_idDimIdx'];
+var CLONE_PROPERTIES = ['_extent', '_approximateExtent', '_rawExtent'];
 
-function transferProperties(a, b) {
-  zrUtil.each(TRANSFERABLE_PROPERTIES.concat(b.__wrappedMethods || []), function (propName) {
-    if (b.hasOwnProperty(propName)) {
-      a[propName] = b[propName];
+function transferProperties(target, source) {
+  zrUtil.each(TRANSFERABLE_PROPERTIES.concat(source.__wrappedMethods || []), function (propName) {
+    if (source.hasOwnProperty(propName)) {
+      target[propName] = source[propName];
     }
   });
-  a.__wrappedMethods = b.__wrappedMethods;
+  target.__wrappedMethods = source.__wrappedMethods;
+  zrUtil.each(CLONE_PROPERTIES, function (propName) {
+    target[propName] = zrUtil.clone(source[propName]);
+  });
+  target._calculationInfo = zrUtil.extend(source._calculationInfo);
 }
 /**
  * @constructor
@@ -20630,7 +21397,7 @@ listProto.getDimensionsOnCoord = function () {
  *        If idx is not specified, return the first dim not extra.
  * @return {string|Array.<string>} concrete data dim.
  *        If idx is number, and not found, return null/undefined.
- *        If idx is `true`, and not found, return empty array.
+ *        If idx is `true`, and not found, return empty array (always return array).
  */
 
 
@@ -20642,7 +21409,8 @@ listProto.mapDimension = function (coordDim, idx) {
   }
 
   var dims = dimensionsSummary.encode[coordDim];
-  return dims && (idx === true ? dims.slice() : dims[idx]);
+  return idx === true // always return array if idx is `true`
+  ? (dims || []).slice() : dims && dims[idx];
 };
 /**
  * Initialize from data
@@ -20720,6 +21488,7 @@ listProto._initDataFromProvider = function (start, end) {
   var rawData = this._rawData;
   var storage = this._storage;
   var dimensions = this.dimensions;
+  var dimLen = dimensions.length;
   var dimensionInfoMap = this._dimensionInfos;
   var nameList = this._nameList;
   var idList = this._idList;
@@ -20729,7 +21498,7 @@ listProto._initDataFromProvider = function (start, end) {
   var chunkCount = this._chunkCount;
   var lastChunkIndex = chunkCount - 1;
 
-  for (var i = 0; i < dimensions.length; i++) {
+  for (var i = 0; i < dimLen; i++) {
     var dim = dimensions[i];
 
     if (!rawExtent[dim]) {
@@ -20773,9 +21542,11 @@ listProto._initDataFromProvider = function (start, end) {
     this._chunkCount = storage[dim].length;
   }
 
+  var dataItem = new Array(dimLen);
+
   for (var idx = start; idx < end; idx++) {
     // NOTICE: Try not to write things into dataItem
-    var dataItem = rawData.getItem(idx); // Each data item is value
+    dataItem = rawData.getItem(idx, dataItem); // Each data item is value
     // [1, 2]
     // 2
     // Bar chart, line chart which uses category axis
@@ -20785,20 +21556,21 @@ listProto._initDataFromProvider = function (start, end) {
     var chunkIndex = Math.floor(idx / chunkSize);
     var chunkOffset = idx % chunkSize; // Store the data by dimensions
 
-    for (var k = 0; k < dimensions.length; k++) {
+    for (var k = 0; k < dimLen; k++) {
       var dim = dimensions[k];
       var dimStorage = storage[dim][chunkIndex]; // PENDING NULL is empty or zero
 
       var val = this._dimValueGetter(dataItem, dim, idx, k);
 
       dimStorage[chunkOffset] = val;
+      var dimRawExtent = rawExtent[dim];
 
-      if (val < rawExtent[dim][0]) {
-        rawExtent[dim][0] = val;
+      if (val < dimRawExtent[0]) {
+        dimRawExtent[0] = val;
       }
 
-      if (val > rawExtent[dim][1]) {
-        rawExtent[dim][1] = val;
+      if (val > dimRawExtent[1]) {
+        dimRawExtent[1] = val;
       }
     } // ??? FIXME not check by pure but sourceFormat?
     // TODO refactor these logic.
@@ -20807,13 +21579,25 @@ listProto._initDataFromProvider = function (start, end) {
     if (!rawData.pure) {
       var name = nameList[idx];
 
-      if (dataItem && !name) {
-        if (nameDimIdx != null) {
-          name = this._getNameFromStore(idx);
-        } else if (dataItem.name != null) {
+      if (dataItem && name == null) {
+        // If dataItem is {name: ...}, it has highest priority.
+        // That is appropriate for many common cases.
+        if (dataItem.name != null) {
           // There is no other place to persistent dataItem.name,
           // so save it to nameList.
           nameList[idx] = name = dataItem.name;
+        } else if (nameDimIdx != null) {
+          var nameDim = dimensions[nameDimIdx];
+          var nameDimChunk = storage[nameDim][chunkIndex];
+
+          if (nameDimChunk) {
+            name = nameDimChunk[chunkOffset];
+            var ordinalMeta = dimensionInfoMap[nameDim].ordinalMeta;
+
+            if (ordinalMeta && ordinalMeta.categories.length) {
+              name = ordinalMeta.categories[name];
+            }
+          }
         }
       } // Try using the id in option
       // id or name is used on dynamical data, mapping old and new items.
@@ -20869,47 +21653,30 @@ function prepareInvertedIndex(list) {
       }
     }
   });
-} // TODO refactor
+}
 
+function getRawValueFromStore(list, dimIndex, rawIndex) {
+  var val;
 
-listProto._getNameFromStore = function (rawIndex) {
-  var nameDimIdx = this._nameDimIdx;
-
-  if (nameDimIdx != null) {
-    var chunkSize = this._chunkSize;
+  if (dimIndex != null) {
+    var chunkSize = list._chunkSize;
     var chunkIndex = Math.floor(rawIndex / chunkSize);
     var chunkOffset = rawIndex % chunkSize;
-    var dim = this.dimensions[nameDimIdx];
-    var ordinalMeta = this._dimensionInfos[dim].ordinalMeta;
+    var dim = list.dimensions[dimIndex];
+    var chunk = list._storage[dim][chunkIndex];
 
-    if (ordinalMeta) {
-      return ordinalMeta.categories[rawIndex];
-    } else {
-      var chunk = this._storage[dim][chunkIndex];
-      return chunk && chunk[chunkOffset];
+    if (chunk) {
+      val = chunk[chunkOffset];
+      var ordinalMeta = list._dimensionInfos[dim].ordinalMeta;
+
+      if (ordinalMeta && ordinalMeta.categories.length) {
+        val = ordinalMeta.categories[val];
+      }
     }
   }
-}; // TODO refactor
 
-
-listProto._getIdFromStore = function (rawIndex) {
-  var idDimIdx = this._idDimIdx;
-
-  if (idDimIdx != null) {
-    var chunkSize = this._chunkSize;
-    var chunkIndex = Math.floor(rawIndex / chunkSize);
-    var chunkOffset = rawIndex % chunkSize;
-    var dim = this.dimensions[idDimIdx];
-    var ordinalMeta = this._dimensionInfos[dim].ordinalMeta;
-
-    if (ordinalMeta) {
-      return ordinalMeta.categories[rawIndex];
-    } else {
-      var chunk = this._storage[dim][chunkIndex];
-      return chunk && chunk[chunkOffset];
-    }
-  }
-};
+  return val;
+}
 /**
  * @return {number}
  */
@@ -20920,19 +21687,32 @@ listProto.count = function () {
 };
 
 listProto.getIndices = function () {
-  if (this._indices) {
-    var Ctor = this._indices.constructor;
-    return new Ctor(this._indices.buffer, 0, this._count);
+  var newIndices;
+  var indices = this._indices;
+
+  if (indices) {
+    var Ctor = indices.constructor;
+    var thisCount = this._count; // `new Array(a, b, c)` is different from `new Uint32Array(a, b, c)`.
+
+    if (Ctor === Array) {
+      newIndices = new Ctor(thisCount);
+
+      for (var i = 0; i < thisCount; i++) {
+        newIndices[i] = indices[i];
+      }
+    } else {
+      newIndices = new Ctor(indices.buffer, 0, thisCount);
+    }
+  } else {
+    var Ctor = getIndicesCtor(this);
+    var newIndices = new Ctor(this.count());
+
+    for (var i = 0; i < newIndices.length; i++) {
+      newIndices[i] = i;
+    }
   }
 
-  var Ctor = getIndicesCtor(this);
-  var arr = new Ctor(this.count());
-
-  for (var i = 0; i < arr.length; i++) {
-    arr[i] = i;
-  }
-
-  return arr;
+  return newIndices;
 };
 /**
  * Get value. Return NaN if idx is out of range.
@@ -21191,6 +21971,32 @@ listProto.getSum = function (dim
   }
 
   return sum;
+};
+/**
+ * Get median of data in one dimension
+ * @param {string} dim
+ */
+
+
+listProto.getMedian = function (dim
+/*, stack */
+) {
+  var dimDataArray = []; // map all data of one dimension
+
+  this.each(dim, function (val, idx) {
+    if (!isNaN(val)) {
+      dimDataArray.push(val);
+    }
+  }); // TODO
+  // Use quick select?
+  // immutability & sort
+
+  var sortedDimDataArray = [].concat(dimDataArray).sort(function (a, b) {
+    return a - b;
+  });
+  var len = this.count(); // calculate median
+
+  return len === 0 ? 0 : len % 2 === 1 ? sortedDimDataArray[(len - 1) / 2] : (sortedDimDataArray[len / 2] + sortedDimDataArray[len / 2 - 1]) / 2;
 }; // /**
 //  * Retreive the index with given value
 //  * @param {string} dim Concrete dimension.
@@ -21392,7 +22198,7 @@ listProto.getRawDataItem = function (idx) {
 
 listProto.getName = function (idx) {
   var rawIndex = this.getRawIndex(idx);
-  return this._nameList[rawIndex] || this._getNameFromStore(rawIndex) || '';
+  return this._nameList[rawIndex] || getRawValueFromStore(this, this._nameDimIdx, rawIndex) || '';
 };
 /**
  * @param {number} idx
@@ -21409,7 +22215,7 @@ function getId(list, rawIndex) {
   var id = list._idList[rawIndex];
 
   if (id == null) {
-    id = list._getIdFromStore(rawIndex);
+    id = getRawValueFromStore(list, list._idDimIdx, rawIndex);
   }
 
   if (id == null) {
@@ -21572,15 +22378,12 @@ listProto.filterSelf = function (dimensions, cb, context, contextCompat) {
  */
 
 
-listProto.selectRange = function (range
-/*, stack */
-) {
+listProto.selectRange = function (range) {
   'use strict';
 
   if (!this._count) {
     return;
-  } // stack = stack || false;
-
+  }
 
   var dimensions = [];
 
@@ -21605,67 +22408,69 @@ listProto.selectRange = function (range
   var max = range[dim0][1];
   var quickFinished = false;
 
-  if (!this._indices
-  /* && !stack */
-  ) {
-      // Extreme optimization for common case. About 2x faster in chrome.
-      var idx = 0;
+  if (!this._indices) {
+    // Extreme optimization for common case. About 2x faster in chrome.
+    var idx = 0;
 
-      if (dimSize === 1) {
-        var dimStorage = this._storage[dimensions[0]];
+    if (dimSize === 1) {
+      var dimStorage = this._storage[dimensions[0]];
 
-        for (var k = 0; k < this._chunkCount; k++) {
-          var chunkStorage = dimStorage[k];
-          var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
+      for (var k = 0; k < this._chunkCount; k++) {
+        var chunkStorage = dimStorage[k];
+        var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
 
-          for (var i = 0; i < len; i++) {
-            var val = chunkStorage[i];
+        for (var i = 0; i < len; i++) {
+          var val = chunkStorage[i]; // NaN will not be filtered. Consider the case, in line chart, empty
+          // value indicates the line should be broken. But for the case like
+          // scatter plot, a data item with empty value will not be rendered,
+          // but the axis extent may be effected if some other dim of the data
+          // item has value. Fortunately it is not a significant negative effect.
 
-            if (val >= min && val <= max) {
-              newIndices[offset++] = idx;
-            }
-
-            idx++;
+          if (val >= min && val <= max || isNaN(val)) {
+            newIndices[offset++] = idx;
           }
+
+          idx++;
         }
-
-        quickFinished = true;
-      } else if (dimSize === 2) {
-        var dimStorage = this._storage[dim0];
-        var dimStorage2 = this._storage[dimensions[1]];
-        var min2 = range[dimensions[1]][0];
-        var max2 = range[dimensions[1]][1];
-
-        for (var k = 0; k < this._chunkCount; k++) {
-          var chunkStorage = dimStorage[k];
-          var chunkStorage2 = dimStorage2[k];
-          var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
-
-          for (var i = 0; i < len; i++) {
-            var val = chunkStorage[i];
-            var val2 = chunkStorage2[i];
-
-            if (val >= min && val <= max && val2 >= min2 && val2 <= max2) {
-              newIndices[offset++] = idx;
-            }
-
-            idx++;
-          }
-        }
-
-        quickFinished = true;
       }
+
+      quickFinished = true;
+    } else if (dimSize === 2) {
+      var dimStorage = this._storage[dim0];
+      var dimStorage2 = this._storage[dimensions[1]];
+      var min2 = range[dimensions[1]][0];
+      var max2 = range[dimensions[1]][1];
+
+      for (var k = 0; k < this._chunkCount; k++) {
+        var chunkStorage = dimStorage[k];
+        var chunkStorage2 = dimStorage2[k];
+        var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
+
+        for (var i = 0; i < len; i++) {
+          var val = chunkStorage[i];
+          var val2 = chunkStorage2[i]; // Do not filter NaN, see comment above.
+
+          if ((val >= min && val <= max || isNaN(val)) && (val2 >= min2 && val2 <= max2 || isNaN(val2))) {
+            newIndices[offset++] = idx;
+          }
+
+          idx++;
+        }
+      }
+
+      quickFinished = true;
     }
+  }
 
   if (!quickFinished) {
     if (dimSize === 1) {
-      // stack = stack || !!this.getCalculationInfo(dim0);
       for (var i = 0; i < originalCount; i++) {
-        var rawIndex = this.getRawIndex(i); // var val = stack ? this.get(dim0, i, true) : this._getFast(dim0, rawIndex);
+        var rawIndex = this.getRawIndex(i);
 
-        var val = this._getFast(dim0, rawIndex);
+        var val = this._getFast(dim0, rawIndex); // Do not filter NaN, see comment above.
 
-        if (val >= min && val <= max) {
+
+        if (val >= min && val <= max || isNaN(val)) {
           newIndices[offset++] = rawIndex;
         }
       }
@@ -21675,9 +22480,10 @@ listProto.selectRange = function (range
         var rawIndex = this.getRawIndex(i);
 
         for (var k = 0; k < dimSize; k++) {
-          var dimk = dimensions[k]; // var val = stack ? this.get(dimk, i, true) : this._getFast(dim, rawIndex);
+          var dimk = dimensions[k];
 
-          var val = this._getFast(dim, rawIndex);
+          var val = this._getFast(dim, rawIndex); // Do not filter NaN, see comment above.
+
 
           if (val < range[dimk][0] || val > range[dimk][1]) {
             keep = false;
@@ -21737,16 +22543,18 @@ function cloneListForMapAndSample(original, excludeDimensions) {
 
   transferProperties(list, original);
   var storage = list._storage = {};
-  var originalStorage = original._storage;
-  var rawExtent = zrUtil.extend({}, original._rawExtent); // Init storage
+  var originalStorage = original._storage; // Init storage
 
   for (var i = 0; i < allDimensions.length; i++) {
     var dim = allDimensions[i];
 
     if (originalStorage[dim]) {
+      // Notice that we do not reset invertedIndicesMap here, becuase
+      // there is no scenario of mapping or sampling ordinal dimension.
       if (zrUtil.indexOf(excludeDimensions, dim) >= 0) {
         storage[dim] = cloneDimStore(originalStorage[dim]);
-        rawExtent[dim] = getInitialExtent();
+        list._rawExtent[dim] = getInitialExtent();
+        list._extent[dim] = null;
       } else {
         // Direct reference for other dimensions
         storage[dim] = originalStorage[dim];
@@ -22160,8 +22968,6 @@ listProto.cloneShallow = function (list) {
   }
 
   list.getRawIndex = list._indices ? getRawIndexWithIndices : getRawIndexWithoutIndices;
-  list._extent = zrUtil.clone(this._extent);
-  list._approximateExtent = zrUtil.clone(this._approximateExtent);
   return list;
 };
 /**
@@ -22195,13 +23001,31 @@ listProto.TRANSFERABLE_METHODS = ['cloneShallow', 'downSample', 'map']; // Metho
 listProto.CHANGABLE_METHODS = ['filterSelf', 'selectRange'];
 var _default = List;
 module.exports = _default;
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(42)))
 
 /***/ }),
 /* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var completeDimensions = __webpack_require__(73);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Substitute `completeDimensions`.
@@ -22250,15 +23074,34 @@ var _model = __webpack_require__(1);
 
 var normalizeToArray = _model.normalizeToArray;
 
-var _sourceHelper = __webpack_require__(36);
+var _sourceHelper = __webpack_require__(29);
 
 var guessOrdinal = _sourceHelper.guessOrdinal;
 
 var Source = __webpack_require__(18);
 
-var _dimensionHelper = __webpack_require__(39);
+var _dimensionHelper = __webpack_require__(40);
 
 var OTHER_DIMENSIONS = _dimensionHelper.OTHER_DIMENSIONS;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @deprecated
@@ -22277,7 +23120,7 @@ var OTHER_DIMENSIONS = _dimensionHelper.OTHER_DIMENSIONS;
  *      provides not only dim template, but also default order.
  *      properties: 'name', 'type', 'displayName'.
  *      `name` of each item provides default coord name.
- *      [{dimsDef: [string...]}, ...] dimsDef of sysDim item provides default dim name, and
+ *      [{dimsDef: [string|Object, ...]}, ...] dimsDef of sysDim item provides default dim name, and
  *                                    provide dims count that the sysDim required.
  *      [{ordinalMeta}] can be specified.
  * @param {module:echarts/data/Source|Array|Object} source or data (for compatibal with pervious)
@@ -22403,7 +23246,12 @@ function completeDimensions(sysDims, source, opt) {
       applyDim(defaults(resultItem, sysDimItem), coordDim, coordDimIndex);
 
       if (resultItem.name == null && sysDimItemDimsDef) {
-        resultItem.name = resultItem.displayName = sysDimItemDimsDef[coordDimIndex];
+        var sysDimItemDimsDefItem = sysDimItemDimsDef[coordDimIndex];
+        !isObject(sysDimItemDimsDefItem) && (sysDimItemDimsDefItem = {
+          name: sysDimItemDimsDefItem
+        });
+        resultItem.name = resultItem.displayName = sysDimItemDimsDefItem.name;
+        resultItem.defaultTooltip = sysDimItemDimsDefItem.defaultTooltip;
       } // FIXME refactor, currently only used in case: {otherDims: {tooltip: false}}
 
 
@@ -22501,6 +23349,25 @@ var _util = __webpack_require__(0);
 var createHashMap = _util.createHashMap;
 var isObject = _util.isObject;
 var map = _util.map;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @constructor
@@ -22629,7 +23496,26 @@ module.exports = _default;
 /* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var numberUtil = __webpack_require__(5);
+var numberUtil = __webpack_require__(4);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * For testable.
@@ -22743,17 +23629,27 @@ exports.intervalScaleGetTicks = intervalScaleGetTicks;
 
 var zrUtil = __webpack_require__(0);
 
-var axisHelper = __webpack_require__(29);
+var axisHelper = __webpack_require__(30);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var _default = {
-  /**
-   * Format labels
-   * @return {Array.<string>}
-   */
-  getFormattedLabels: function () {
-    return axisHelper.getFormattedLabels(this.axis, this.get('axisLabel.formatter'));
-  },
-
   /**
    * @param {boolean} origin
    * @return {number|string} min value or 'dataMin' or null/undefined (means auto) or NaN
@@ -22821,31 +23717,49 @@ module.exports = _default;
 /* 77 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var zrUtil = __webpack_require__(0);
+var _util = __webpack_require__(0);
 
-var numberUtil = __webpack_require__(5);
+var each = _util.each;
+var map = _util.map;
 
-var axisHelper = __webpack_require__(29);
+var _number = __webpack_require__(4);
 
-var linearMap = numberUtil.linearMap;
+var linearMap = _number.linearMap;
+var getPixelPrecision = _number.getPixelPrecision;
 
-function fixExtentWithBands(extent, nTick) {
-  var size = extent[1] - extent[0];
-  var len = nTick;
-  var margin = size / len / 2;
-  extent[0] += margin;
-  extent[1] -= margin;
-}
+var _axisTickLabelBuilder = __webpack_require__(147);
 
-var normalizedExtent = [0, 1];
+var createAxisTicks = _axisTickLabelBuilder.createAxisTicks;
+var createAxisLabels = _axisTickLabelBuilder.createAxisLabels;
+var calculateCategoryInterval = _axisTickLabelBuilder.calculateCategoryInterval;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+var NORMALIZED_EXTENT = [0, 1];
 /**
- * @name module:echarts/coord/CartesianAxis
+ * Base class of Axis.
  * @constructor
  */
 
 var Axis = function (dim, scale, extent) {
   /**
-   * Axis dimension. Such as 'x', 'y', 'z', 'angle', 'radius'
+   * Axis dimension. Such as 'x', 'y', 'z', 'angle', 'radius'.
    * @type {string}
    */
   this.dim = dim;
@@ -22872,12 +23786,6 @@ var Axis = function (dim, scale, extent) {
    */
 
   this.onBand = false;
-  /**
-   * @private
-   * @type {number}
-   */
-
-  this._labelInterval;
 };
 
 Axis.prototype = {
@@ -22918,7 +23826,7 @@ Axis.prototype = {
    * @return {number}
    */
   getPixelPrecision: function (dataExtent) {
-    return numberUtil.getPixelPrecision(dataExtent || this.scale.getExtent(), this._extent);
+    return getPixelPrecision(dataExtent || this.scale.getExtent(), this._extent);
   },
 
   /**
@@ -22948,7 +23856,7 @@ Axis.prototype = {
       fixExtentWithBands(extent, scale.count());
     }
 
-    return linearMap(data, normalizedExtent, extent, clamp);
+    return linearMap(data, NORMALIZED_EXTENT, extent, clamp);
   },
 
   /**
@@ -22966,7 +23874,7 @@ Axis.prototype = {
       fixExtentWithBands(extent, scale.count());
     }
 
-    var t = linearMap(coord, extent, normalizedExtent, clamp);
+    var t = linearMap(coord, extent, NORMALIZED_EXTENT, clamp);
     return this.scale.scale(t);
   },
 
@@ -22980,57 +23888,63 @@ Axis.prototype = {
   },
 
   /**
-   * @return {Array.<number>}
+   * Different from `zrUtil.map(axis.getTicks(), axis.dataToCoord, axis)`,
+   * `axis.getTicksCoords` considers `onBand`, which is used by
+   * `boundaryGap:true` of category axis and splitLine and splitArea.
+   * @param {Object} [opt]
+   * @param {number} [opt.tickModel=axis.model.getModel('axisTick')]
+   * @param {boolean} [opt.clamp] If `true`, the first and the last
+   *        tick must be at the axis end points. Otherwise, clip ticks
+   *        that outside the axis extent.
+   * @return {Array.<Object>} [{
+   *     coord: ...,
+   *     tickValue: ...
+   * }, ...]
    */
-  getTicksCoords: function (alignWithLabel) {
-    if (this.onBand && !alignWithLabel) {
-      var bands = this.getBands();
-      var coords = [];
-
-      for (var i = 0; i < bands.length; i++) {
-        coords.push(bands[i][0]);
-      }
-
-      if (bands[i - 1]) {
-        coords.push(bands[i - 1][1]);
-      }
-
-      return coords;
-    } else {
-      return zrUtil.map(this.scale.getTicks(), this.dataToCoord, this);
-    }
+  getTicksCoords: function (opt) {
+    opt = opt || {};
+    var tickModel = opt.tickModel || this.getTickModel();
+    var result = createAxisTicks(this, tickModel);
+    var ticks = result.ticks;
+    var ticksCoords = map(ticks, function (tickValue) {
+      return {
+        coord: this.dataToCoord(tickValue),
+        tickValue: tickValue
+      };
+    }, this);
+    var alignWithLabel = tickModel.get('alignWithLabel');
+    fixOnBandTicksCoords(this, ticksCoords, result.tickCategoryInterval, alignWithLabel, opt.clamp);
+    return ticksCoords;
   },
 
   /**
-   * Coords of labels are on the ticks or on the middle of bands
-   * @return {Array.<number>}
+   * @return {Array.<Object>} [{
+   *     formattedLabel: string,
+   *     rawLabel: axis.scale.getLabel(tickValue)
+   *     tickValue: number
+   * }, ...]
    */
-  getLabelsCoords: function () {
-    return zrUtil.map(this.scale.getTicks(), this.dataToCoord, this);
+  getViewLabels: function () {
+    return createAxisLabels(this).labels;
   },
 
   /**
-   * Get bands.
-   *
-   * If axis has labels [1, 2, 3, 4]. Bands on the axis are
-   * |---1---|---2---|---3---|---4---|.
-   *
-   * @return {Array}
+   * @return {module:echarts/coord/model/Model}
    */
-  // FIXME Situation when labels is on ticks
-  getBands: function () {
-    var extent = this.getExtent();
-    var bands = [];
-    var len = this.scale.count();
-    var start = extent[0];
-    var end = extent[1];
-    var span = end - start;
+  getLabelModel: function () {
+    return this.model.getModel('axisLabel');
+  },
 
-    for (var i = 0; i < len; i++) {
-      bands.push([span * i / len + start, span * (i + 1) / len + start]);
-    }
-
-    return bands;
+  /**
+   * Notice here we only get the default tick model. For splitLine
+   * or splitArea, we should pass the splitLineModel or splitAreaModel
+   * manually when calling `getTicksCoords`.
+   * In GL, this method may be overrided to:
+   * `axisModel.getModel('axisTick', grid3DModel.getModel('axisTick'));`
+   * @return {module:echarts/coord/model/Model}
+   */
+  getTickModel: function () {
+    return this.model.getModel('axisTick');
   },
 
   /**
@@ -23060,29 +23974,91 @@ Axis.prototype = {
   getRotate: null,
 
   /**
-   * Get interval of the axis label.
-   * To get precise result, at least one of `getRotate` and `isHorizontal`
-   * should be implemented.
-   * @return {number}
+   * Only be called in category axis.
+   * Can be overrided, consider other axes like in 3D.
+   * @param {boolean} hideLabel
+   * @return {number} Auto interval for cateogry axis tick and label
    */
-  getLabelInterval: function () {
-    var labelInterval = this._labelInterval;
-
-    if (!labelInterval) {
-      var axisModel = this.model;
-      var labelModel = axisModel.getModel('axisLabel');
-      labelInterval = labelModel.get('interval');
-
-      if (this.type === 'category' && (labelInterval == null || labelInterval === 'auto')) {
-        labelInterval = axisHelper.getAxisLabelInterval(zrUtil.map(this.scale.getTicks(), this.dataToCoord, this), axisModel.getFormattedLabels(), labelModel.getFont(), this.getRotate ? this.getRotate() : this.isHorizontal && !this.isHorizontal() ? 90 : 0, labelModel.get('rotate'));
-      }
-
-      this._labelInterval = labelInterval;
-    }
-
-    return labelInterval;
+  calculateCategoryInterval: function (hideLabel) {
+    return calculateCategoryInterval(this, hideLabel);
   }
 };
+
+function fixExtentWithBands(extent, nTick) {
+  var size = extent[1] - extent[0];
+  var len = nTick;
+  var margin = size / len / 2;
+  extent[0] += margin;
+  extent[1] -= margin;
+} // If axis has labels [1, 2, 3, 4]. Bands on the axis are
+// |---1---|---2---|---3---|---4---|.
+// So the displayed ticks and splitLine/splitArea should between
+// each data item, otherwise cause misleading (e.g., split tow bars
+// of a single data item when there are two bar series).
+// Also consider if tickCategoryInterval > 0 and onBand, ticks and
+// splitLine/spliteArea should layout appropriately corresponding
+// to displayed labels. (So we should not use `getBandWidth` in this
+// case).
+
+
+function fixOnBandTicksCoords(axis, ticksCoords, tickCategoryInterval, alignWithLabel, clamp) {
+  var ticksLen = ticksCoords.length;
+
+  if (!axis.onBand || alignWithLabel || !ticksLen) {
+    return;
+  }
+
+  var axisExtent = axis.getExtent();
+  var last;
+
+  if (ticksLen === 1) {
+    ticksCoords[0].coord = axisExtent[0];
+    last = ticksCoords[1] = {
+      coord: axisExtent[0]
+    };
+  } else {
+    var shift = ticksCoords[1].coord - ticksCoords[0].coord;
+    each(ticksCoords, function (ticksItem) {
+      ticksItem.coord -= shift / 2;
+      var tickCategoryInterval = tickCategoryInterval || 0; // Avoid split a single data item when odd interval.
+
+      if (tickCategoryInterval % 2 > 0) {
+        ticksItem.coord -= shift / ((tickCategoryInterval + 1) * 2);
+      }
+    });
+    last = {
+      coord: ticksCoords[ticksLen - 1].coord + shift
+    };
+    ticksCoords.push(last);
+  }
+
+  var inverse = axisExtent[0] > axisExtent[1];
+
+  if (littleThan(ticksCoords[0].coord, axisExtent[0])) {
+    clamp ? ticksCoords[0].coord = axisExtent[0] : ticksCoords.shift();
+  }
+
+  if (clamp && littleThan(axisExtent[0], ticksCoords[0].coord)) {
+    ticksCoords.unshift({
+      coord: axisExtent[0]
+    });
+  }
+
+  if (littleThan(axisExtent[1], last.coord)) {
+    clamp ? last.coord = axisExtent[1] : ticksCoords.pop();
+  }
+
+  if (clamp && littleThan(last.coord, axisExtent[1])) {
+    ticksCoords.push({
+      coord: axisExtent[1]
+    });
+  }
+
+  function littleThan(a, b) {
+    return inverse ? a > b : a < b;
+  }
+}
+
 var _default = Axis;
 module.exports = _default;
 
@@ -23092,31 +24068,43 @@ module.exports = _default;
 
 var zrUtil = __webpack_require__(0);
 
-var _symbol = __webpack_require__(41);
+var _symbol = __webpack_require__(42);
 
 var createSymbol = _symbol.createSymbol;
 
 var graphic = __webpack_require__(7);
 
-var _number = __webpack_require__(5);
+var _number = __webpack_require__(4);
 
 var parsePercent = _number.parsePercent;
 
-var _labelHelper = __webpack_require__(150);
+var _labelHelper = __webpack_require__(152);
 
 var getDefaultLabel = _labelHelper.getDefaultLabel;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @module echarts/chart/helper/Symbol
  */
-function getSymbolSize(data, idx) {
-  var symbolSize = data.getItemVisual(idx, 'symbolSize');
-  return symbolSize instanceof Array ? symbolSize.slice() : [+symbolSize, +symbolSize];
-}
 
-function getScale(symbolSize) {
-  return [symbolSize[0] / 2, symbolSize[1] / 2];
-}
 /**
  * @constructor
  * @alias {module:echarts/chart/helper/Symbol}
@@ -23124,20 +24112,34 @@ function getScale(symbolSize) {
  * @param {number} idx
  * @extends {module:zrender/graphic/Group}
  */
-
-
 function SymbolClz(data, idx, seriesScope) {
   graphic.Group.call(this);
   this.updateData(data, idx, seriesScope);
 }
 
 var symbolProto = SymbolClz.prototype;
+/**
+ * @public
+ * @static
+ * @param {module:echarts/data/List} data
+ * @param {number} dataIndex
+ * @return {Array.<number>} [width, height]
+ */
+
+var getSymbolSize = SymbolClz.getSymbolSize = function (data, idx) {
+  var symbolSize = data.getItemVisual(idx, 'symbolSize');
+  return symbolSize instanceof Array ? symbolSize.slice() : [+symbolSize, +symbolSize];
+};
+
+function getScale(symbolSize) {
+  return [symbolSize[0] / 2, symbolSize[1] / 2];
+}
 
 function driftSymbol(dx, dy) {
   this.parent.drift(dx, dy);
 }
 
-symbolProto._createSymbol = function (symbolType, data, idx, symbolSize) {
+symbolProto._createSymbol = function (symbolType, data, idx, symbolSize, keepAspect) {
   // Remove paths created before
   this.removeAll();
   var color = data.getItemVisual(idx, 'color'); // var symbolPath = createSymbol(
@@ -23147,7 +24149,7 @@ symbolProto._createSymbol = function (symbolType, data, idx, symbolSize) {
   // and macOS Sierra, a circle stroke become a rect, no matter what
   // the scale is set. So we set width/height as 2. See #4150.
 
-  var symbolPath = createSymbol(symbolType, -1, -1, 2, 2, color);
+  var symbolPath = createSymbol(symbolType, -1, -1, 2, 2, color, keepAspect);
   symbolPath.attr({
     z2: 100,
     culling: true,
@@ -23250,7 +24252,9 @@ symbolProto.updateData = function (data, idx, seriesScope) {
   var isInit = symbolType !== this._symbolType;
 
   if (isInit) {
-    this._createSymbol(symbolType, data, idx, symbolSize);
+    var keepAspect = data.getItemVisual(idx, 'symbolKeepAspect');
+
+    this._createSymbol(symbolType, data, idx, symbolSize, keepAspect);
   } else {
     var symbolPath = this.childAt(0);
     symbolPath.silent = false;
@@ -23343,6 +24347,19 @@ symbolProto._updateCommon = function (data, idx, symbolSize, seriesScope) {
     elStyle.opacity = opacity;
   }
 
+  var liftZ = data.getItemVisual(idx, 'liftZ');
+  var z2Origin = symbolPath.__z2Origin;
+
+  if (liftZ != null) {
+    if (z2Origin == null) {
+      symbolPath.__z2Origin = symbolPath.z2;
+      symbolPath.z2 += liftZ;
+    }
+  } else if (z2Origin != null) {
+    symbolPath.z2 = z2Origin;
+    symbolPath.__z2Origin = null;
+  }
+
   var useNameLabel = seriesScope && seriesScope.useNameLabel;
   graphic.setLabelStyle(elStyle, hoverItemStyle, labelModel, hoverLabelModel, {
     labelFetcher: seriesModel,
@@ -23419,13 +24436,32 @@ module.exports = _default;
 /* 79 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var _dataStackHelper = __webpack_require__(20);
+var _dataStackHelper = __webpack_require__(21);
 
 var isDimensionStacked = _dataStackHelper.isDimensionStacked;
 
 var _util = __webpack_require__(0);
 
 var map = _util.map;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @param {Object} coordSys
@@ -23441,16 +24477,28 @@ function prepareDataCoordInfo(coordSys, data, valueOrigin) {
   var valueDim = data.mapDimension(valueAxisDim);
   var baseDim = data.mapDimension(baseAxisDim);
   var baseDataOffset = valueAxisDim === 'x' || valueAxisDim === 'radius' ? 1 : 0;
-  var stacked = isDimensionStacked(data, valueDim, baseDim);
-  var dataDimsForPoint = map(coordSys.dimensions, function (coordDim) {
+  var dims = map(coordSys.dimensions, function (coordDim) {
     return data.mapDimension(coordDim);
   });
+  var stacked;
+  var stackResultDim = data.getCalculationInfo('stackResultDimension');
+
+  if (stacked |= isDimensionStacked(data, dims[0], dims[1])) {
+    // jshint ignore:line
+    dims[0] = stackResultDim;
+  }
+
+  if (stacked |= isDimensionStacked(data, dims[1], dims[0])) {
+    // jshint ignore:line
+    dims[1] = stackResultDim;
+  }
+
   return {
-    dataDimsForPoint: dataDimsForPoint,
+    dataDimsForPoint: dims,
     valueStart: valueStart,
     valueAxisDim: valueAxisDim,
     baseAxisDim: baseAxisDim,
-    stacked: stacked,
+    stacked: !!stacked,
     valueDim: valueDim,
     baseDim: baseDim,
     baseDataOffset: baseDataOffset,
@@ -23508,12 +24556,30 @@ exports.getStackedOnPoint = getStackedOnPoint;
 
 var zrUtil = __webpack_require__(0);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
 
-var axisModelCreator = __webpack_require__(162);
+var axisModelCreator = __webpack_require__(164);
 
 var axisModelCommonMixin = __webpack_require__(76);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var AxisModel = ComponentModel.extend({
   type: 'cartesian2dAxis',
 
@@ -23582,9 +24648,9 @@ module.exports = _default;
 
 "use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_echarts_lib_echarts__ = __webpack_require__(21);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_echarts_lib_echarts__ = __webpack_require__(22);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_echarts_lib_echarts___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_echarts_lib_echarts__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_echarts_lib_chart_line__ = __webpack_require__(146);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_echarts_lib_chart_line__ = __webpack_require__(148);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_echarts_lib_chart_line___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_echarts_lib_chart_line__);
 
 
@@ -23683,13 +24749,40 @@ chart.setOption(option);
 
 /***/ }),
 /* 82 */
+/***/ (function(module, exports) {
+
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || Function("return this")() || (1,eval)("this");
+} catch(e) {
+	// This works if the window reference is available
+	if(typeof window === "object")
+		g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
+
+
+/***/ }),
+/* 83 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var util = __webpack_require__(0);
 
 var vec2 = __webpack_require__(3);
 
-var Draggable = __webpack_require__(83);
+var Draggable = __webpack_require__(84);
 
 var Eventful = __webpack_require__(14);
 
@@ -24012,7 +25105,7 @@ var _default = Handler;
 module.exports = _default;
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ (function(module, exports) {
 
 // TODO Draggable for group
@@ -24096,16 +25189,16 @@ var _default = Draggable;
 module.exports = _default;
 
 /***/ }),
-/* 84 */
+/* 85 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var util = __webpack_require__(0);
 
 var env = __webpack_require__(8);
 
-var Group = __webpack_require__(22);
+var Group = __webpack_require__(23);
 
-var timsort = __webpack_require__(31);
+var timsort = __webpack_require__(32);
 
 // Use timsort because in most case elements are partially sorted
 // https://jsfiddle.net/pissang/jr4x7mdm/8/
@@ -24333,7 +25426,7 @@ var _default = Storage;
 module.exports = _default;
 
 /***/ }),
-/* 85 */
+/* 86 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var Animator = __webpack_require__(47);
@@ -24592,10 +25685,10 @@ var _default = Animatable;
 module.exports = _default;
 
 /***/ }),
-/* 86 */
+/* 87 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var easingFuncs = __webpack_require__(87);
+var easingFuncs = __webpack_require__(88);
 
 /**
  * 动画主控制器
@@ -24698,7 +25791,7 @@ var _default = Clip;
 module.exports = _default;
 
 /***/ }),
-/* 87 */
+/* 88 */
 /***/ (function(module, exports) {
 
 /**
@@ -25081,10 +26174,10 @@ var _default = easing;
 module.exports = _default;
 
 /***/ }),
-/* 88 */
+/* 89 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var _config = __webpack_require__(24);
+var _config = __webpack_require__(25);
 
 var devicePixelRatio = _config.devicePixelRatio;
 
@@ -25094,9 +26187,9 @@ var log = __webpack_require__(49);
 
 var BoundingRect = __webpack_require__(6);
 
-var timsort = __webpack_require__(31);
+var timsort = __webpack_require__(32);
 
-var Layer = __webpack_require__(89);
+var Layer = __webpack_require__(90);
 
 var requestAnimationFrame = __webpack_require__(53);
 
@@ -25254,27 +26347,32 @@ var Painter = function (root, storage, opts) {
     var domRoot = this._domRoot = createRoot(this._width, this._height);
     root.appendChild(domRoot);
   } else {
+    var width = root.width;
+    var height = root.height;
+
     if (opts.width != null) {
-      root.width = opts.width;
+      width = opts.width;
     }
 
     if (opts.height != null) {
-      root.height = opts.height;
-    } // Use canvas width and height directly
+      height = opts.height;
+    }
 
+    this.dpr = opts.devicePixelRatio || 1; // Use canvas width and height directly
 
-    var width = root.width;
-    var height = root.height;
+    root.width = width * this.dpr;
+    root.height = height * this.dpr;
     this._width = width;
     this._height = height; // Create layer if only one given canvas
-    // Device pixel ratio is fixed to 1 because given canvas has its specified width and height
+    // Device can be specified to create a high dpi image.
 
-    var mainLayer = new Layer(root, this, 1);
+    var mainLayer = new Layer(root, this, this.dpr);
     mainLayer.__builtin__ = true;
     mainLayer.initContext(); // FIXME Use canvas width and height
     // mainLayer.resize(width, height);
 
-    layers[CANVAS_ZLEVEL] = mainLayer; // Not use common zlevel.
+    layers[CANVAS_ZLEVEL] = mainLayer;
+    mainLayer.zlevel = CANVAS_ZLEVEL; // Not use common zlevel.
 
     zlevelList.push(CANVAS_ZLEVEL);
     this._domRoot = root;
@@ -25337,7 +26435,8 @@ Painter.prototype = {
       var layer = this._layers[z];
 
       if (!layer.__builtin__ && layer.refresh) {
-        layer.refresh();
+        var clearColor = i === 0 ? this._backgroundColor : null;
+        layer.refresh(clearColor);
       }
     }
 
@@ -25487,15 +26586,16 @@ Painter.prototype = {
       ctx.save();
       var start = paintAll ? layer.__startIndex : layer.__drawIndex;
       var useTimer = !paintAll && layer.incremental && Date.now;
-      var startTime = useTimer && Date.now(); // All elements in this layer are cleared.
+      var startTime = useTimer && Date.now();
+      var clearColor = layer.zlevel === this._zlevelList[0] ? this._backgroundColor : null; // All elements in this layer are cleared.
 
       if (layer.__startIndex === layer.__endIndex) {
-        layer.clear();
+        layer.clear(false, clearColor);
       } else if (start === layer.__startIndex) {
         var firstEl = list[start];
 
         if (!firstEl.incremental || !firstEl.notClear || paintAll) {
-          layer.clear();
+          layer.clear(false, clearColor);
         }
       }
 
@@ -25824,6 +26924,9 @@ Painter.prototype = {
   _clearLayer: function (layer) {
     layer.clear();
   },
+  setBackgroundColor: function (backgroundColor) {
+    this._backgroundColor = backgroundColor;
+  },
 
   /**
    * 修改指定zlevel的绘制参数
@@ -25957,8 +27060,7 @@ Painter.prototype = {
 
     var imageLayer = new Layer('image', this, opts.pixelRatio || this.dpr);
     imageLayer.initContext();
-    imageLayer.clearColor = opts.backgroundColor;
-    imageLayer.clear();
+    imageLayer.clear(false, opts.backgroundColor || this._backgroundColor);
 
     if (opts.pixelRatio <= this.dpr) {
       this.refresh();
@@ -26081,12 +27183,12 @@ var _default = Painter;
 module.exports = _default;
 
 /***/ }),
-/* 89 */
+/* 90 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var util = __webpack_require__(0);
 
-var _config = __webpack_require__(24);
+var _config = __webpack_require__(25);
 
 var devicePixelRatio = _config.devicePixelRatio;
 
@@ -26238,8 +27340,12 @@ Layer.prototype = {
     var dom = this.dom;
     var domStyle = dom.style;
     var domBack = this.domBack;
-    domStyle.width = width + 'px';
-    domStyle.height = height + 'px';
+
+    if (domStyle) {
+      domStyle.width = width + 'px';
+      domStyle.height = height + 'px';
+    }
+
     dom.width = width * dpr;
     dom.height = height * dpr;
 
@@ -26255,14 +27361,15 @@ Layer.prototype = {
 
   /**
    * 清空该层画布
-   * @param {boolean} clearAll Clear all with out motion blur
+   * @param {boolean} [clearAll]=false Clear all with out motion blur
+   * @param {Color} [clearColor]
    */
-  clear: function (clearAll) {
+  clear: function (clearAll, clearColor) {
     var dom = this.dom;
     var ctx = this.ctx;
     var width = dom.width;
     var height = dom.height;
-    var clearColor = this.clearColor;
+    var clearColor = clearColor || this.clearColor;
     var haveMotionBLur = this.motionBlur && !clearAll;
     var lastFrameAlpha = this.lastFrameAlpha;
     var dpr = this.dpr;
@@ -26278,7 +27385,7 @@ Layer.prototype = {
 
     ctx.clearRect(0, 0, width, height);
 
-    if (clearColor) {
+    if (clearColor && clearColor !== 'transparent') {
       var clearColorGradientOrPattern; // Gradient
 
       if (clearColor.colorStops) {
@@ -26314,7 +27421,7 @@ var _default = Layer;
 module.exports = _default;
 
 /***/ }),
-/* 90 */
+/* 91 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var textHelper = __webpack_require__(55);
@@ -26374,12 +27481,12 @@ var _default = RectText;
 module.exports = _default;
 
 /***/ }),
-/* 91 */
+/* 92 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var util = __webpack_require__(0);
 
-var _event = __webpack_require__(33);
+var _event = __webpack_require__(34);
 
 var Dispatcher = _event.Dispatcher;
 
@@ -26626,10 +27733,10 @@ var _default = Animation;
 module.exports = _default;
 
 /***/ }),
-/* 92 */
+/* 93 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var _event = __webpack_require__(33);
+var _event = __webpack_require__(34);
 
 var addEventListener = _event.addEventListener;
 var removeEventListener = _event.removeEventListener;
@@ -26641,7 +27748,7 @@ var Eventful = __webpack_require__(14);
 
 var env = __webpack_require__(8);
 
-var GestureMgr = __webpack_require__(93);
+var GestureMgr = __webpack_require__(94);
 
 var TOUCH_CLICK_DELAY = 300;
 var mouseHandlerNames = ['click', 'dblclick', 'mousewheel', 'mouseout', 'mouseup', 'mousedown', 'mousemove', 'contextmenu'];
@@ -26964,10 +28071,10 @@ var _default = HandlerDomProxy;
 module.exports = _default;
 
 /***/ }),
-/* 93 */
+/* 94 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var eventUtil = __webpack_require__(33);
+var eventUtil = __webpack_require__(34);
 
 /**
  * Only implements needed gestures for mobile.
@@ -27068,11 +28175,29 @@ var _default = GestureMgr;
 module.exports = _default;
 
 /***/ }),
-/* 94 */
+/* 95 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var makeStyleMapper = __webpack_require__(34);
+var makeStyleMapper = __webpack_require__(35);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var getLineStyle = makeStyleMapper([['lineWidth', 'width'], ['stroke', 'color'], ['opacity'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['shadowColor']]);
 var _default = {
   getLineStyle: function (excludes) {
@@ -27095,11 +28220,29 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 95 */
+/* 96 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var makeStyleMapper = __webpack_require__(34);
+var makeStyleMapper = __webpack_require__(35);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var getAreaStyle = makeStyleMapper([['fill', 'color'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['opacity'], ['shadowColor']]);
 var _default = {
   getAreaStyle: function (excludes, includes) {
@@ -27109,13 +28252,31 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 96 */
+/* 97 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var textContain = __webpack_require__(16);
 
 var graphicUtil = __webpack_require__(7);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var PATH_COLOR = ['textStyle', 'color'];
 var _default = {
   /**
@@ -27147,14 +28308,14 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 97 */
+/* 98 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
-var PathProxy = __webpack_require__(26);
+var PathProxy = __webpack_require__(27);
 
-var transformPath = __webpack_require__(103);
+var transformPath = __webpack_require__(104);
 
 // command chars
 var cc = ['m', 'M', 'l', 'L', 'v', 'V', 'h', 'H', 'z', 'Z', 'c', 'C', 'q', 'Q', 't', 'T', 's', 'S', 'a', 'A'];
@@ -27561,18 +28722,18 @@ exports.extendFromString = extendFromString;
 exports.mergePath = mergePath;
 
 /***/ }),
-/* 98 */
+/* 99 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var PathProxy = __webpack_require__(26);
+var PathProxy = __webpack_require__(27);
 
-var line = __webpack_require__(99);
+var line = __webpack_require__(100);
 
-var cubic = __webpack_require__(100);
+var cubic = __webpack_require__(101);
 
-var quadratic = __webpack_require__(101);
+var quadratic = __webpack_require__(102);
 
-var arc = __webpack_require__(102);
+var arc = __webpack_require__(103);
 
 var _util = __webpack_require__(59);
 
@@ -27961,7 +29122,7 @@ exports.contain = contain;
 exports.containStroke = containStroke;
 
 /***/ }),
-/* 99 */
+/* 100 */
 /***/ (function(module, exports) {
 
 /**
@@ -28005,7 +29166,7 @@ function containStroke(x0, y0, x1, y1, lineWidth, x, y) {
 exports.containStroke = containStroke;
 
 /***/ }),
-/* 100 */
+/* 101 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var curve = __webpack_require__(13);
@@ -28043,7 +29204,7 @@ function containStroke(x0, y0, x1, y1, x2, y2, x3, y3, lineWidth, x, y) {
 exports.containStroke = containStroke;
 
 /***/ }),
-/* 101 */
+/* 102 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _curve = __webpack_require__(13);
@@ -28081,7 +29242,7 @@ function containStroke(x0, y0, x1, y1, x2, y2, lineWidth, x, y) {
 exports.containStroke = containStroke;
 
 /***/ }),
-/* 102 */
+/* 103 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(59);
@@ -28146,10 +29307,10 @@ function containStroke(cx, cy, r, startAngle, endAngle, anticlockwise, lineWidth
 exports.containStroke = containStroke;
 
 /***/ }),
-/* 103 */
+/* 104 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var PathProxy = __webpack_require__(26);
+var PathProxy = __webpack_require__(27);
 
 var _vector = __webpack_require__(3);
 
@@ -28251,10 +29412,10 @@ function _default(path, m) {
 module.exports = _default;
 
 /***/ }),
-/* 104 */
+/* 105 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Displayable = __webpack_require__(25);
+var Displayable = __webpack_require__(26);
 
 var zrUtil = __webpack_require__(0);
 
@@ -28327,10 +29488,10 @@ var _default = Text;
 module.exports = _default;
 
 /***/ }),
-/* 105 */
+/* 106 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 /**
  * 圆形
@@ -28364,10 +29525,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 106 */
+/* 107 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var fixClipWithShadow = __webpack_require__(61);
 
@@ -28413,10 +29574,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 107 */
+/* 108 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 /**
  * 圆环
@@ -28444,10 +29605,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 108 */
+/* 109 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var polyHelper = __webpack_require__(62);
 
@@ -28470,7 +29631,7 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 109 */
+/* 110 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _vector = __webpack_require__(3);
@@ -28543,7 +29704,7 @@ function _default(points, isLoop) {
 module.exports = _default;
 
 /***/ }),
-/* 110 */
+/* 111 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _vector = __webpack_require__(3);
@@ -28652,10 +29813,10 @@ function _default(points, smooth, isLoop, constraint) {
 module.exports = _default;
 
 /***/ }),
-/* 111 */
+/* 112 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var polyHelper = __webpack_require__(62);
 
@@ -28681,10 +29842,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 112 */
+/* 113 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var roundRectHelper = __webpack_require__(56);
 
@@ -28726,10 +29887,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 113 */
+/* 114 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 /**
  * 直线
@@ -28785,10 +29946,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 114 */
+/* 115 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var vec2 = __webpack_require__(3);
 
@@ -28903,10 +30064,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 115 */
+/* 116 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 /**
  * 圆弧
@@ -28943,10 +30104,10 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 116 */
+/* 117 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 // CompoundPath to improve performance
 var _default = Path.extend({
@@ -29004,12 +30165,12 @@ var _default = Path.extend({
 module.exports = _default;
 
 /***/ }),
-/* 117 */
+/* 118 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Gradient = __webpack_require__(35);
+var Gradient = __webpack_require__(36);
 
 /**
  * x, y, x2, y2 are all percent from 0 to 1
@@ -29043,12 +30204,12 @@ var _default = LinearGradient;
 module.exports = _default;
 
 /***/ }),
-/* 118 */
+/* 119 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Gradient = __webpack_require__(35);
+var Gradient = __webpack_require__(36);
 
 /**
  * x, y, r are all percent from 0 to 1
@@ -29080,14 +30241,14 @@ var _default = RadialGradient;
 module.exports = _default;
 
 /***/ }),
-/* 119 */
+/* 120 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(0);
 
 var inherits = _util.inherits;
 
-var Displayble = __webpack_require__(25);
+var Displayble = __webpack_require__(26);
 
 var BoundingRect = __webpack_require__(6);
 
@@ -29168,7 +30329,7 @@ IncrementalDisplayble.prototype.update = function () {
 IncrementalDisplayble.prototype.brush = function (ctx, prevEl) {
   // Render persistant displayables.
   for (var i = this._cursor; i < this._displayables.length; i++) {
-    var displayable = this._temporaryDisplayables[i];
+    var displayable = this._displayables[i];
     displayable.beforeBrush && displayable.beforeBrush(ctx);
     displayable.brush(ctx, i === this._cursor ? null : this._displayables[i - 1]);
     displayable.afterBrush && displayable.afterBrush(ctx);
@@ -29232,11 +30393,29 @@ var _default = IncrementalDisplayble;
 module.exports = _default;
 
 /***/ }),
-/* 120 */
+/* 121 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var makeStyleMapper = __webpack_require__(34);
+var makeStyleMapper = __webpack_require__(35);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var getItemStyle = makeStyleMapper([['fill', 'color'], ['stroke', 'borderColor'], ['lineWidth', 'borderWidth'], ['opacity'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['shadowColor'], ['textPosition'], ['textAlign']]);
 var _default = {
   getItemStyle: function (excludes, includes) {
@@ -29253,9 +30432,27 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 121 */
+/* 122 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var _default = {
   getBoxLayoutParams: function () {
     return {
@@ -29271,9 +30468,27 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 122 */
+/* 123 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var platform = ''; // Navigator not exists in node
 
 if (typeof navigator !== 'undefined') {
@@ -29327,14 +30542,33 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 123 */
+/* 124 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
 var modelUtil = __webpack_require__(1);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * ECharts option manager
@@ -29746,7 +30980,7 @@ var _default = OptionManager;
 module.exports = _default;
 
 /***/ }),
-/* 124 */
+/* 125 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(0);
@@ -29755,12 +30989,30 @@ var each = _util.each;
 var isArray = _util.isArray;
 var isObject = _util.isObject;
 
-var compatStyle = __webpack_require__(125);
+var compatStyle = __webpack_require__(126);
 
 var _model = __webpack_require__(1);
 
 var normalizeToArray = _model.normalizeToArray;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // Compatitable with 2.0
 function get(opt, path) {
   path = path.split(',');
@@ -29855,13 +31107,31 @@ function _default(option, isTheme) {
 module.exports = _default;
 
 /***/ }),
-/* 125 */
+/* 126 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
 var modelUtil = __webpack_require__(1);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var each = zrUtil.each;
 var isObject = zrUtil.isObject;
 var POSSIBLE_STYLES = ['areaStyle', 'lineStyle', 'nodeStyle', 'linkStyle', 'chordStyle', 'label', 'labelLine'];
@@ -30064,6 +31334,8 @@ function processSeries(seriesOpt) {
     zrUtil.each(seriesOpt.levels, function (opt) {
       removeEC3NormalStatus(opt);
     });
+  } else if (seriesOpt.type === 'tree') {
+    removeEC3NormalStatus(seriesOpt.leaves);
   } // sunburst starts from ec4, so it does not need to compat levels.
 
 }
@@ -30139,7 +31411,7 @@ function _default(option, isTheme) {
 module.exports = _default;
 
 /***/ }),
-/* 126 */
+/* 127 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(0);
@@ -30147,6 +31419,24 @@ var _util = __webpack_require__(0);
 var createHashMap = _util.createHashMap;
 var each = _util.each;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // (1) [Caution]: the logic is correct based on the premises:
 //     data processing stage is blocked in stream.
 //     See <module:echarts/stream/Scheduler#performDataProcessorTasks>
@@ -30244,10 +31534,10 @@ function calculateStack(stackInfoList) {
 module.exports = _default;
 
 /***/ }),
-/* 127 */
+/* 128 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var _dataProvider = __webpack_require__(19);
+var _dataProvider = __webpack_require__(20);
 
 var retrieveRawValue = _dataProvider.retrieveRawValue;
 
@@ -30255,6 +31545,25 @@ var _format = __webpack_require__(12);
 
 var getTooltipMarker = _format.getTooltipMarker;
 var formatTpl = _format.formatTpl;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var DIMENSION_LABEL_REG = /\{@(.+?)\}/g; // PENDING A little ugly
 
 var _default = {
@@ -30268,7 +31577,7 @@ var _default = {
     var data = this.getData(dataType);
     var rawValue = this.getRawValue(dataIndex, dataType);
     var rawDataIndex = data.getRawIndex(dataIndex);
-    var name = data.getName(dataIndex, true);
+    var name = data.getName(dataIndex);
     var itemOpt = data.getRawDataItem(dataIndex);
     var color = data.getItemVisual(dataIndex, 'color');
     return {
@@ -30353,55 +31662,29 @@ var _default = {
 module.exports = _default;
 
 /***/ }),
-/* 128 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var Group = __webpack_require__(22);
-
-var componentUtil = __webpack_require__(27);
-
-var clazzUtil = __webpack_require__(10);
-
-var Component = function () {
-  /**
-   * @type {module:zrender/container/Group}
-   * @readOnly
-   */
-  this.group = new Group();
-  /**
-   * @type {string}
-   * @readOnly
-   */
-
-  this.uid = componentUtil.getUID('viewComponent');
-};
-
-Component.prototype = {
-  constructor: Component,
-  init: function (ecModel, api) {},
-  render: function (componentModel, ecModel, api, payload) {},
-  dispose: function () {}
-};
-var componentProto = Component.prototype;
-
-componentProto.updateView = componentProto.updateLayout = componentProto.updateVisual = function (seriesModel, ecModel, api, payload) {// Do nothing;
-}; // Enable Component.extend.
-
-
-clazzUtil.enableClassExtend(Component); // Enable capability of registerClass, getClass, hasClass, registerSubTypeDefaulter and so on.
-
-clazzUtil.enableClassManagement(Component, {
-  registerWhenExtend: true
-});
-var _default = Component;
-module.exports = _default;
-
-/***/ }),
 /* 129 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Gradient = __webpack_require__(35);
+var Gradient = __webpack_require__(36);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var _default = {
   createOnAllSeries: true,
   performRawSeries: true,
@@ -30448,10 +31731,28 @@ var zrUtil = __webpack_require__(0);
 
 var lang = __webpack_require__(131);
 
-var _dataProvider = __webpack_require__(19);
+var _dataProvider = __webpack_require__(20);
 
 var retrieveRawValue = _dataProvider.retrieveRawValue;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 function _default(dom, ecModel) {
   var ariaModel = ecModel.getModel('aria');
 
@@ -30584,6 +31885,24 @@ module.exports = _default;
 /* 131 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var _default = {
   toolbox: {
     brush: {
@@ -30691,6 +32010,24 @@ var zrUtil = __webpack_require__(0);
 
 var graphic = __webpack_require__(7);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var PI = Math.PI;
 /**
  * @param {module:echarts/ExtensionAPI} api
@@ -30788,6 +32125,8 @@ module.exports = _default;
 var _util = __webpack_require__(0);
 
 var each = _util.each;
+var map = _util.map;
+var isArray = _util.isArray;
 var isFunction = _util.isFunction;
 var createHashMap = _util.createHashMap;
 var noop = _util.noop;
@@ -30796,7 +32135,7 @@ var _task = __webpack_require__(38);
 
 var createTask = _task.createTask;
 
-var _component = __webpack_require__(27);
+var _component = __webpack_require__(28);
 
 var getUID = _component.getUID;
 
@@ -30808,6 +32147,25 @@ var _model = __webpack_require__(1);
 
 var normalizeToArray = _model.normalizeToArray;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
 /**
  * @module echarts/stream/Scheduler
  */
@@ -30816,7 +32174,6 @@ var normalizeToArray = _model.normalizeToArray;
  * @constructor
  */
 function Scheduler(ecInstance, api, dataProcessorHandlers, visualHandlers) {
-  // this._pipelineMap = createHashMap();
   this.ecInstance = ecInstance;
   this.api = api;
   this.unfinished; // Fix current processors in case that in some rear cases that
@@ -30824,8 +32181,9 @@ function Scheduler(ecInstance, api, dataProcessorHandlers, visualHandlers) {
   // Register processors incrementally for a echarts instance is
   // not supported by this stream architecture.
 
-  this._dataProcessorHandlers = dataProcessorHandlers.slice();
-  this._visualHandlers = visualHandlers.slice();
+  var dataProcessorHandlers = this._dataProcessorHandlers = dataProcessorHandlers.slice();
+  var visualHandlers = this._visualHandlers = visualHandlers.slice();
+  this._allHandlers = dataProcessorHandlers.concat(visualHandlers);
   /**
    * @private
    * @type {
@@ -30841,7 +32199,43 @@ function Scheduler(ecInstance, api, dataProcessorHandlers, visualHandlers) {
   this._stageTaskMap = createHashMap();
 }
 
-var proto = Scheduler.prototype; // If seriesModel provided, incremental threshold is check by series data.
+var proto = Scheduler.prototype;
+/**
+ * @param {module:echarts/model/Global} ecModel
+ * @param {Object} payload
+ */
+
+proto.restoreData = function (ecModel, payload) {
+  // TODO: Only restroe needed series and components, but not all components.
+  // Currently `restoreData` of all of the series and component will be called.
+  // But some independent components like `title`, `legend`, `graphic`, `toolbox`,
+  // `tooltip`, `axisPointer`, etc, do not need series refresh when `setOption`,
+  // and some components like coordinate system, axes, dataZoom, visualMap only
+  // need their target series refresh.
+  // (1) If we are implementing this feature some day, we should consider these cases:
+  // if a data processor depends on a component (e.g., dataZoomProcessor depends
+  // on the settings of `dataZoom`), it should be re-performed if the component
+  // is modified by `setOption`.
+  // (2) If a processor depends on sevral series, speicified by its `getTargetSeries`,
+  // it should be re-performed when the result array of `getTargetSeries` changed.
+  // We use `dependencies` to cover these issues.
+  // (3) How to update target series when coordinate system related components modified.
+  // TODO: simply the dirty mechanism? Check whether only the case here can set tasks dirty,
+  // and this case all of the tasks will be set as dirty.
+  ecModel.restoreData(payload); // Theoretically an overall task not only depends on each of its target series, but also
+  // depends on all of the series.
+  // The overall task is not in pipeline, and `ecModel.restoreData` only set pipeline tasks
+  // dirty. If `getTargetSeries` of an overall task returns nothing, we should also ensure
+  // that the overall task is set as dirty and to be performed, otherwise it probably cause
+  // state chaos. So we have to set dirty of all of the overall tasks manually, otherwise it
+  // probably cause state chaos (consider `dataZoomProcessor`).
+
+  this._stageTaskMap.each(function (taskRecord) {
+    var overallTask = taskRecord.overallTask;
+    overallTask && overallTask.dirty();
+  });
+}; // If seriesModel provided, incremental threshold is check by series data.
+
 
 proto.getPerformArgs = function (task, isBlock) {
   // For overall task
@@ -30852,9 +32246,14 @@ proto.getPerformArgs = function (task, isBlock) {
   var pipeline = this._pipelineMap.get(task.__pipeline.id);
 
   var pCtx = pipeline.context;
-  var incremental = !isBlock && pipeline.progressiveEnabled && (!pCtx || pCtx.canProgressiveRender) && task.__idxInPipeline > pipeline.bockIndex;
+  var incremental = !isBlock && pipeline.progressiveEnabled && (!pCtx || pCtx.progressiveRender) && task.__idxInPipeline > pipeline.blockIndex;
+  var step = incremental ? pipeline.step : null;
+  var modDataCount = pCtx && pCtx.modDataCount;
+  var modBy = modDataCount != null ? Math.ceil(modDataCount / step) : null;
   return {
-    step: incremental ? pipeline.step : null
+    step: step,
+    modBy: modBy,
+    modDataCount: modDataCount
   };
 };
 
@@ -30874,16 +32273,20 @@ proto.updateStreamModes = function (seriesModel, view) {
   var pipeline = this._pipelineMap.get(seriesModel.uid);
 
   var data = seriesModel.getData();
-  var dataLen = data.count(); // `canProgressiveRender` means that can render progressively in each
+  var dataLen = data.count(); // `progressiveRender` means that can render progressively in each
   // animation frame. Note that some types of series do not provide
   // `view.incrementalPrepareRender` but support `chart.appendData`. We
   // use the term `incremental` but not `progressive` to describe the
   // case that `chart.appendData`.
 
-  var canProgressiveRender = pipeline.progressiveEnabled && view.incrementalPrepareRender && dataLen >= pipeline.threshold;
-  var large = seriesModel.get('large') && dataLen >= seriesModel.get('largeThreshold');
+  var progressiveRender = pipeline.progressiveEnabled && view.incrementalPrepareRender && dataLen >= pipeline.threshold;
+  var large = seriesModel.get('large') && dataLen >= seriesModel.get('largeThreshold'); // TODO: modDataCount should not updated if `appendData`, otherwise cause whole repaint.
+  // see `test/candlestick-large3.html`
+
+  var modDataCount = seriesModel.get('progressiveChunkMode') === 'mod' ? dataLen : null;
   seriesModel.pipelineContext = pipeline.context = {
-    canProgressiveRender: canProgressiveRender,
+    progressiveRender: progressiveRender,
+    modDataCount: modDataCount,
     large: large
   };
 };
@@ -30900,9 +32303,8 @@ proto.restorePipelines = function (ecModel) {
       tail: null,
       threshold: seriesModel.getProgressiveThreshold(),
       progressiveEnabled: progressive && !(seriesModel.preventIncremental && seriesModel.preventIncremental()),
-      bockIndex: -1,
-      step: progressive || 700,
-      // ??? Temporarily number
+      blockIndex: -1,
+      step: Math.round(progressive || 700),
       count: 0
     });
     pipe(scheduler, seriesModel, seriesModel.dataTask);
@@ -30913,12 +32315,10 @@ proto.prepareStageTasks = function () {
   var stageTaskMap = this._stageTaskMap;
   var ecModel = this.ecInstance.getModel();
   var api = this.api;
-  each([this._dataProcessorHandlers, this._visualHandlers], function (stageHandlers) {
-    each(stageHandlers, function (handler) {
-      var record = stageTaskMap.get(handler.uid) || stageTaskMap.set(handler.uid, []);
-      handler.reset && createSeriesStageTask(this, handler, record, ecModel, api);
-      handler.overallReset && createOverallStageTask(this, handler, record, ecModel, api);
-    }, this);
+  each(this._allHandlers, function (handler) {
+    var record = stageTaskMap.get(handler.uid) || stageTaskMap.set(handler.uid, []);
+    handler.reset && createSeriesStageTask(this, handler, record, ecModel, api);
+    handler.overallReset && createOverallStageTask(this, handler, record, ecModel, api);
   }, this);
 };
 
@@ -31016,7 +32416,7 @@ proto.plan = function () {
 
     do {
       if (task.__block) {
-        pipeline.bockIndex = task.__idxInPipeline;
+        pipeline.blockIndex = task.__idxInPipeline;
         break;
       }
 
@@ -31091,7 +32491,7 @@ function createOverallStageTask(scheduler, stageHandler, stageHandlerRecord, ecM
   var seriesType = stageHandler.seriesType;
   var getTargetSeries = stageHandler.getTargetSeries;
   var overallProgress = true;
-  var isOverallFilter = stageHandler.isOverallFilter; // An overall task with seriesType detected or has `getTargetSeries`, we add
+  var modifyOutputEnd = stageHandler.modifyOutputEnd; // An overall task with seriesType detected or has `getTargetSeries`, we add
   // stub in each pipelines, it will set the overall task dirty when the pipeline
   // progress. Moreover, to avoid call the overall task each frame (too frequent),
   // we set the pipeline block.
@@ -31111,14 +32511,22 @@ function createOverallStageTask(scheduler, stageHandler, stageHandlerRecord, ecM
 
   function createStub(seriesModel) {
     var pipelineId = seriesModel.uid;
-    var stub = agentStubMap.get(pipelineId) || agentStubMap.set(pipelineId, createTask({
-      reset: stubReset,
-      onDirty: stubOnDirty
-    }));
+    var stub = agentStubMap.get(pipelineId);
+
+    if (!stub) {
+      stub = agentStubMap.set(pipelineId, createTask({
+        reset: stubReset,
+        onDirty: stubOnDirty
+      })); // When the result of `getTargetSeries` changed, the overallTask
+      // should be set as dirty and re-performed.
+
+      overallTask.dirty();
+    }
+
     stub.context = {
       model: seriesModel,
       overallProgress: overallProgress,
-      isOverallFilter: isOverallFilter
+      modifyOutputEnd: modifyOutputEnd
     };
     stub.agent = overallTask;
     stub.__block = overallProgress;
@@ -31129,7 +32537,10 @@ function createOverallStageTask(scheduler, stageHandler, stageHandlerRecord, ecM
   var pipelineMap = scheduler._pipelineMap;
   agentStubMap.each(function (stub, pipelineId) {
     if (!pipelineMap.get(pipelineId)) {
-      stub.dispose();
+      stub.dispose(); // When the result of `getTargetSeries` changed, the overallTask
+      // should be set as dirty and re-performed.
+
+      overallTask.dirty();
       agentStubMap.removeKey(pipelineId);
     }
   });
@@ -31162,18 +32573,17 @@ function seriesTaskReset(context) {
   }
 
   var resetDefines = context.resetDefines = normalizeToArray(context.reset(context.model, context.ecModel, context.api, context.payload));
-
-  if (resetDefines.length) {
-    return seriesTaskProgress;
-  }
+  return resetDefines.length > 1 ? map(resetDefines, function (v, idx) {
+    return makeSeriesTaskProgress(idx);
+  }) : singleSeriesTaskProgress;
 }
 
-function seriesTaskProgress(params, context) {
-  var data = context.data;
-  var resetDefines = context.resetDefines;
+var singleSeriesTaskProgress = makeSeriesTaskProgress(0);
 
-  for (var k = 0; k < resetDefines.length; k++) {
-    var resetDefine = resetDefines[k];
+function makeSeriesTaskProgress(resetDefineIdx) {
+  return function (params, context) {
+    var data = context.data;
+    var resetDefine = context.resetDefines[resetDefineIdx];
 
     if (resetDefine && resetDefine.dataEach) {
       for (var i = params.start; i < params.end; i++) {
@@ -31182,7 +32592,7 @@ function seriesTaskProgress(params, context) {
     } else if (resetDefine && resetDefine.progress) {
       resetDefine.progress(params, data);
     }
-  }
+  };
 }
 
 function seriesTaskCount(context) {
@@ -31263,6 +32673,24 @@ module.exports = _default;
 /* 134 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var colorAll = ['#37A2DA', '#32C5E9', '#67E0E3', '#9FE6B8', '#FFDB5C', '#ff9f7f', '#fb7293', '#E062AE', '#E690D1', '#e7bcf3', '#9d96f5', '#8378EA', '#96BFFF'];
 var _default = {
   color: colorAll,
@@ -31274,6 +32702,24 @@ module.exports = _default;
 /* 135 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var contrastColor = '#eee';
 
 var axisCommon = function () {
@@ -31410,6 +32856,71 @@ module.exports = _default;
 /* 136 */
 /***/ (function(module, exports, __webpack_require__) {
 
+var ComponentModel = __webpack_require__(9);
+
+var ComponentView = __webpack_require__(67);
+
+var _sourceHelper = __webpack_require__(29);
+
+var detectSourceFormat = _sourceHelper.detectSourceFormat;
+
+var _sourceType = __webpack_require__(19);
+
+var SERIES_LAYOUT_BY_COLUMN = _sourceType.SERIES_LAYOUT_BY_COLUMN;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+/**
+ * This module is imported by echarts directly.
+ *
+ * Notice:
+ * Always keep this file exists for backward compatibility.
+ * Because before 4.1.0, dataset is an optional component,
+ * some users may import this module manually.
+ */
+ComponentModel.extend({
+  type: 'dataset',
+
+  /**
+   * @protected
+   */
+  defaultOption: {
+    // 'row', 'column'
+    seriesLayoutBy: SERIES_LAYOUT_BY_COLUMN,
+    // null/'auto': auto detect header, see "module:echarts/data/helper/sourceHelper"
+    sourceHeader: null,
+    dimensions: null,
+    source: null
+  },
+  optionUpdated: function () {
+    detectSourceFormat(this);
+  }
+});
+ComponentView.extend({
+  type: 'dataset'
+});
+
+/***/ }),
+/* 137 */
+/***/ (function(module, exports, __webpack_require__) {
+
 var zrender = __webpack_require__(43);
 
 exports.zrender = zrender;
@@ -31424,7 +32935,7 @@ exports.vector = vector;
 
 var zrUtil = __webpack_require__(0);
 
-var colorTool = __webpack_require__(23);
+var colorTool = __webpack_require__(24);
 
 exports.color = colorTool;
 
@@ -31432,7 +32943,7 @@ var graphic = __webpack_require__(7);
 
 exports.graphic = graphic;
 
-var numberUtil = __webpack_require__(5);
+var numberUtil = __webpack_require__(4);
 
 exports.number = numberUtil;
 
@@ -31445,11 +32956,11 @@ var _throttle = __webpack_require__(69);
 var throttle = _throttle.throttle;
 exports.throttle = _throttle.throttle;
 
-var ecHelper = __webpack_require__(137);
+var ecHelper = __webpack_require__(138);
 
 exports.helper = ecHelper;
 
-var parseGeoJSON = __webpack_require__(143);
+var parseGeoJSON = __webpack_require__(144);
 
 exports.parseGeoJSON = parseGeoJSON;
 
@@ -31457,7 +32968,7 @@ var _List = __webpack_require__(71);
 
 exports.List = _List;
 
-var _Model = __webpack_require__(9);
+var _Model = __webpack_require__(10);
 
 exports.Model = _Model;
 
@@ -31468,6 +32979,25 @@ exports.Axis = _Axis;
 var _env = __webpack_require__(8);
 
 exports.env = _env;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Do not mount those modules on 'src/echarts' for better tree shaking.
@@ -31481,25 +33011,25 @@ exports.parseGeoJson = parseGeoJson;
 exports.util = ecUtil;
 
 /***/ }),
-/* 137 */
+/* 138 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
 var createListFromArray = __webpack_require__(70);
 
-var axisHelper = __webpack_require__(29);
+var axisHelper = __webpack_require__(30);
 
 var axisModelCommonMixin = __webpack_require__(76);
 
-var Model = __webpack_require__(9);
+var Model = __webpack_require__(10);
 
 var _layout = __webpack_require__(17);
 
 var getLayoutRect = _layout.getLayoutRect;
 exports.getLayoutRect = _layout.getLayoutRect;
 
-var _dataStackHelper = __webpack_require__(20);
+var _dataStackHelper = __webpack_require__(21);
 
 var enableDataStack = _dataStackHelper.enableDataStack;
 var isDimensionStacked = _dataStackHelper.isDimensionStacked;
@@ -31512,10 +33042,28 @@ var _createDimensions = __webpack_require__(72);
 
 exports.createDimensions = _createDimensions;
 
-var _symbol = __webpack_require__(41);
+var _symbol = __webpack_require__(42);
 
 exports.createSymbol = _symbol.createSymbol;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // import createGraphFromNodeEdge from './chart/helper/createGraphFromNodeEdge';
 
 /**
@@ -31589,9 +33137,27 @@ exports.createScale = createScale;
 exports.mixinAxisModelCommonMethods = mixinAxisModelCommonMethods;
 
 /***/ }),
-/* 138 */
+/* 139 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 function defaultKeyGetter(item) {
   return item;
 }
@@ -31719,14 +33285,33 @@ var _default = DataDiffer;
 module.exports = _default;
 
 /***/ }),
-/* 139 */
+/* 140 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Scale = __webpack_require__(30);
+var Scale = __webpack_require__(31);
 
 var OrdinalMeta = __webpack_require__(74);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Linear continuous scale
@@ -31797,7 +33382,10 @@ var OrdinalScale = Scale.extend({
    * @return {string}
    */
   getLabel: function (n) {
-    return this._ordinalMeta.categories[n];
+    if (!this.isBlank()) {
+      // Note that if no data, ordinalMeta.categories is an empty array.
+      return this._ordinalMeta.categories[n];
+    }
   },
 
   /**
@@ -31812,6 +33400,9 @@ var OrdinalScale = Scale.extend({
    */
   unionExtentFromData: function (data, dim) {
     this.unionExtent(data.getApproximateExtent(dim));
+  },
+  getOrdinalMeta: function () {
+    return this._ordinalMeta;
   },
   niceTicks: zrUtil.noop,
   niceExtent: zrUtil.noop
@@ -31828,19 +33419,42 @@ var _default = OrdinalScale;
 module.exports = _default;
 
 /***/ }),
-/* 140 */
+/* 141 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var _number = __webpack_require__(5);
+var _number = __webpack_require__(4);
 
 var parsePercent = _number.parsePercent;
 
-var _dataStackHelper = __webpack_require__(20);
+var _dataStackHelper = __webpack_require__(21);
 
 var isDimensionStacked = _dataStackHelper.isDimensionStacked;
+
+var createRenderPlanner = __webpack_require__(39);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var STACK_PREFIX = '__ec_stack_';
+var LARGE_BAR_MIN_WIDTH = 0.5;
+var LargeArr = typeof Float32Array !== 'undefined' ? Float32Array : Array;
 
 function getSeriesStackId(seriesModel) {
   return seriesModel.get('stack') || STACK_PREFIX + seriesModel.seriesIndex;
@@ -31861,7 +33475,7 @@ function getAxisKey(axis) {
  */
 
 
-function getLayoutOnAxis(opt, api) {
+function getLayoutOnAxis(opt) {
   var params = [];
   var baseAxis = opt.axis;
   var axisKey = 'axis0';
@@ -31880,7 +33494,7 @@ function getLayoutOnAxis(opt, api) {
     }, opt));
   }
 
-  var widthAndOffsets = doCalBarWidthAndOffset(params, api);
+  var widthAndOffsets = doCalBarWidthAndOffset(params);
   var result = [];
 
   for (var i = 0; i < opt.count; i++) {
@@ -31892,8 +33506,20 @@ function getLayoutOnAxis(opt, api) {
   return result;
 }
 
-function calBarWidthAndOffset(barSeries, api) {
-  var seriesInfoList = zrUtil.map(barSeries, function (seriesModel) {
+function prepareLayoutBarSeries(seriesType, ecModel) {
+  var seriesModels = [];
+  ecModel.eachSeriesByType(seriesType, function (seriesModel) {
+    // Check series coordinate, do layout for cartesian2d only
+    if (isOnCartesian(seriesModel) && !isInLargeMode(seriesModel)) {
+      seriesModels.push(seriesModel);
+    }
+  });
+  return seriesModels;
+}
+
+function makeColumnLayout(barSeries) {
+  var seriesInfoList = [];
+  zrUtil.each(barSeries, function (seriesModel) {
     var data = seriesModel.getData();
     var cartesian = seriesModel.coordinateSystem;
     var baseAxis = cartesian.getBaseAxis();
@@ -31903,7 +33529,7 @@ function calBarWidthAndOffset(barSeries, api) {
     var barMaxWidth = parsePercent(seriesModel.get('barMaxWidth'), bandWidth);
     var barGap = seriesModel.get('barGap');
     var barCategoryGap = seriesModel.get('barCategoryGap');
-    return {
+    seriesInfoList.push({
       bandWidth: bandWidth,
       barWidth: barWidth,
       barMaxWidth: barMaxWidth,
@@ -31911,12 +33537,12 @@ function calBarWidthAndOffset(barSeries, api) {
       barCategoryGap: barCategoryGap,
       axisKey: getAxisKey(baseAxis),
       stackId: getSeriesStackId(seriesModel)
-    };
+    });
   });
-  return doCalBarWidthAndOffset(seriesInfoList, api);
+  return doCalBarWidthAndOffset(seriesInfoList);
 }
 
-function doCalBarWidthAndOffset(seriesInfoList, api) {
+function doCalBarWidthAndOffset(seriesInfoList) {
   // Columns info on each category axis. Key is cartesian name
   var columnsMap = {};
   zrUtil.each(seriesInfoList, function (seriesInfo, idx) {
@@ -32020,18 +33646,33 @@ function doCalBarWidthAndOffset(seriesInfoList, api) {
   return result;
 }
 /**
- * @param {string} seriesType
- * @param {module:echarts/model/Global} ecModel
- * @param {module:echarts/ExtensionAPI} api
+ * @param {Object} barWidthAndOffset The result of makeColumnLayout
+ * @param {module:echarts/coord/Axis} axis
+ * @param {module:echarts/model/Series} [seriesModel] If not provided, return all.
+ * @return {Object} {stackId: {offset, width}} or {offset, width} if seriesModel provided.
  */
 
 
-function layout(seriesType, ecModel, api) {
-  var seriesModels = zrUtil.filter(ecModel.getSeriesByType(seriesType), function (seriesModel) {
-    // Check series coordinate, do layout for cartesian2d only
-    return seriesModel.coordinateSystem && seriesModel.coordinateSystem.type === 'cartesian2d';
-  });
-  var barWidthAndOffset = calBarWidthAndOffset(seriesModels);
+function retrieveColumnLayout(barWidthAndOffset, axis, seriesModel) {
+  if (barWidthAndOffset && axis) {
+    var result = barWidthAndOffset[getAxisKey(axis)];
+
+    if (result != null && seriesModel != null) {
+      result = result[getSeriesStackId(seriesModel)];
+    }
+
+    return result;
+  }
+}
+/**
+ * @param {string} seriesType
+ * @param {module:echarts/model/Global} ecModel
+ */
+
+
+function layout(seriesType, ecModel) {
+  var seriesModels = prepareLayoutBarSeries(seriesType, ecModel);
+  var barWidthAndOffset = makeColumnLayout(seriesModels);
   var lastStackCoords = {};
   var lastStackCoordsOrigin = {};
   zrUtil.each(seriesModels, function (seriesModel) {
@@ -32055,7 +33696,7 @@ function layout(seriesType, ecModel, api) {
     var baseDim = data.mapDimension(baseAxis.dim);
     var stacked = isDimensionStacked(data, valueDim, baseDim);
     var isValueAxisH = valueAxis.isHorizontal();
-    var valueAxisStart = baseAxis.onZero || stacked ? valueAxis.toGlobalCoord(valueAxis.dataToCoord(0)) : valueAxis.getGlobalExtent()[0];
+    var valueAxisStart = getValueAxisStart(baseAxis, valueAxis, stacked);
 
     for (var idx = 0, len = data.count(); idx < len; idx++) {
       var value = data.get(valueDim, idx);
@@ -32124,26 +33765,112 @@ function layout(seriesType, ecModel, api) {
       });
     }
   }, this);
+} // TODO: Do not support stack in large mode yet.
+
+
+var largeLayout = {
+  seriesType: 'bar',
+  plan: createRenderPlanner(),
+  reset: function (seriesModel) {
+    if (!isOnCartesian(seriesModel) || !isInLargeMode(seriesModel)) {
+      return;
+    }
+
+    var data = seriesModel.getData();
+    var cartesian = seriesModel.coordinateSystem;
+    var baseAxis = cartesian.getBaseAxis();
+    var valueAxis = cartesian.getOtherAxis(baseAxis);
+    var valueDim = data.mapDimension(valueAxis.dim);
+    var baseDim = data.mapDimension(baseAxis.dim);
+    var valueAxisHorizontal = valueAxis.isHorizontal();
+    var valueDimIdx = valueAxisHorizontal ? 0 : 1;
+    var barWidth = retrieveColumnLayout(makeColumnLayout([seriesModel]), baseAxis, seriesModel).width;
+
+    if (!(barWidth > LARGE_BAR_MIN_WIDTH)) {
+      // jshint ignore:line
+      barWidth = LARGE_BAR_MIN_WIDTH;
+    }
+
+    return {
+      progress: progress
+    };
+
+    function progress(params, data) {
+      var largePoints = new LargeArr(params.count * 2);
+      var dataIndex;
+      var coord = [];
+      var valuePair = [];
+      var offset = 0;
+
+      while ((dataIndex = params.next()) != null) {
+        valuePair[valueDimIdx] = data.get(valueDim, dataIndex);
+        valuePair[1 - valueDimIdx] = data.get(baseDim, dataIndex);
+        coord = cartesian.dataToPoint(valuePair, null, coord);
+        largePoints[offset++] = coord[0];
+        largePoints[offset++] = coord[1];
+      }
+
+      data.setLayout({
+        largePoints: largePoints,
+        barWidth: barWidth,
+        valueAxisStart: getValueAxisStart(baseAxis, valueAxis, false),
+        valueAxisHorizontal: valueAxisHorizontal
+      });
+    }
+  }
+};
+
+function isOnCartesian(seriesModel) {
+  return seriesModel.coordinateSystem && seriesModel.coordinateSystem.type === 'cartesian2d';
+}
+
+function isInLargeMode(seriesModel) {
+  return seriesModel.pipelineContext && seriesModel.pipelineContext.large;
+}
+
+function getValueAxisStart(baseAxis, valueAxis, stacked) {
+  return zrUtil.indexOf(baseAxis.getAxesOnZeroOf(), valueAxis) >= 0 || stacked ? valueAxis.toGlobalCoord(valueAxis.dataToCoord(0)) : valueAxis.getGlobalExtent()[0];
 }
 
 exports.getLayoutOnAxis = getLayoutOnAxis;
-exports.calBarWidthAndOffset = calBarWidthAndOffset;
+exports.prepareLayoutBarSeries = prepareLayoutBarSeries;
+exports.makeColumnLayout = makeColumnLayout;
+exports.retrieveColumnLayout = retrieveColumnLayout;
 exports.layout = layout;
+exports.largeLayout = largeLayout;
 
 /***/ }),
-/* 141 */
+/* 142 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var numberUtil = __webpack_require__(5);
+var numberUtil = __webpack_require__(4);
 
 var formatUtil = __webpack_require__(12);
 
 var scaleHelper = __webpack_require__(75);
 
-var IntervalScale = __webpack_require__(40);
+var IntervalScale = __webpack_require__(41);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // [About UTC and local time zone]:
 // In most cases, `number.parseDate` will treat input data string as local time
 // (except time zone is specified in time string). And `format.formateTime` returns
@@ -32325,16 +34052,35 @@ var _default = TimeScale;
 module.exports = _default;
 
 /***/ }),
-/* 142 */
+/* 143 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Scale = __webpack_require__(30);
+var Scale = __webpack_require__(31);
 
-var numberUtil = __webpack_require__(5);
+var numberUtil = __webpack_require__(4);
 
-var IntervalScale = __webpack_require__(40);
+var IntervalScale = __webpack_require__(41);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Log scale
@@ -32496,12 +34242,31 @@ var _default = LogScale;
 module.exports = _default;
 
 /***/ }),
-/* 143 */
+/* 144 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Region = __webpack_require__(144);
+var Region = __webpack_require__(145);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Parse and decode geo json
@@ -32616,7 +34381,7 @@ function _default(geoJson) {
 module.exports = _default;
 
 /***/ }),
-/* 144 */
+/* 145 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var BoundingRect = __webpack_require__(6);
@@ -32625,7 +34390,26 @@ var bbox = __webpack_require__(58);
 
 var vec2 = __webpack_require__(3);
 
-var polygonContain = __webpack_require__(145);
+var polygonContain = __webpack_require__(146);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @module echarts/coord/geo/Region
@@ -32784,7 +34568,7 @@ var _default = Region;
 module.exports = _default;
 
 /***/ }),
-/* 145 */
+/* 146 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var windingLine = __webpack_require__(60);
@@ -32822,23 +34606,406 @@ function contain(points, x, y) {
 exports.contain = contain;
 
 /***/ }),
-/* 146 */
+/* 147 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var echarts = __webpack_require__(21);
+var zrUtil = __webpack_require__(0);
 
-__webpack_require__(147);
+var textContain = __webpack_require__(16);
 
-__webpack_require__(148);
+var _model = __webpack_require__(1);
 
-var visualSymbol = __webpack_require__(153);
+var makeInner = _model.makeInner;
 
-var layoutPoints = __webpack_require__(154);
+var _axisHelper = __webpack_require__(30);
 
-var dataSample = __webpack_require__(155);
+var makeLabelFormatter = _axisHelper.makeLabelFormatter;
 
-__webpack_require__(156);
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+var inner = makeInner();
+/**
+ * @param {module:echats/coord/Axis} axis
+ * @return {Object} {
+ *     labels: [{
+ *         formattedLabel: string,
+ *         rawLabel: string,
+ *         tickValue: number
+ *     }, ...],
+ *     labelCategoryInterval: number
+ * }
+ */
 
+function createAxisLabels(axis) {
+  // Only ordinal scale support tick interval
+  return axis.type === 'category' ? makeCategoryLabels(axis) : makeRealNumberLabels(axis);
+}
+/**
+ * @param {module:echats/coord/Axis} axis
+ * @param {module:echarts/model/Model} tickModel For example, can be axisTick, splitLine, splitArea.
+ * @return {Object} {
+ *     ticks: Array.<number>
+ *     tickCategoryInterval: number
+ * }
+ */
+
+
+function createAxisTicks(axis, tickModel) {
+  // Only ordinal scale support tick interval
+  return axis.type === 'category' ? makeCategoryTicks(axis, tickModel) : {
+    ticks: axis.scale.getTicks()
+  };
+}
+
+function makeCategoryLabels(axis) {
+  var labelModel = axis.getLabelModel();
+  var labelsCache = getListCache(axis, 'labels');
+  var optionLabelInterval = getOptionCategoryInterval(labelModel);
+  var result = listCacheGet(labelsCache, optionLabelInterval);
+
+  if (result) {
+    return result;
+  }
+
+  var labels;
+  var numericLabelInterval;
+
+  if (!labelModel.get('show') || axis.scale.isBlank()) {
+    labels = [];
+  } else if (zrUtil.isFunction(optionLabelInterval)) {
+    labels = makeLabelsByCustomizedCategoryInterval(axis, optionLabelInterval);
+  } else {
+    numericLabelInterval = optionLabelInterval === 'auto' ? makeAutoCategoryInterval(axis) : optionLabelInterval;
+    labels = makeLabelsByNumericCategoryInterval(axis, numericLabelInterval);
+  } // Cache to avoid calling interval function repeatly.
+
+
+  return listCacheSet(labelsCache, optionLabelInterval, {
+    labels: labels,
+    labelCategoryInterval: numericLabelInterval
+  });
+}
+
+function makeCategoryTicks(axis, tickModel) {
+  var ticksCache = getListCache(axis, 'ticks');
+  var optionTickInterval = getOptionCategoryInterval(tickModel);
+  var result = listCacheGet(ticksCache, optionTickInterval);
+
+  if (result) {
+    return result;
+  }
+
+  var ticks;
+  var numericTickInterval = optionTickInterval; // Optimize for the case that large category data and no label displayed,
+  // we should not return all ticks.
+
+  if (!tickModel.get('show') || axis.scale.isBlank()) {
+    ticks = [];
+  }
+
+  if (zrUtil.isFunction(numericTickInterval)) {
+    ticks = makeLabelsByCustomizedCategoryInterval(axis, numericTickInterval, true);
+  } // Always use label interval by default.
+  else {
+      if (numericTickInterval === 'auto') {
+        var labelsResult = makeCategoryLabels(axis);
+        numericTickInterval = labelsResult.labelCategoryInterval;
+
+        if (numericTickInterval != null) {
+          ticks = zrUtil.map(labelsResult.labels, function (labelItem) {
+            return labelItem.tickValue;
+          });
+        } else {
+          numericTickInterval = makeAutoCategoryInterval(axis, true);
+        }
+      }
+
+      if (ticks == null) {
+        ticks = makeLabelsByNumericCategoryInterval(axis, numericTickInterval, true);
+      }
+    } // Cache to avoid calling interval function repeatly.
+
+
+  return listCacheSet(ticksCache, optionTickInterval, {
+    ticks: ticks,
+    tickCategoryInterval: numericTickInterval
+  });
+}
+
+function makeRealNumberLabels(axis) {
+  var ticks = axis.scale.getTicks();
+  var labelFormatter = makeLabelFormatter(axis);
+  return {
+    labels: zrUtil.map(ticks, function (tickValue, idx) {
+      return {
+        formattedLabel: labelFormatter(tickValue, idx),
+        rawLabel: axis.scale.getLabel(tickValue),
+        tickValue: tickValue
+      };
+    })
+  };
+} // Large category data calculation is performence sensitive, and ticks and label
+// probably be fetched by multiple times. So we cache the result.
+// axis is created each time during a ec process, so we do not need to clear cache.
+
+
+function getListCache(axis, prop) {
+  // Because key can be funciton, and cache size always be small, we use array cache.
+  return inner(axis)[prop] || (inner(axis)[prop] = []);
+}
+
+function listCacheGet(cache, key) {
+  for (var i = 0; i < cache.length; i++) {
+    if (cache[i].key === key) {
+      return cache[i].value;
+    }
+  }
+}
+
+function listCacheSet(cache, key, value) {
+  cache.push({
+    key: key,
+    value: value
+  });
+  return value;
+}
+
+function makeAutoCategoryInterval(axis, hideLabel) {
+  var cacheKey = hideLabel ? 'tickAutoInterval' : 'autoInterval';
+  var result = inner(axis)[cacheKey];
+
+  if (result != null) {
+    return result;
+  }
+
+  return inner(axis)[cacheKey] = axis.calculateCategoryInterval(hideLabel);
+}
+/**
+ * Calculate interval for category axis ticks and labels.
+ * To get precise result, at least one of `getRotate` and `isHorizontal`
+ * should be implemented in axis.
+ */
+
+
+function calculateCategoryInterval(axis, hideLabel) {
+  var params = fetchAutoCategoryIntervalCalculationParams(axis);
+  var labelFormatter = makeLabelFormatter(axis);
+  var rotation = (params.axisRotate - params.labelRotate) / 180 * Math.PI;
+  var ordinalScale = axis.scale;
+  var ordinalExtent = ordinalScale.getExtent(); // Providing this method is for optimization:
+  // avoid generating a long array by `getTicks`
+  // in large category data case.
+
+  var tickCount = ordinalScale.count();
+
+  if (ordinalExtent[1] - ordinalExtent[0] < 1) {
+    return 0;
+  }
+
+  var step = 1; // Simple optimization. Empirical value: tick count should less than 40.
+
+  if (tickCount > 40) {
+    step = Math.max(1, Math.floor(tickCount / 40));
+  }
+
+  var tickValue = ordinalExtent[0];
+  var unitSpan = axis.dataToCoord(tickValue + 1) - axis.dataToCoord(tickValue);
+  var unitW = Math.abs(unitSpan * Math.cos(rotation));
+  var unitH = Math.abs(unitSpan * Math.sin(rotation));
+  var maxW = 0;
+  var maxH = 0; // Caution: Performance sensitive for large category data.
+  // Consider dataZoom, we should make appropriate step to avoid O(n) loop.
+
+  for (; tickValue <= ordinalExtent[1]; tickValue += step) {
+    var width = 0;
+    var height = 0;
+
+    if (!hideLabel) {
+      // Polar is also calculated in assumptive linear layout here.
+      // Not precise, do not consider align and vertical align
+      // and each distance from axis line yet.
+      var rect = textContain.getBoundingRect(labelFormatter(tickValue), params.font, 'center', 'top'); // Magic number
+
+      width = rect.width * 1.3;
+      height = rect.height * 1.3;
+    } // Min size, void long loop.
+
+
+    maxW = Math.max(maxW, width, 7);
+    maxH = Math.max(maxH, height, 7);
+  }
+
+  var dw = maxW / unitW;
+  var dh = maxH / unitH; // 0/0 is NaN, 1/0 is Infinity.
+
+  isNaN(dw) && (dw = Infinity);
+  isNaN(dh) && (dh = Infinity);
+  var interval = Math.max(0, Math.floor(Math.min(dw, dh)));
+  var cache = inner(axis.model);
+  var lastAutoInterval = cache.lastAutoInterval;
+  var lastTickCount = cache.lastTickCount; // Use cache to keep interval stable while moving zoom window,
+  // otherwise the calculated interval might jitter when the zoom
+  // window size is close to the interval-changing size.
+
+  if (lastAutoInterval != null && lastTickCount != null && Math.abs(lastAutoInterval - interval) <= 1 && Math.abs(lastTickCount - tickCount) <= 1 // Always choose the bigger one, otherwise the critical
+  // point is not the same when zooming in or zooming out.
+  && lastAutoInterval > interval) {
+    interval = lastAutoInterval;
+  } // Only update cache if cache not used, otherwise the
+  // changing of interval is too insensitive.
+  else {
+      cache.lastTickCount = tickCount;
+      cache.lastAutoInterval = interval;
+    }
+
+  return interval;
+}
+
+function fetchAutoCategoryIntervalCalculationParams(axis) {
+  var labelModel = axis.getLabelModel();
+  return {
+    axisRotate: axis.getRotate ? axis.getRotate() : axis.isHorizontal && !axis.isHorizontal() ? 90 : 0,
+    labelRotate: labelModel.get('rotate') || 0,
+    font: labelModel.getFont()
+  };
+}
+
+function makeLabelsByNumericCategoryInterval(axis, categoryInterval, onlyTick) {
+  var labelFormatter = makeLabelFormatter(axis);
+  var ordinalScale = axis.scale;
+  var ordinalExtent = ordinalScale.getExtent();
+  var labelModel = axis.getLabelModel();
+  var result = []; // TODO: axisType: ordinalTime, pick the tick from each month/day/year/...
+
+  var step = Math.max((categoryInterval || 0) + 1, 1);
+  var startTick = ordinalExtent[0];
+  var tickCount = ordinalScale.count(); // Calculate start tick based on zero if possible to keep label consistent
+  // while zooming and moving while interval > 0. Otherwise the selection
+  // of displayable ticks and symbols probably keep changing.
+  // 3 is empirical value.
+
+  if (startTick !== 0 && step > 1 && tickCount / step > 2) {
+    startTick = Math.round(Math.ceil(startTick / step) * step);
+  } // (1) Only add min max label here but leave overlap checking
+  // to render stage, which also ensure the returned list
+  // suitable for splitLine and splitArea rendering.
+  // (2) Scales except category always contain min max label so
+  // do not need to perform this process.
+
+
+  var showMinMax = {
+    min: labelModel.get('showMinLabel'),
+    max: labelModel.get('showMaxLabel')
+  };
+
+  if (showMinMax.min && startTick !== ordinalExtent[0]) {
+    addItem(ordinalExtent[0]);
+  } // Optimize: avoid generating large array by `ordinalScale.getTicks()`.
+
+
+  var tickValue = startTick;
+
+  for (; tickValue <= ordinalExtent[1]; tickValue += step) {
+    addItem(tickValue);
+  }
+
+  if (showMinMax.max && tickValue !== ordinalExtent[1]) {
+    addItem(ordinalExtent[1]);
+  }
+
+  function addItem(tVal) {
+    result.push(onlyTick ? tVal : {
+      formattedLabel: labelFormatter(tVal),
+      rawLabel: ordinalScale.getLabel(tVal),
+      tickValue: tVal
+    });
+  }
+
+  return result;
+} // When interval is function, the result `false` means ignore the tick.
+// It is time consuming for large category data.
+
+
+function makeLabelsByCustomizedCategoryInterval(axis, categoryInterval, onlyTick) {
+  var ordinalScale = axis.scale;
+  var labelFormatter = makeLabelFormatter(axis);
+  var result = [];
+  zrUtil.each(ordinalScale.getTicks(), function (tickValue) {
+    var rawLabel = ordinalScale.getLabel(tickValue);
+
+    if (categoryInterval(tickValue, rawLabel)) {
+      result.push(onlyTick ? tickValue : {
+        formattedLabel: labelFormatter(tickValue),
+        rawLabel: rawLabel,
+        tickValue: tickValue
+      });
+    }
+  });
+  return result;
+} // Can be null|'auto'|number|function
+
+
+function getOptionCategoryInterval(model) {
+  var interval = model.get('interval');
+  return interval == null ? 'auto' : interval;
+}
+
+exports.createAxisLabels = createAxisLabels;
+exports.createAxisTicks = createAxisTicks;
+exports.calculateCategoryInterval = calculateCategoryInterval;
+
+/***/ }),
+/* 148 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var echarts = __webpack_require__(22);
+
+__webpack_require__(149);
+
+__webpack_require__(150);
+
+var visualSymbol = __webpack_require__(155);
+
+var layoutPoints = __webpack_require__(156);
+
+var dataSample = __webpack_require__(157);
+
+__webpack_require__(158);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // In case developer forget to include grid component
 echarts.registerVisual(visualSymbol('line', 'circle', 'line'));
 echarts.registerLayout(layoutPoints('line')); // Down sample after filter
@@ -32846,7 +35013,7 @@ echarts.registerLayout(layoutPoints('line')); // Down sample after filter
 echarts.registerProcessor(echarts.PRIORITY.PROCESSOR.STATISTIC, dataSample('line'));
 
 /***/ }),
-/* 147 */
+/* 149 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
@@ -32857,6 +35024,24 @@ var createListFromArray = __webpack_require__(70);
 
 var SeriesModel = __webpack_require__(66);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var _default = SeriesModel.extend({
   type: 'series.line',
   dependencies: ['grid', 'polar'],
@@ -32865,9 +35050,7 @@ var _default = SeriesModel.extend({
   },
   defaultOption: {
     zlevel: 0,
-    // 一级层叠
     z: 2,
-    // 二级层叠
     coordinateSystem: 'cartesian2d',
     legendHoverLink: true,
     hoverAnimation: true,
@@ -32899,19 +35082,18 @@ var _default = SeriesModel.extend({
     // Disabled if step is true
     smooth: false,
     smoothMonotone: null,
-    // 拐点图形类型
     symbol: 'emptyCircle',
-    // 拐点图形大小
     symbolSize: 4,
-    // 拐点图形旋转控制
     symbolRotate: null,
-    // 是否显示 symbol, 只有在 tooltip hover 的时候显示
     showSymbol: true,
-    // 标志图形默认只有主轴显示（随主轴标签间隔隐藏策略）
-    showAllSymbol: false,
-    // 是否连接断点
+    // `false`: follow the label interval strategy.
+    // `true`: show all symbols.
+    // `'auto'`: If possible, show all symbols, otherwise
+    //           follow the label interval strategy.
+    showAllSymbol: 'auto',
+    // Whether to connect break point.
     connectNulls: false,
-    // 数据过滤，'average', 'max', 'min', 'sum'
+    // Sampling for large data. Can be: 'average', 'max', 'min', 'sum'.
     sampling: 'none',
     animationEasing: 'linear',
     // Disable progressive
@@ -32923,7 +35105,7 @@ var _default = SeriesModel.extend({
 module.exports = _default;
 
 /***/ }),
-/* 148 */
+/* 150 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
@@ -32932,28 +35114,50 @@ var __DEV__ = _config.__DEV__;
 
 var zrUtil = __webpack_require__(0);
 
-var SymbolDraw = __webpack_require__(149);
+var SymbolDraw = __webpack_require__(151);
 
 var SymbolClz = __webpack_require__(78);
 
-var lineAnimationDiff = __webpack_require__(151);
+var lineAnimationDiff = __webpack_require__(153);
 
 var graphic = __webpack_require__(7);
 
 var modelUtil = __webpack_require__(1);
 
-var _poly = __webpack_require__(152);
+var _poly = __webpack_require__(154);
 
 var Polyline = _poly.Polyline;
 var Polygon = _poly.Polygon;
 
-var ChartView = __webpack_require__(67);
+var ChartView = __webpack_require__(68);
+
+var _number = __webpack_require__(4);
+
+var round = _number.round;
 
 var _helper = __webpack_require__(79);
 
 var prepareDataCoordInfo = _helper.prepareDataCoordInfo;
 var getStackedOnPoint = _helper.getStackedOnPoint;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // FIXME step not support polar
 function isPointsSame(points1, points2) {
   if (points1.length !== points2.length) {
@@ -33011,24 +35215,33 @@ function getStackedOnPoints(coordSys, data, dataCoordInfo) {
   return points;
 }
 
-function createGridClipShape(cartesian, hasAnimation, seriesModel) {
+function createGridClipShape(cartesian, hasAnimation, forSymbol, seriesModel) {
   var xExtent = getAxisExtentWithGap(cartesian.getAxis('x'));
   var yExtent = getAxisExtentWithGap(cartesian.getAxis('y'));
   var isHorizontal = cartesian.getBaseAxis().isHorizontal();
   var x = Math.min(xExtent[0], xExtent[1]);
   var y = Math.min(yExtent[0], yExtent[1]);
   var width = Math.max(xExtent[0], xExtent[1]) - x;
-  var height = Math.max(yExtent[0], yExtent[1]) - y;
-  var lineWidth = seriesModel.get('lineStyle.width') || 2; // Expand clip shape to avoid clipping when line value exceeds axis
+  var height = Math.max(yExtent[0], yExtent[1]) - y; // Avoid float number rounding error for symbol on the edge of axis extent.
+  // See #7913 and `test/dataZoom-clip.html`.
 
-  var expandSize = seriesModel.get('clipOverflow') ? lineWidth / 2 : Math.max(width, height);
-
-  if (isHorizontal) {
-    y -= expandSize;
-    height += expandSize * 2;
+  if (forSymbol) {
+    x -= 0.5;
+    width += 0.5;
+    y -= 0.5;
+    height += 0.5;
   } else {
-    x -= expandSize;
-    width += expandSize * 2;
+    var lineWidth = seriesModel.get('lineStyle.width') || 2; // Expand clip shape to avoid clipping when line value exceeds axis
+
+    var expandSize = seriesModel.get('clipOverflow') ? lineWidth / 2 : Math.max(width, height);
+
+    if (isHorizontal) {
+      y -= expandSize;
+      height += expandSize * 2;
+    } else {
+      x -= expandSize;
+      width += expandSize * 2;
+    }
   }
 
   var clipPath = new graphic.Rect({
@@ -33053,18 +35266,25 @@ function createGridClipShape(cartesian, hasAnimation, seriesModel) {
   return clipPath;
 }
 
-function createPolarClipShape(polar, hasAnimation, seriesModel) {
+function createPolarClipShape(polar, hasAnimation, forSymbol, seriesModel) {
   var angleAxis = polar.getAngleAxis();
   var radiusAxis = polar.getRadiusAxis();
-  var radiusExtent = radiusAxis.getExtent();
+  var radiusExtent = radiusAxis.getExtent().slice();
+  radiusExtent[0] > radiusExtent[1] && radiusExtent.reverse();
   var angleExtent = angleAxis.getExtent();
-  var RADIAN = Math.PI / 180;
+  var RADIAN = Math.PI / 180; // Avoid float number rounding error for symbol on the edge of axis extent.
+
+  if (forSymbol) {
+    radiusExtent[0] -= 0.5;
+    radiusExtent[1] += 0.5;
+  }
+
   var clipPath = new graphic.Sector({
     shape: {
-      cx: polar.cx,
-      cy: polar.cy,
-      r0: radiusExtent[0],
-      r: radiusExtent[1],
+      cx: round(polar.cx, 1),
+      cy: round(polar.cy, 1),
+      r0: round(radiusExtent[0], 1),
+      r: round(radiusExtent[1], 1),
       startAngle: -angleExtent[0] * RADIAN,
       endAngle: -angleExtent[1] * RADIAN,
       clockwise: angleAxis.inverse
@@ -33083,8 +35303,8 @@ function createPolarClipShape(polar, hasAnimation, seriesModel) {
   return clipPath;
 }
 
-function createClipShape(coordSys, hasAnimation, seriesModel) {
-  return coordSys.type === 'polar' ? createPolarClipShape(coordSys, hasAnimation, seriesModel) : createGridClipShape(coordSys, hasAnimation, seriesModel);
+function createClipShape(coordSys, hasAnimation, forSymbol, seriesModel) {
+  return coordSys.type === 'polar' ? createPolarClipShape(coordSys, hasAnimation, forSymbol, seriesModel) : createGridClipShape(coordSys, hasAnimation, forSymbol, seriesModel);
 }
 
 function turnPointsIntoStep(points, coordSys, stepTurnAt) {
@@ -33215,6 +35435,63 @@ function getVisualGradient(data, coordSys) {
   return gradient;
 }
 
+function getIsIgnoreFunc(seriesModel, data, coordSys) {
+  var showAllSymbol = seriesModel.get('showAllSymbol');
+  var isAuto = showAllSymbol === 'auto';
+
+  if (showAllSymbol && !isAuto) {
+    return;
+  }
+
+  var categoryAxis = coordSys.getAxesByScale('ordinal')[0];
+
+  if (!categoryAxis) {
+    return;
+  } // Note that category label interval strategy might bring some weird effect
+  // in some scenario: users may wonder why some of the symbols are not
+  // displayed. So we show all symbols as possible as we can.
+
+
+  if (isAuto // Simplify the logic, do not determine label overlap here.
+  && canShowAllSymbolForCategory(categoryAxis, data)) {
+    return;
+  } // Otherwise follow the label interval strategy on category axis.
+
+
+  var categoryDataDim = data.mapDimension(categoryAxis.dim);
+  var labelMap = {};
+  zrUtil.each(categoryAxis.getViewLabels(), function (labelItem) {
+    labelMap[labelItem.tickValue] = 1;
+  });
+  return function (dataIndex) {
+    return !labelMap.hasOwnProperty(data.get(categoryDataDim, dataIndex));
+  };
+}
+
+function canShowAllSymbolForCategory(categoryAxis, data) {
+  // In mose cases, line is monotonous on category axis, and the label size
+  // is close with each other. So we check the symbol size and some of the
+  // label size alone with the category axis to estimate whether all symbol
+  // can be shown without overlap.
+  var axisExtent = categoryAxis.getExtent();
+  var availSize = Math.abs(axisExtent[1] - axisExtent[0]) / categoryAxis.scale.count();
+  isNaN(availSize) && (availSize = 0); // 0/0 is NaN.
+  // Sampling some points, max 5.
+
+  var dataLen = data.count();
+  var step = Math.max(1, Math.round(dataLen / 5));
+
+  for (var dataIndex = 0; dataIndex < dataLen; dataIndex += step) {
+    if (SymbolClz.getSymbolSize(data, dataIndex // Only for cartesian, where `isHorizontal` exists.
+    )[categoryAxis.isHorizontal() ? 1 : 0] // Empirical number
+    * 1.5 > availSize) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 var _default = ChartView.extend({
   type: 'line',
   init: function () {
@@ -33243,9 +35520,7 @@ var _default = ChartView.extend({
     var dataCoordInfo = prepareDataCoordInfo(coordSys, data, valueOrigin);
     var stackedOnPoints = getStackedOnPoints(coordSys, data, dataCoordInfo);
     var showSymbol = seriesModel.get('showSymbol');
-
-    var isSymbolIgnore = showSymbol && !isCoordSysPolar && !seriesModel.get('showAllSymbol') && this._getSymbolIgnoreFunc(data, coordSys); // Remove temporary symbols
-
+    var isIgnoreFunc = showSymbol && !isCoordSysPolar && getIsIgnoreFunc(seriesModel, data, coordSys); // Remove temporary symbols
 
     var oldData = this._data;
     oldData && oldData.eachItemGraphicEl(function (el, idx) {
@@ -33265,8 +35540,8 @@ var _default = ChartView.extend({
 
     if (!(polyline && prevCoordSys.type === coordSys.type && step === this._step)) {
       showSymbol && symbolDraw.updateData(data, {
-        isIgnore: isSymbolIgnore,
-        clipShape: createClipShape(coordSys, false, seriesModel)
+        isIgnore: isIgnoreFunc,
+        clipShape: createClipShape(coordSys, false, true, seriesModel)
       });
 
       if (step) {
@@ -33281,7 +35556,7 @@ var _default = ChartView.extend({
         polygon = this._newPolygon(points, stackedOnPoints, coordSys, hasAnimation);
       }
 
-      lineGroup.setClipPath(createClipShape(coordSys, true, seriesModel));
+      lineGroup.setClipPath(createClipShape(coordSys, true, false, seriesModel));
     } else {
       if (isAreaChart && !polygon) {
         // If areaStyle is added
@@ -33290,16 +35565,15 @@ var _default = ChartView.extend({
         // If areaStyle is removed
         lineGroup.remove(polygon);
         polygon = this._polygon = null;
-      }
+      } // Update clipPath
 
-      var coordSysClipShape = createClipShape(coordSys, false, seriesModel); // Update clipPath
 
-      lineGroup.setClipPath(coordSysClipShape); // Always update, or it is wrong in the case turning on legend
+      lineGroup.setClipPath(createClipShape(coordSys, false, false, seriesModel)); // Always update, or it is wrong in the case turning on legend
       // because points are not changed
 
       showSymbol && symbolDraw.updateData(data, {
-        isIgnore: isSymbolIgnore,
-        clipShape: coordSysClipShape
+        isIgnore: isIgnoreFunc,
+        clipShape: createClipShape(coordSys, false, true, seriesModel)
       }); // Stop symbol animation and sync with line points
       // FIXME performance?
 
@@ -33487,17 +35761,6 @@ var _default = ChartView.extend({
   /**
    * @private
    */
-  _getSymbolIgnoreFunc: function (data, coordSys) {
-    var categoryAxis = coordSys.getAxesByScale('ordinal')[0]; // `getLabelInterval` is provided by echarts/component/axis
-
-    if (categoryAxis && categoryAxis.isLabelIgnored) {
-      return zrUtil.bind(categoryAxis.isLabelIgnored, categoryAxis);
-    }
-  },
-
-  /**
-   * @private
-   */
   // FIXME Two value axis
   _updateAnimation: function (data, stackedOnPoints, coordSys, api, step, valueOrigin) {
     var polyline = this._polyline;
@@ -33591,7 +35854,7 @@ var _default = ChartView.extend({
 module.exports = _default;
 
 /***/ }),
-/* 149 */
+/* 151 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var graphic = __webpack_require__(7);
@@ -33601,6 +35864,25 @@ var SymbolClz = __webpack_require__(78);
 var _util = __webpack_require__(0);
 
 var isObject = _util.isObject;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @module echarts/chart/helper/SymbolDraw
@@ -33619,8 +35901,9 @@ function SymbolDraw(symbolCtor) {
 var symbolDrawProto = SymbolDraw.prototype;
 
 function symbolNeedsDraw(data, point, idx, opt) {
-  return point && !isNaN(point[0]) && !isNaN(point[1]) && !(opt.isIgnore && opt.isIgnore(idx)) // We do not set clipShape on group, because it will
-  // cut part of the symbol element shape.
+  return point && !isNaN(point[0]) && !isNaN(point[1]) && !(opt.isIgnore && opt.isIgnore(idx)) // We do not set clipShape on group, because it will cut part of
+  // the symbol element shape. We use the same clip shape here as
+  // the line clip.
   && !(opt.clipShape && !opt.clipShape.contain(point[0], point[1])) && data.getItemVisual(idx, 'symbol') !== 'none';
 }
 /**
@@ -33780,12 +36063,31 @@ var _default = SymbolDraw;
 module.exports = _default;
 
 /***/ }),
-/* 150 */
+/* 152 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var _dataProvider = __webpack_require__(19);
+var _dataProvider = __webpack_require__(20);
 
 var retrieveRawValue = _dataProvider.retrieveRawValue;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * @param {module:echarts/data/List} data
@@ -33813,7 +36115,7 @@ function getDefaultLabel(data, dataIndex) {
 exports.getDefaultLabel = getDefaultLabel;
 
 /***/ }),
-/* 151 */
+/* 153 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _helper = __webpack_require__(79);
@@ -33821,6 +36123,24 @@ var _helper = __webpack_require__(79);
 var prepareDataCoordInfo = _helper.prepareDataCoordInfo;
 var getStackedOnPoint = _helper.getStackedOnPoint;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // var arrayDiff = require('zrender/src/core/arrayDiff');
 // 'zrender/src/core/arrayDiff' has been used before, but it did
 // not do well in performance when roam with fixed dataZoom window.
@@ -33971,15 +36291,33 @@ function _default(oldData, newData, oldStackedOnPoints, newStackedOnPoints, oldC
 module.exports = _default;
 
 /***/ }),
-/* 152 */
+/* 154 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Path = __webpack_require__(4);
+var Path = __webpack_require__(5);
 
 var vec2 = __webpack_require__(3);
 
 var fixClipWithShadow = __webpack_require__(61);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // Poly path support NaN point
 var vec2Min = vec2.min;
 var vec2Max = vec2.max;
@@ -34311,22 +36649,43 @@ exports.Polyline = Polyline;
 exports.Polygon = Polygon;
 
 /***/ }),
-/* 153 */
+/* 155 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 function _default(seriesType, defaultSymbolType, legendSymbol) {
   // Encoding visual for all series include which is filtered for legend drawing
   return {
     seriesType: seriesType,
+    // For legend.
     performRawSeries: true,
     reset: function (seriesModel, ecModel, api) {
       var data = seriesModel.getData();
       var symbolType = seriesModel.get('symbol') || defaultSymbolType;
       var symbolSize = seriesModel.get('symbolSize');
+      var keepAspect = seriesModel.get('symbolKeepAspect');
       data.setVisual({
         legendSymbol: legendSymbol || symbolType,
         symbol: symbolType,
-        symbolSize: symbolSize
+        symbolSize: symbolSize,
+        symbolKeepAspect: keepAspect
       }); // Only visible series has each data be visual encoded
 
       if (ecModel.isSeriesFiltered(seriesModel)) {
@@ -34346,7 +36705,8 @@ function _default(seriesType, defaultSymbolType, legendSymbol) {
         if (data.hasItemOption) {
           var itemModel = data.getItemModel(idx);
           var itemSymbolType = itemModel.getShallow('symbol', true);
-          var itemSymbolSize = itemModel.getShallow('symbolSize', true); // If has item symbol
+          var itemSymbolSize = itemModel.getShallow('symbolSize', true);
+          var itemSymbolKeepAspect = itemModel.getShallow('symbolKeepAspect', true); // If has item symbol
 
           if (itemSymbolType != null) {
             data.setItemVisual(idx, 'symbol', itemSymbolType);
@@ -34355,6 +36715,10 @@ function _default(seriesType, defaultSymbolType, legendSymbol) {
           if (itemSymbolSize != null) {
             // PENDING Transform symbolSize ?
             data.setItemVisual(idx, 'symbolSize', itemSymbolSize);
+          }
+
+          if (itemSymbolKeepAspect != null) {
+            data.setItemVisual(idx, 'symbolKeepAspect', itemSymbolKeepAspect);
           }
         }
       }
@@ -34369,19 +36733,37 @@ function _default(seriesType, defaultSymbolType, legendSymbol) {
 module.exports = _default;
 
 /***/ }),
-/* 154 */
+/* 156 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(0);
 
 var map = _util.map;
 
-var createRenderPlanner = __webpack_require__(68);
+var createRenderPlanner = __webpack_require__(39);
 
-var _dataStackHelper = __webpack_require__(20);
+var _dataStackHelper = __webpack_require__(21);
 
 var isDimensionStacked = _dataStackHelper.isDimensionStacked;
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 function _default(seriesType) {
   return {
     seriesType: seriesType,
@@ -34400,13 +36782,14 @@ function _default(seriesType) {
         return data.mapDimension(dim);
       }).slice(0, 2);
       var dimLen = dims.length;
+      var stackResultDim = data.getCalculationInfo('stackResultDimension');
 
       if (isDimensionStacked(data, dims[0], dims[1])) {
-        dims[0] = data.getCalculationInfo('stackResultDimension');
+        dims[0] = stackResultDim;
       }
 
       if (isDimensionStacked(data, dims[1], dims[0])) {
-        dims[1] = data.getCalculationInfo('stackResultDimension');
+        dims[1] = stackResultDim;
       }
 
       function progress(params, data) {
@@ -34417,11 +36800,11 @@ function _default(seriesType) {
           var point;
 
           if (dimLen === 1) {
-            var x = data.get(dims[0], i, true);
+            var x = data.get(dims[0], i);
             point = !isNaN(x) && coordSys.dataToPoint(x, null, tmpOut);
           } else {
-            var x = tmpIn[0] = data.get(dims[0], i, true);
-            var y = tmpIn[1] = data.get(dims[1], i, true); // Also {Array.<number>}, not undefined to avoid if...else... statement
+            var x = tmpIn[0] = data.get(dims[0], i);
+            var y = tmpIn[1] = data.get(dims[1], i); // Also {Array.<number>}, not undefined to avoid if...else... statement
 
             point = !isNaN(x) && !isNaN(y) && coordSys.dataToPoint(tmpIn, null, tmpOut);
           }
@@ -34447,9 +36830,27 @@ function _default(seriesType) {
 module.exports = _default;
 
 /***/ }),
-/* 155 */
+/* 157 */
 /***/ (function(module, exports) {
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var samplers = {
   average: function (frame) {
     var sum = 0;
@@ -34480,18 +36881,20 @@ var samplers = {
 
     for (var i = 0; i < frame.length; i++) {
       frame[i] > max && (max = frame[i]);
-    }
+    } // NaN will cause illegal axis extent.
 
-    return max;
+
+    return isFinite(max) ? max : NaN;
   },
   min: function (frame) {
     var min = Infinity;
 
     for (var i = 0; i < frame.length; i++) {
       frame[i] < min && (min = frame[i]);
-    }
+    } // NaN will cause illegal axis extent.
 
-    return min;
+
+    return isFinite(min) ? min : NaN;
   },
   // TODO
   // Median
@@ -34507,6 +36910,7 @@ var indexSampler = function (frame, value) {
 function _default(seriesType) {
   return {
     seriesType: seriesType,
+    modifyOutputEnd: true,
     reset: function (seriesModel, ecModel, api) {
       var data = seriesModel.getData();
       var sampling = seriesModel.get('sampling');
@@ -34530,7 +36934,8 @@ function _default(seriesType) {
           }
 
           if (sampler) {
-            seriesModel.setData(data.downSample(valueAxis.dim, 1 / rate, sampler, indexSampler));
+            // Only support sample the first dim mapped from value axis.
+            seriesModel.setData(data.downSample(data.mapDimension(valueAxis.dim), 1 / rate, sampler, indexSampler));
           }
         }
       }
@@ -34541,19 +36946,37 @@ function _default(seriesType) {
 module.exports = _default;
 
 /***/ }),
-/* 156 */
+/* 158 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var echarts = __webpack_require__(21);
+var echarts = __webpack_require__(22);
 
 var zrUtil = __webpack_require__(0);
 
 var graphic = __webpack_require__(7);
 
-__webpack_require__(157);
+__webpack_require__(159);
 
-__webpack_require__(164);
+__webpack_require__(166);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // Grid view
 echarts.extendComponentView({
   type: 'grid',
@@ -34580,30 +37003,58 @@ echarts.registerPreprocessor(function (option) {
 });
 
 /***/ }),
-/* 157 */
+/* 159 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
 
 var __DEV__ = _config.__DEV__;
 
-var zrUtil = __webpack_require__(0);
+var _util = __webpack_require__(0);
 
-var BoundingRect = __webpack_require__(6);
+var isObject = _util.isObject;
+var each = _util.each;
+var map = _util.map;
+var indexOf = _util.indexOf;
+var retrieve = _util.retrieve;
 
 var _layout = __webpack_require__(17);
 
 var getLayoutRect = _layout.getLayoutRect;
 
-var axisHelper = __webpack_require__(29);
+var _axisHelper = __webpack_require__(30);
 
-var Cartesian2D = __webpack_require__(158);
+var createScaleByModel = _axisHelper.createScaleByModel;
+var ifAxisCrossZero = _axisHelper.ifAxisCrossZero;
+var niceScaleExtent = _axisHelper.niceScaleExtent;
+var estimateLabelUnionRect = _axisHelper.estimateLabelUnionRect;
 
-var Axis2D = __webpack_require__(160);
+var Cartesian2D = __webpack_require__(160);
+
+var Axis2D = __webpack_require__(162);
 
 var CoordinateSystem = __webpack_require__(37);
 
-__webpack_require__(161);
+__webpack_require__(163);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Grid is a region which contains at most 4 cartesian systems
@@ -34611,51 +37062,13 @@ __webpack_require__(161);
  * TODO Default cartesian
  */
 // Depends on GridModel, AxisModel, which performs preprocess.
-var each = zrUtil.each;
-var ifAxisCrossZero = axisHelper.ifAxisCrossZero;
-var niceScaleExtent = axisHelper.niceScaleExtent;
+
 /**
  * Check if the axis is used in the specified grid
  * @inner
  */
-
 function isAxisUsedInTheGrid(axisModel, gridModel, ecModel) {
   return axisModel.getCoordSysModel() === gridModel;
-}
-
-function rotateTextRect(textRect, rotate) {
-  var rotateRadians = rotate * Math.PI / 180;
-  var boundingBox = textRect.plain();
-  var beforeWidth = boundingBox.width;
-  var beforeHeight = boundingBox.height;
-  var afterWidth = beforeWidth * Math.cos(rotateRadians) + beforeHeight * Math.sin(rotateRadians);
-  var afterHeight = beforeWidth * Math.sin(rotateRadians) + beforeHeight * Math.cos(rotateRadians);
-  var rotatedRect = new BoundingRect(boundingBox.x, boundingBox.y, afterWidth, afterHeight);
-  return rotatedRect;
-}
-
-function getLabelUnionRect(axis) {
-  var axisModel = axis.model;
-  var labels = axisModel.get('axisLabel.show') ? axisModel.getFormattedLabels() : [];
-  var axisLabelModel = axisModel.getModel('axisLabel');
-  var rect;
-  var step = 1;
-  var labelCount = labels.length;
-
-  if (labelCount > 40) {
-    // Simple optimization for large amount of labels
-    step = Math.ceil(labelCount / 40);
-  }
-
-  for (var i = 0; i < labelCount; i += step) {
-    if (!axis.isLabelIgnored(i)) {
-      var unrotatedSingleRect = axisLabelModel.getTextRect(labels[i]);
-      var singleRect = rotateTextRect(unrotatedSingleRect, axisLabelModel.get('rotate') || 0);
-      rect ? rect.union(singleRect) : rect = singleRect;
-    }
-  }
-
-  return rect;
 }
 
 function Grid(gridModel, ecModel, api) {
@@ -34719,47 +37132,44 @@ gridProto.update = function (ecModel, api) {
 };
 
 function fixAxisOnZero(axesMap, otherAxisDim, axis) {
-  // onZero can not be enabled in these two situations:
+  axis.getAxesOnZeroOf = function () {
+    // TODO: onZero of multiple axes.
+    return otherAxis ? [otherAxis] : [];
+  }; // onZero can not be enabled in these two situations:
   // 1. When any other axis is a category axis.
   // 2. When no axis is cross 0 point.
-  var axes = axesMap[otherAxisDim];
 
-  if (!axis.onZero) {
+
+  var otherAxes = axesMap[otherAxisDim];
+  var otherAxis;
+  var axisModel = axis.model;
+  var onZero = axisModel.get('axisLine.onZero');
+  var onZeroAxisIndex = axisModel.get('axisLine.onZeroAxisIndex');
+
+  if (!onZero) {
     return;
-  }
+  } // If target axis is specified.
 
-  var onZeroAxisIndex = axis.onZeroAxisIndex; // If target axis is specified.
 
   if (onZeroAxisIndex != null) {
-    var otherAxis = axes[onZeroAxisIndex];
-
-    if (otherAxis && canNotOnZeroToAxis(otherAxis)) {
-      axis.onZero = false;
+    if (canOnZeroToAxis(otherAxes[onZeroAxisIndex])) {
+      otherAxis = otherAxes[onZeroAxisIndex];
     }
 
     return;
-  }
+  } // Find the first available other axis.
 
-  for (var idx in axes) {
-    if (axes.hasOwnProperty(idx)) {
-      var otherAxis = axes[idx];
 
-      if (otherAxis && !canNotOnZeroToAxis(otherAxis)) {
-        onZeroAxisIndex = +idx;
-        break;
-      }
+  for (var idx in otherAxes) {
+    if (otherAxes.hasOwnProperty(idx) && canOnZeroToAxis(otherAxes[idx])) {
+      otherAxis = otherAxes[idx];
+      break;
     }
   }
-
-  if (onZeroAxisIndex == null) {
-    axis.onZero = false;
-  }
-
-  axis.onZeroAxisIndex = onZeroAxisIndex;
 }
 
-function canNotOnZeroToAxis(axis) {
-  return axis.type === 'category' || axis.type === 'time' || !ifAxisCrossZero(axis);
+function canOnZeroToAxis(axis) {
+  return axis && axis.type !== 'category' && axis.type !== 'time' && ifAxisCrossZero(axis);
 }
 /**
  * Resize the grid
@@ -34780,7 +37190,7 @@ gridProto.resize = function (gridModel, api, ignoreContainLabel) {
   if (!ignoreContainLabel && gridModel.get('containLabel')) {
     each(axesList, function (axis) {
       if (!axis.model.get('axisLabel.inside')) {
-        var labelUnionRect = getLabelUnionRect(axis);
+        var labelUnionRect = estimateLabelUnionRect(axis);
 
         if (labelUnionRect) {
           var dim = axis.isHorizontal() ? 'height' : 'width';
@@ -34856,7 +37266,7 @@ gridProto.getCartesian = function (xAxisIndex, yAxisIndex) {
     return this._coordsMap[key];
   }
 
-  if (zrUtil.isObject(xAxisIndex)) {
+  if (isObject(xAxisIndex)) {
     yAxisIndex = xAxisIndex.yAxisIndex;
     xAxisIndex = xAxisIndex.xAxisIndex;
   } // When only xAxisIndex or yAxisIndex given, find its first cartesian.
@@ -34910,7 +37320,7 @@ gridProto._findConvertTarget = function (ecModel, finder) {
 
   if (seriesModel) {
     cartesian = seriesModel.coordinateSystem;
-    zrUtil.indexOf(coordsList, cartesian) < 0 && (cartesian = null);
+    indexOf(coordsList, cartesian) < 0 && (cartesian = null);
   } else if (xAxisModel && yAxisModel) {
     cartesian = this.getCartesian(xAxisModel.componentIndex, yAxisModel.componentIndex);
   } else if (xAxisModel) {
@@ -35024,12 +37434,10 @@ gridProto._initCartesian = function (gridModel, ecModel, api) {
       }
 
       axisPositionUsed[axisPosition] = true;
-      var axis = new Axis2D(axisType, axisHelper.createScaleByModel(axisModel), [0, 0], axisModel.get('type'), axisPosition);
+      var axis = new Axis2D(axisType, createScaleByModel(axisModel), [0, 0], axisModel.get('type'), axisPosition);
       var isCategory = axis.type === 'category';
       axis.onBand = isCategory && axisModel.get('boundaryGap');
-      axis.inverse = axisModel.get('inverse');
-      axis.onZero = axisModel.get('axisLine.onZero');
-      axis.onZeroAxisIndex = axisModel.get('axisLine.onZeroAxisIndex'); // Inject axis into axisModel
+      axis.inverse = axisModel.get('inverse'); // Inject axis into axisModel
 
       axisModel.axis = axis; // Inject axisModel into axis
 
@@ -35055,7 +37463,7 @@ gridProto._initCartesian = function (gridModel, ecModel, api) {
 
 gridProto._updateScale = function (ecModel, gridModel) {
   // Reset scale
-  zrUtil.each(this._axesList, function (axis) {
+  each(this._axesList, function (axis) {
     axis.scale.setExtent(Infinity, -Infinity);
   });
   ecModel.eachSeries(function (seriesModel) {
@@ -35098,8 +37506,8 @@ gridProto.getTooltipAxes = function (dim) {
   each(this.getCartesians(), function (cartesian) {
     var baseAxis = dim != null && dim !== 'auto' ? cartesian.getAxis(dim) : cartesian.getBaseAxis();
     var otherAxis = cartesian.getOtherAxis(baseAxis);
-    zrUtil.indexOf(baseAxes, baseAxis) < 0 && baseAxes.push(baseAxis);
-    zrUtil.indexOf(otherAxes, otherAxis) < 0 && otherAxes.push(otherAxis);
+    indexOf(baseAxes, baseAxis) < 0 && baseAxes.push(baseAxis);
+    indexOf(otherAxes, otherAxis) < 0 && otherAxes.push(otherAxis);
   });
   return {
     baseAxes: baseAxes,
@@ -35133,7 +37541,7 @@ var axesTypes = ['xAxis', 'yAxis'];
  */
 
 function findAxesModels(seriesModel, ecModel) {
-  return zrUtil.map(axesTypes, function (axisType) {
+  return map(axesTypes, function (axisType) {
     var axisModel = seriesModel.getReferringComponents(axisType)[0];
     return axisModel;
   });
@@ -35181,13 +37589,31 @@ var _default = Grid;
 module.exports = _default;
 
 /***/ }),
-/* 158 */
+/* 160 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Cartesian = __webpack_require__(159);
+var Cartesian = __webpack_require__(161);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 function Cartesian2D(name) {
   Cartesian.call(this, name);
 }
@@ -35251,11 +37677,15 @@ Cartesian2D.prototype = {
    * @return {Array.<number>}
    */
   clampData: function (data, out) {
-    var xAxisExtent = this.getAxis('x').scale.getExtent();
-    var yAxisExtent = this.getAxis('y').scale.getExtent();
+    var xScale = this.getAxis('x').scale;
+    var yScale = this.getAxis('y').scale;
+    var xAxisExtent = xScale.getExtent();
+    var yAxisExtent = yScale.getExtent();
+    var x = xScale.parse(data[0]);
+    var y = yScale.parse(data[1]);
     out = out || [];
-    out[0] = Math.min(Math.max(Math.min(xAxisExtent[0], xAxisExtent[1]), data[0]), Math.max(xAxisExtent[0], xAxisExtent[1]));
-    out[1] = Math.min(Math.max(Math.min(yAxisExtent[0], yAxisExtent[1]), data[1]), Math.max(yAxisExtent[0], yAxisExtent[1]));
+    out[0] = Math.min(Math.max(Math.min(xAxisExtent[0], xAxisExtent[1]), x), Math.max(xAxisExtent[0], xAxisExtent[1]));
+    out[1] = Math.min(Math.max(Math.min(yAxisExtent[0], yAxisExtent[1]), y), Math.max(yAxisExtent[0], yAxisExtent[1]));
     return out;
   },
 
@@ -35286,10 +37716,29 @@ var _default = Cartesian2D;
 module.exports = _default;
 
 /***/ }),
-/* 159 */
+/* 161 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Cartesian coordinate system
@@ -35391,12 +37840,31 @@ var _default = Cartesian;
 module.exports = _default;
 
 /***/ }),
-/* 160 */
+/* 162 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
 var Axis = __webpack_require__(77);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Extend axis 2d
@@ -35440,10 +37908,12 @@ Axis2D.prototype = {
   index: 0,
 
   /**
-   * If axis is on the zero position of the other axis
-   * @type {boolean}
+   * Implemented in <module:echarts/coord/cartesian/Grid>.
+   * @return {Array.<module:echarts/coord/cartesian/Axis2D>}
+   *         If not on zero of other axis, return null/undefined.
+   *         If no axes, return an empty array.
    */
-  onZero: false,
+  getAxesOnZeroOf: null,
 
   /**
    * Axis model
@@ -35475,19 +37945,6 @@ Axis2D.prototype = {
   },
 
   /**
-   * If label is ignored.
-   * Automatically used when axis is category and label can not be all shown
-   * @param  {number}  idx
-   * @return {boolean}
-   */
-  isLabelIgnored: function (idx) {
-    if (this.type === 'category') {
-      var labelInterval = this.getLabelInterval();
-      return typeof labelInterval === 'function' && !labelInterval(idx, this.scale.getLabel(idx)) || idx % (labelInterval + 1);
-    }
-  },
-
-  /**
    * @override
    */
   pointToData: function (point, clamp) {
@@ -35515,13 +37972,31 @@ var _default = Axis2D;
 module.exports = _default;
 
 /***/ }),
-/* 161 */
+/* 163 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(80);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // Grid 是在有直角坐标系的时候必须要存在的
 // 所以这里也要被 Cartesian2D 依赖
 var _default = ComponentModel.extend({
@@ -35554,14 +38029,14 @@ var _default = ComponentModel.extend({
 module.exports = _default;
 
 /***/ }),
-/* 162 */
+/* 164 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var axisDefault = __webpack_require__(163);
+var axisDefault = __webpack_require__(165);
 
-var ComponentModel = __webpack_require__(11);
+var ComponentModel = __webpack_require__(9);
 
 var _layout = __webpack_require__(17);
 
@@ -35570,6 +38045,24 @@ var mergeLayoutParam = _layout.mergeLayoutParam;
 
 var OrdinalMeta = __webpack_require__(74);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 // FIXME axisType is fixed ?
 var AXIS_TYPES = ['value', 'category', 'time', 'log'];
 /**
@@ -35615,10 +38108,15 @@ function _default(axisName, BaseAxisModelClass, axisTypeDefaulter, extraDefaultO
        * Should not be called before all of 'getInitailData' finished.
        * Because categories are collected during initializing data.
        */
-      getCategories: function () {
-        // FIXME
+      getCategories: function (rawData) {
+        var option = this.option; // FIXME
         // warning if called before all of 'getInitailData' finished.
-        if (this.option.type === 'category') {
+
+        if (option.type === 'category') {
+          if (rawData) {
+            return option.data;
+          }
+
           return this.__ordinalMeta.categories;
         }
       },
@@ -35634,103 +38132,104 @@ function _default(axisName, BaseAxisModelClass, axisTypeDefaulter, extraDefaultO
 module.exports = _default;
 
 /***/ }),
-/* 163 */
+/* 165 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var defaultOption = {
   show: true,
   zlevel: 0,
-  // 一级层叠
   z: 0,
-  // 二级层叠
-  // 反向坐标轴
+  // Inverse the axis.
   inverse: false,
-  // 坐标轴名字，默认为空
+  // Axis name displayed.
   name: '',
-  // 坐标轴名字位置，支持'start' | 'middle' | 'end'
+  // 'start' | 'middle' | 'end'
   nameLocation: 'end',
-  // 坐标轴名字旋转，degree。
+  // By degree. By defualt auto rotate by nameLocation.
   nameRotate: null,
-  // Adapt to axis rotate, when nameLocation is 'middle'.
   nameTruncate: {
     maxWidth: null,
     ellipsis: '...',
     placeholder: '.'
   },
-  // 坐标轴文字样式，默认取全局样式
+  // Use global text style by default.
   nameTextStyle: {},
-  // 文字与轴线距离
+  // The gap between axisName and axisLine.
   nameGap: 15,
+  // Default `false` to support tooltip.
   silent: false,
-  // Default false to support tooltip.
+  // Default `false` to avoid legacy user event listener fail.
   triggerEvent: false,
-  // Default false to avoid legacy user event listener fail.
   tooltip: {
     show: false
   },
   axisPointer: {},
-  // 坐标轴线
   axisLine: {
-    // 默认显示，属性show控制显示与否
     show: true,
     onZero: true,
     onZeroAxisIndex: null,
-    // 属性lineStyle控制线条样式
     lineStyle: {
       color: '#333',
       width: 1,
       type: 'solid'
     },
-    // 坐标轴两端的箭头
+    // The arrow at both ends the the axis.
     symbol: ['none', 'none'],
     symbolSize: [10, 15]
   },
-  // 坐标轴小标记
   axisTick: {
-    // 属性show控制显示与否，默认显示
     show: true,
-    // 控制小标记是否在grid里
+    // Whether axisTick is inside the grid or outside the grid.
     inside: false,
-    // 属性length控制线长
+    // The length of axisTick.
     length: 5,
-    // 属性lineStyle控制线条样式
     lineStyle: {
       width: 1
     }
   },
-  // 坐标轴文本标签，详见axis.axisLabel
   axisLabel: {
     show: true,
-    // 控制文本标签是否在grid里
+    // Whether axisLabel is inside the grid or outside the grid.
     inside: false,
     rotate: 0,
+    // true | false | null/undefined (auto)
     showMinLabel: null,
-    // true | false | null (auto)
+    // true | false | null/undefined (auto)
     showMaxLabel: null,
-    // true | false | null (auto)
     margin: 8,
     // formatter: null,
-    // 其余属性默认使用全局文本样式，详见TEXTSTYLE
     fontSize: 12
   },
-  // 分隔线
   splitLine: {
-    // 默认显示，属性show控制显示与否
     show: true,
-    // 属性lineStyle（详见lineStyle）控制线条样式
     lineStyle: {
       color: ['#ccc'],
       width: 1,
       type: 'solid'
     }
   },
-  // 分隔区域
   splitArea: {
-    // 默认不显示，属性show控制显示与否
     show: false,
-    // 属性areaStyle（详见areaStyle）控制区域样式
     areaStyle: {
       color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
     }
@@ -35738,7 +38237,7 @@ var defaultOption = {
 };
 var axisDefault = {};
 axisDefault.categoryAxis = zrUtil.merge({
-  // 类目起始和结束两端空白策略
+  // The gap at both ends of the axis. For categoryAxis, boolean.
   boundaryGap: true,
   // Set false to faster category collection.
   // Only usefull in the case like: category is
@@ -35754,39 +38253,48 @@ axisDefault.categoryAxis = zrUtil.merge({
   splitLine: {
     show: false
   },
-  // 坐标轴小标记
   axisTick: {
     // If tick is align with label when boundaryGap is true
     alignWithLabel: false,
     interval: 'auto'
   },
-  // 坐标轴文本标签，详见axis.axisLabel
   axisLabel: {
     interval: 'auto'
   }
 }, defaultOption);
 axisDefault.valueAxis = zrUtil.merge({
-  // 数值起始和结束两端空白策略
+  // The gap at both ends of the axis. For value axis, [GAP, GAP], where
+  // `GAP` can be an absolute pixel number (like `35`), or percent (like `'30%'`)
   boundaryGap: [0, 0],
   // TODO
   // min/max: [30, datamin, 60] or [20, datamin] or [datamin, 60]
-  // 最小值, 设置成 'dataMin' 则从数据中计算最小值
+  // Min value of the axis. can be:
+  // + a number
+  // + 'dataMin': use the min value in data.
+  // + null/undefined: auto decide min value (consider pretty look and boundaryGap).
   // min: null,
-  // 最大值，设置成 'dataMax' 则从数据中计算最大值
+  // Max value of the axis. can be:
+  // + a number
+  // + 'dataMax': use the max value in data.
+  // + null/undefined: auto decide max value (consider pretty look and boundaryGap).
   // max: null,
   // Readonly prop, specifies start value of the range when using data zoom.
   // rangeStart: null
   // Readonly prop, specifies end value of the range when using data zoom.
   // rangeEnd: null
-  // 脱离0值比例，放大聚焦到最终_min，_max区间
+  // Optional value can be:
+  // + `false`: always include value 0.
+  // + `true`: the extent do not consider value 0.
   // scale: false,
-  // 分割段数，默认为5
-  splitNumber: 5 // Minimum interval
+  // AxisTick and axisLabel and splitLine are caculated based on splitNumber.
+  splitNumber: 5 // Interval specifies the span of the ticks is mandatorily.
+  // interval: null
+  // Specify min interval when auto calculate tick interval.
   // minInterval: null
+  // Specify max interval when auto calculate tick interval.
   // maxInterval: null
 
-}, defaultOption); // FIXME
-
+}, defaultOption);
 axisDefault.timeAxis = zrUtil.defaults({
   scale: true,
   min: 'dataMin',
@@ -35800,29 +38308,45 @@ var _default = axisDefault;
 module.exports = _default;
 
 /***/ }),
-/* 164 */
+/* 166 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(80);
 
-__webpack_require__(165);
+__webpack_require__(167);
 
 /***/ }),
-/* 165 */
+/* 167 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
 var graphic = __webpack_require__(7);
 
-var AxisBuilder = __webpack_require__(166);
+var AxisBuilder = __webpack_require__(168);
 
-var AxisView = __webpack_require__(167);
+var AxisView = __webpack_require__(169);
 
-var cartesianAxisHelper = __webpack_require__(169);
+var cartesianAxisHelper = __webpack_require__(171);
 
-var ifIgnoreOnTick = AxisBuilder.ifIgnoreOnTick;
-var getInterval = AxisBuilder.getInterval;
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var axisBuilderAttrs = ['axisLine', 'axisTickLabel', 'axisName'];
 var selfBuilderAttrs = ['splitArea', 'splitLine']; // function getAlignWithLabel(model, axisModel) {
 //     var alignWithLabel = model.get('alignWithLabel');
@@ -35858,20 +38382,22 @@ var CartesianAxisView = AxisView.extend({
 
     zrUtil.each(selfBuilderAttrs, function (name) {
       if (axisModel.get(name + '.show')) {
-        this['_' + name](axisModel, gridModel, layout.labelInterval);
+        this['_' + name](axisModel, gridModel);
       }
     }, this);
     graphic.groupTransition(oldAxisGroup, this._axisGroup, axisModel);
     CartesianAxisView.superCall(this, 'render', axisModel, ecModel, api, payload);
   },
+  remove: function () {
+    this._splitAreaColors = null;
+  },
 
   /**
    * @param {module:echarts/coord/cartesian/AxisModel} axisModel
    * @param {module:echarts/coord/cartesian/GridModel} gridModel
-   * @param {number|Function} labelInterval
    * @private
    */
-  _splitLine: function (axisModel, gridModel, labelInterval) {
+  _splitLine: function (axisModel, gridModel) {
     var axis = axisModel.axis;
 
     if (axis.scale.isBlank()) {
@@ -35881,15 +38407,13 @@ var CartesianAxisView = AxisView.extend({
     var splitLineModel = axisModel.getModel('splitLine');
     var lineStyleModel = splitLineModel.getModel('lineStyle');
     var lineColors = lineStyleModel.get('color');
-    var lineInterval = getInterval(splitLineModel, labelInterval);
     lineColors = zrUtil.isArray(lineColors) ? lineColors : [lineColors];
     var gridRect = gridModel.coordinateSystem.getRect();
     var isHorizontal = axis.isHorizontal();
     var lineCount = 0;
-    var ticksCoords = axis.getTicksCoords();
-    var ticks = axis.scale.getTicks();
-    var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-    var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
+    var ticksCoords = axis.getTicksCoords({
+      tickModel: splitLineModel
+    });
     var p1 = [];
     var p2 = []; // Simple optimization
     // Batching the lines if color are the same
@@ -35897,11 +38421,7 @@ var CartesianAxisView = AxisView.extend({
     var lineStyle = lineStyleModel.getLineStyle();
 
     for (var i = 0; i < ticksCoords.length; i++) {
-      if (ifIgnoreOnTick(axis, i, lineInterval, ticksCoords.length, showMinLabel, showMaxLabel)) {
-        continue;
-      }
-
-      var tickCoord = axis.toGlobalCoord(ticksCoords[i]);
+      var tickCoord = axis.toGlobalCoord(ticksCoords[i].coord);
 
       if (isHorizontal) {
         p1[0] = tickCoord;
@@ -35918,7 +38438,7 @@ var CartesianAxisView = AxisView.extend({
       var colorIndex = lineCount++ % lineColors.length;
 
       this._axisGroup.add(new graphic.Line(graphic.subPixelOptimizeLine({
-        anid: 'line_' + ticks[i],
+        anid: 'line_' + ticksCoords[i].tickValue,
         shape: {
           x1: p1[0],
           y1: p1[1],
@@ -35936,10 +38456,9 @@ var CartesianAxisView = AxisView.extend({
   /**
    * @param {module:echarts/coord/cartesian/AxisModel} axisModel
    * @param {module:echarts/coord/cartesian/GridModel} gridModel
-   * @param {number|Function} labelInterval
    * @private
    */
-  _splitArea: function (axisModel, gridModel, labelInterval) {
+  _splitArea: function (axisModel, gridModel) {
     var axis = axisModel.axis;
 
     if (axis.scale.isBlank()) {
@@ -35950,44 +38469,63 @@ var CartesianAxisView = AxisView.extend({
     var areaStyleModel = splitAreaModel.getModel('areaStyle');
     var areaColors = areaStyleModel.get('color');
     var gridRect = gridModel.coordinateSystem.getRect();
-    var ticksCoords = axis.getTicksCoords();
-    var ticks = axis.scale.getTicks();
-    var prevX = axis.toGlobalCoord(ticksCoords[0]);
-    var prevY = axis.toGlobalCoord(ticksCoords[0]);
-    var count = 0;
-    var areaInterval = getInterval(splitAreaModel, labelInterval);
+    var ticksCoords = axis.getTicksCoords({
+      tickModel: splitAreaModel,
+      clamp: true
+    });
+
+    if (!ticksCoords.length) {
+      return;
+    } // For Making appropriate splitArea animation, the color and anid
+    // should be corresponding to previous one if possible.
+
+
+    var areaColorsLen = areaColors.length;
+    var lastSplitAreaColors = this._splitAreaColors;
+    var newSplitAreaColors = zrUtil.createHashMap();
+    var colorIndex = 0;
+
+    if (lastSplitAreaColors) {
+      for (var i = 0; i < ticksCoords.length; i++) {
+        var cIndex = lastSplitAreaColors.get(ticksCoords[i].tickValue);
+
+        if (cIndex != null) {
+          colorIndex = (cIndex + (areaColorsLen - 1) * i) % areaColorsLen;
+          break;
+        }
+      }
+    }
+
+    var prev = axis.toGlobalCoord(ticksCoords[0].coord);
     var areaStyle = areaStyleModel.getAreaStyle();
     areaColors = zrUtil.isArray(areaColors) ? areaColors : [areaColors];
-    var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-    var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
 
     for (var i = 1; i < ticksCoords.length; i++) {
-      if (ifIgnoreOnTick(axis, i, areaInterval, ticksCoords.length, showMinLabel, showMaxLabel) && i < ticksCoords.length - 1) {
-        continue;
-      }
-
-      var tickCoord = axis.toGlobalCoord(ticksCoords[i]);
+      var tickCoord = axis.toGlobalCoord(ticksCoords[i].coord);
       var x;
       var y;
       var width;
       var height;
 
       if (axis.isHorizontal()) {
-        x = prevX;
+        x = prev;
         y = gridRect.y;
         width = tickCoord - x;
         height = gridRect.height;
+        prev = x + width;
       } else {
         x = gridRect.x;
-        y = prevY;
+        y = prev;
         width = gridRect.width;
         height = tickCoord - y;
+        prev = y + height;
       }
 
-      var colorIndex = count++ % areaColors.length;
+      var tickValue = ticksCoords[i - 1].tickValue;
+      tickValue != null && newSplitAreaColors.set(tickValue, colorIndex);
 
       this._axisGroup.add(new graphic.Rect({
-        anid: 'area_' + ticks[i],
+        anid: 'area_' + tickValue,
         shape: {
           x: x,
           y: y,
@@ -36000,9 +38538,10 @@ var CartesianAxisView = AxisView.extend({
         silent: true
       }));
 
-      prevX = x + width;
-      prevY = y + height;
+      colorIndex = (colorIndex + 1) % areaColorsLen;
     }
+
+    this._splitAreaColors = newSplitAreaColors;
   }
 });
 CartesianAxisView.extend({
@@ -36013,7 +38552,7 @@ CartesianAxisView.extend({
 });
 
 /***/ }),
-/* 166 */
+/* 168 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _util = __webpack_require__(0);
@@ -36027,14 +38566,14 @@ var formatUtil = __webpack_require__(12);
 
 var graphic = __webpack_require__(7);
 
-var Model = __webpack_require__(9);
+var Model = __webpack_require__(10);
 
-var _number = __webpack_require__(5);
+var _number = __webpack_require__(4);
 
 var isRadianAroundZero = _number.isRadianAroundZero;
 var remRadian = _number.remRadian;
 
-var _symbol = __webpack_require__(41);
+var _symbol = __webpack_require__(42);
 
 var createSymbol = _symbol.createSymbol;
 
@@ -36043,6 +38582,25 @@ var matrixUtil = __webpack_require__(15);
 var _vector = __webpack_require__(3);
 
 var v2ApplyTransform = _vector.applyTransform;
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var PI = Math.PI;
 
 function makeAxisEventDataBase(axisModel) {
@@ -36087,8 +38645,6 @@ function makeAxisEventDataBase(axisModel) {
  * @param {string} [opt.axisName] default get from axisModel.
  * @param {number} [opt.axisNameAvailableWidth]
  * @param {number} [opt.labelRotate] by degree, default get from axisModel.
- * @param {number} [opt.labelInterval] Default label interval when label
- *                                     interval from model is null or 'auto'.
  * @param {number} [opt.strokeContainThreshold] Default label interval when label
  * @param {number} [opt.nameTruncateMaxWidth]
  */
@@ -36488,36 +39044,6 @@ function isTwoLabelOverlapped(current, next, labelLayout) {
 function isNameLocationCenter(nameLocation) {
   return nameLocation === 'middle' || nameLocation === 'center';
 }
-/**
- * @static
- */
-
-
-var ifIgnoreOnTick = AxisBuilder.ifIgnoreOnTick = function (axis, i, interval, ticksCnt, showMinLabel, showMaxLabel) {
-  if (i === 0 && showMinLabel || i === ticksCnt - 1 && showMaxLabel) {
-    return false;
-  } // FIXME
-  // Have not consider label overlap (if label is too long) yet.
-
-
-  var rawTick;
-  var scale = axis.scale;
-  return scale.type === 'ordinal' && (typeof interval === 'function' ? (rawTick = scale.getTicks()[i], !interval(rawTick, scale.getLabel(rawTick))) : i % (interval + 1));
-};
-/**
- * @static
- */
-
-
-var getInterval = AxisBuilder.getInterval = function (model, labelInterval) {
-  var interval = model.get('interval');
-
-  if (interval == null || interval == 'auto') {
-    interval = labelInterval;
-  }
-
-  return interval;
-};
 
 function buildAxisTick(axisBuilder, axisModel, opt) {
   var axis = axisModel.axis;
@@ -36529,26 +39055,14 @@ function buildAxisTick(axisBuilder, axisModel, opt) {
   var tickModel = axisModel.getModel('axisTick');
   var lineStyleModel = tickModel.getModel('lineStyle');
   var tickLen = tickModel.get('length');
-  var tickInterval = getInterval(tickModel, opt.labelInterval);
-  var ticksCoords = axis.getTicksCoords(tickModel.get('alignWithLabel')); // FIXME
-  // Corresponds to ticksCoords ?
-
-  var ticks = axis.scale.getTicks();
-  var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-  var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
+  var ticksCoords = axis.getTicksCoords();
   var pt1 = [];
   var pt2 = [];
   var matrix = axisBuilder._transform;
   var tickEls = [];
-  var ticksCnt = ticksCoords.length;
 
-  for (var i = 0; i < ticksCnt; i++) {
-    // Only ordinal scale support tick interval
-    if (ifIgnoreOnTick(axis, i, tickInterval, ticksCnt, showMinLabel, showMaxLabel)) {
-      continue;
-    }
-
-    var tickCoord = ticksCoords[i];
+  for (var i = 0; i < ticksCoords.length; i++) {
+    var tickCoord = ticksCoords[i].coord;
     pt1[0] = tickCoord;
     pt1[1] = 0;
     pt2[0] = tickCoord;
@@ -36562,7 +39076,7 @@ function buildAxisTick(axisBuilder, axisModel, opt) {
 
     var tickEl = new graphic.Line(graphic.subPixelOptimizeLine({
       // Id for animation
-      anid: 'tick_' + ticks[i],
+      anid: 'tick_' + ticksCoords[i].tickValue,
       shape: {
         x1: pt1[0],
         y1: pt1[1],
@@ -36592,58 +39106,53 @@ function buildAxisLabel(axisBuilder, axisModel, opt) {
 
   var labelModel = axisModel.getModel('axisLabel');
   var labelMargin = labelModel.get('margin');
-  var ticks = axis.scale.getTicks();
-  var labels = axisModel.getFormattedLabels(); // Special label rotate.
+  var labels = axis.getViewLabels(); // Special label rotate.
 
   var labelRotation = (retrieve(opt.labelRotate, labelModel.get('rotate')) || 0) * PI / 180;
   var labelLayout = innerTextLayout(opt.rotation, labelRotation, opt.labelDirection);
-  var categoryData = axisModel.getCategories();
+  var rawCategoryData = axisModel.getCategories(true);
   var labelEls = [];
   var silent = isSilent(axisModel);
   var triggerEvent = axisModel.get('triggerEvent');
-  var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-  var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
-  each(ticks, function (tickVal, index) {
-    if (ifIgnoreOnTick(axis, index, opt.labelInterval, ticks.length, showMinLabel, showMaxLabel)) {
-      return;
-    }
-
+  each(labels, function (labelItem, index) {
+    var tickValue = labelItem.tickValue;
+    var formattedLabel = labelItem.formattedLabel;
+    var rawLabel = labelItem.rawLabel;
     var itemLabelModel = labelModel;
 
-    if (categoryData && categoryData[tickVal] && categoryData[tickVal].textStyle) {
-      itemLabelModel = new Model(categoryData[tickVal].textStyle, labelModel, axisModel.ecModel);
+    if (rawCategoryData && rawCategoryData[tickValue] && rawCategoryData[tickValue].textStyle) {
+      itemLabelModel = new Model(rawCategoryData[tickValue].textStyle, labelModel, axisModel.ecModel);
     }
 
     var textColor = itemLabelModel.getTextColor() || axisModel.get('axisLine.lineStyle.color');
-    var tickCoord = axis.dataToCoord(tickVal);
+    var tickCoord = axis.dataToCoord(tickValue);
     var pos = [tickCoord, opt.labelOffset + opt.labelDirection * labelMargin];
-    var labelStr = axis.scale.getLabel(tickVal);
     var textEl = new graphic.Text({
       // Id for animation
-      anid: 'label_' + tickVal,
+      anid: 'label_' + tickValue,
       position: pos,
       rotation: labelLayout.rotation,
       silent: silent,
       z2: 10
     });
     graphic.setTextStyle(textEl.style, itemLabelModel, {
-      text: labels[index],
+      text: formattedLabel,
       textAlign: itemLabelModel.getShallow('align', true) || labelLayout.textAlign,
       textVerticalAlign: itemLabelModel.getShallow('verticalAlign', true) || itemLabelModel.getShallow('baseline', true) || labelLayout.textVerticalAlign,
       textFill: typeof textColor === 'function' ? textColor( // (1) In category axis with data zoom, tick is not the original
       // index of axis.data. So tick should not be exposed to user
       // in category axis.
-      // (2) Compatible with previous version, which always returns labelStr.
-      // But in interval scale labelStr is like '223,445', which maked
-      // user repalce ','. So we modify it to return original val but remain
+      // (2) Compatible with previous version, which always use formatted label as
+      // input. But in interval scale the formatted label is like '223,445', which
+      // maked user repalce ','. So we modify it to return original val but remain
       // it as 'string' to avoid error in replacing.
-      axis.type === 'category' ? labelStr : axis.type === 'value' ? tickVal + '' : tickVal, index) : textColor
+      axis.type === 'category' ? rawLabel : axis.type === 'value' ? tickValue + '' : tickValue, index) : textColor
     }); // Pack data for mouse event
 
     if (triggerEvent) {
       textEl.eventData = makeAxisEventDataBase(axisModel);
       textEl.eventData.targetType = 'axisLabel';
-      textEl.eventData.value = labelStr;
+      textEl.eventData.value = rawLabel;
     } // FIXME
 
 
@@ -36661,16 +39170,35 @@ var _default = AxisBuilder;
 module.exports = _default;
 
 /***/ }),
-/* 167 */
+/* 169 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var _config = __webpack_require__(2);
 
 var __DEV__ = _config.__DEV__;
 
-var echarts = __webpack_require__(21);
+var echarts = __webpack_require__(22);
 
-var axisPointerModelHelper = __webpack_require__(168);
+var axisPointerModelHelper = __webpack_require__(170);
+
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 
 /**
  * Base class of AxisView.
@@ -36764,13 +39292,31 @@ var _default = AxisView;
 module.exports = _default;
 
 /***/ }),
-/* 168 */
+/* 170 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
-var Model = __webpack_require__(9);
+var Model = __webpack_require__(10);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
 var each = zrUtil.each;
 var curry = zrUtil.curry; // Build axisPointerModel, mergin tooltip.axisPointer model for each axis.
 // allAxesInfo should be updated when setOption performed.
@@ -37060,16 +39606,38 @@ exports.getAxisPointerModel = getAxisPointerModel;
 exports.makeKey = makeKey;
 
 /***/ }),
-/* 169 */
+/* 171 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var zrUtil = __webpack_require__(0);
 
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
 /**
+ * Can only be called after coordinate system creation stage.
+ * (Can be called before coordinate system update stage).
+ *
  * @param {Object} opt {labelInside}
  * @return {Object} {
  *  position, rotation, labelDirection, labelOffset,
- *  tickDirection, labelRotate, labelInterval, z2
+ *  tickDirection, labelRotate, z2
  * }
  */
 function layout(gridModel, axisModel, opt) {
@@ -37077,8 +39645,9 @@ function layout(gridModel, axisModel, opt) {
   var grid = gridModel.coordinateSystem;
   var axis = axisModel.axis;
   var layout = {};
+  var otherAxisOnZeroOf = axis.getAxesOnZeroOf()[0];
   var rawAxisPosition = axis.position;
-  var axisPosition = axis.onZero ? 'onZero' : rawAxisPosition;
+  var axisPosition = otherAxisOnZeroOf ? 'onZero' : rawAxisPosition;
   var axisDim = axis.dim;
   var rect = grid.getRect();
   var rectBound = [rect.x, rect.x + rect.width, rect.y, rect.y + rect.height];
@@ -37092,9 +39661,8 @@ function layout(gridModel, axisModel, opt) {
   var axisOffset = axisModel.get('offset') || 0;
   var posBound = axisDim === 'x' ? [rectBound[2] - axisOffset, rectBound[3] + axisOffset] : [rectBound[0] - axisOffset, rectBound[1] + axisOffset];
 
-  if (axis.onZero) {
-    var otherAxis = grid.getAxis(axisDim === 'x' ? 'y' : 'x', axis.onZeroAxisIndex);
-    var onZeroCoord = otherAxis.toGlobalCoord(otherAxis.dataToCoord(0));
+  if (otherAxisOnZeroOf) {
+    var onZeroCoord = otherAxisOnZeroOf.toGlobalCoord(otherAxisOnZeroOf.dataToCoord(0));
     posBound[idx['onZero']] = Math.max(Math.min(onZeroCoord, posBound[1]), posBound[0]);
   } // Axis position
 
@@ -37110,7 +39678,7 @@ function layout(gridModel, axisModel, opt) {
     right: 1
   };
   layout.labelDirection = layout.tickDirection = layout.nameDirection = dirMap[rawAxisPosition];
-  layout.labelOffset = axis.onZero ? posBound[idx[rawAxisPosition]] - posBound[idx['onZero']] : 0;
+  layout.labelOffset = otherAxisOnZeroOf ? posBound[idx[rawAxisPosition]] - posBound[idx['onZero']] : 0;
 
   if (axisModel.get('axisTick.inside')) {
     layout.tickDirection = -layout.tickDirection;
@@ -37122,9 +39690,7 @@ function layout(gridModel, axisModel, opt) {
 
 
   var labelRotate = axisModel.get('axisLabel.rotate');
-  layout.labelRotate = axisPosition === 'top' ? -labelRotate : labelRotate; // label interval when auto mode.
-
-  layout.labelInterval = axis.getLabelInterval(); // Over splitLine and splitArea
+  layout.labelRotate = axisPosition === 'top' ? -labelRotate : labelRotate; // Over splitLine and splitArea
 
   layout.z2 = 1;
   return layout;

@@ -57,19 +57,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	module.exports = __webpack_require__(1);
 
-	__webpack_require__(142);
+	__webpack_require__(144);
 
-	__webpack_require__(169);
+	__webpack_require__(171);
 
-	__webpack_require__(175);
+	__webpack_require__(177);
 
-	__webpack_require__(185);
+	__webpack_require__(187);
 
-	__webpack_require__(189);
+	__webpack_require__(191);
 
-	__webpack_require__(199);
+	__webpack_require__(201);
 
-	__webpack_require__(220);
+	__webpack_require__(222);
 
 	__webpack_require__(231);
 
@@ -83,7 +83,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(286);
 
-	__webpack_require__(292);
+	__webpack_require__(293);
 
 	__webpack_require__(299);
 
@@ -203,23 +203,34 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var darkTheme = __webpack_require__(117);
 
-	/*!
-	 * ECharts, a free, powerful charting and visualization library.
-	 *
-	 * Copyright (c) 2017, Baidu Inc.
-	 * All rights reserved.
-	 *
-	 * LICENSE
-	 * https://github.com/ecomfe/echarts/blob/master/LICENSE.txt
-	 */
+	__webpack_require__(118);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var assert = zrUtil.assert;
 	var each = zrUtil.each;
 	var isFunction = zrUtil.isFunction;
 	var isObject = zrUtil.isObject;
 	var parseClassType = ComponentModel.parseClassType;
-	var version = '4.0.2';
+	var version = '4.1.0';
 	var dependencies = {
-	  zrender: '4.0.1'
+	  zrender: '4.0.4'
 	};
 	var TEST_FRAME_REMAIN_TIME = 1;
 	var PRIORITY_PROCESSOR_FILTER = 1000;
@@ -250,7 +261,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	// All events will be triggered out side main process (i.e. when !this[IN_MAIN_PROCESS]).
 
 	var IN_MAIN_PROCESS = '__flagInMainProcess';
-	var HAS_GRADIENT_OR_PATTERN_BG = '__hasGradientOrPatternBg';
 	var OPTION_UPDATED = '__optionUpdated';
 	var ACTION_REG = /^[a-zA-Z0-9_]+$/;
 
@@ -609,7 +619,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  zrUtil.each(list, function (el) {
 	    el.stopAnimation(true);
 	  });
-	  return zr.painter.pathToSvg();
+	  return zr.painter.pathToDataUrl();
 	};
 	/**
 	 * @return {string}
@@ -880,7 +890,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return;
 	    }
 
-	    ecModel.restoreData(payload);
+	    scheduler.restoreData(ecModel, payload);
 	    scheduler.performSeriesTasks(ecModel); // TODO
 	    // Save total ecModel here for undo/redo (after restoring data and before processing data).
 	    // Undo (restoration of total ecModel) can be carried out in 'action' or outside API call.
@@ -892,49 +902,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // stream modes after data processing, where the filtered data is used to
 	    // deteming whether use progressive rendering.
 
-	    updateStreamModes(this, ecModel); // stackSeriesData(ecModel);
+	    updateStreamModes(this, ecModel); // We update stream modes before coordinate system updated, then the modes info
+	    // can be fetched when coord sys updating (consider the barGrid extent fix). But
+	    // the drawback is the full coord info can not be fetched. Fortunately this full
+	    // coord is not requied in stream mode updater currently.
 
 	    coordSysMgr.update(ecModel, api);
 	    clearColorPalette(ecModel);
 	    scheduler.performVisualTasks(ecModel, payload);
 	    render(this, ecModel, api, payload); // Set background
 
-	    var backgroundColor = ecModel.get('backgroundColor') || 'transparent';
-	    var painter = zr.painter; // TODO all use clearColor ?
+	    var backgroundColor = ecModel.get('backgroundColor') || 'transparent'; // In IE8
 
-	    if (painter.isSingleCanvas && painter.isSingleCanvas()) {
-	      zr.configLayer(0, {
-	        clearColor: backgroundColor
-	      });
+	    if (!env.canvasSupported) {
+	      var colorArr = colorTool.parse(backgroundColor);
+	      backgroundColor = colorTool.stringify(colorArr, 'rgb');
+
+	      if (colorArr[3] === 0) {
+	        backgroundColor = 'transparent';
+	      }
 	    } else {
-	      // In IE8
-	      if (!env.canvasSupported) {
-	        var colorArr = colorTool.parse(backgroundColor);
-	        backgroundColor = colorTool.stringify(colorArr, 'rgb');
-
-	        if (colorArr[3] === 0) {
-	          backgroundColor = 'transparent';
-	        }
-	      }
-
-	      if (backgroundColor.colorStops || backgroundColor.image) {
-	        // Gradient background
-	        // FIXME Fixed layer？
-	        zr.configLayer(0, {
-	          clearColor: backgroundColor
-	        });
-	        this[HAS_GRADIENT_OR_PATTERN_BG] = true;
-	        this._dom.style.background = 'transparent';
-	      } else {
-	        if (this[HAS_GRADIENT_OR_PATTERN_BG]) {
-	          zr.configLayer(0, {
-	            clearColor: null
-	          });
-	        }
-
-	        this[HAS_GRADIENT_OR_PATTERN_BG] = false;
-	        this._dom.style.background = backgroundColor;
-	      }
+	      zr.setBackgroundColor(backgroundColor);
 	    }
 
 	    performPostUpdateFuncs(ecModel, api); // console.profile && console.profileEnd('update');
@@ -1085,10 +1073,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	    query: query
 	  };
 	  subType && (condition.subType = subType); // subType may be '' by parseClassType;
-	  // If dispatchAction before setOption, do nothing.
 
-	  ecModel && ecModel.eachComponent(condition, function (model, index) {
-	    callView(ecIns[mainType === 'series' ? '_chartsMap' : '_componentsMap'][model.__viewId]);
+	  var excludeSeriesId = payload.excludeSeriesId;
+
+	  if (excludeSeriesId != null) {
+	    excludeSeriesId = zrUtil.createHashMap(modelUtil.normalizeToArray(excludeSeriesId));
+	  } // If dispatchAction before setOption, do nothing.
+
+
+	  ecModel && ecModel.eachComponent(condition, function (model) {
+	    if (!excludeSeriesId || excludeSeriesId.get(model.id) == null) {
+	      callView(ecIns[mainType === 'series' ? '_chartsMap' : '_componentsMap'][model.__viewId]);
+	    }
 	  }, ecIns);
 
 	  function callView(view) {
@@ -2201,7 +2197,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.registerMap = registerMap;
 	exports.getMap = getMap;
 	exports.dataTool = dataTool;
-	var ___ec_export = __webpack_require__(118);
+	var ___ec_export = __webpack_require__(119);
 	(function () {
 	    for (var key in ___ec_export) {
 	        if (___ec_export.hasOwnProperty(key)) {
@@ -2214,7 +2210,25 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 2 */
 /***/ function(module, exports) {
 
-	/* WEBPACK VAR INJECTION */(function(global) {// (1) The code `if (__DEV__) ...` can be removed by build tool.
+	/* WEBPACK VAR INJECTION */(function(global) {/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	// (1) The code `if (__DEV__) ...` can be removed by build tool.
 	// (2) If intend to use `__DEV__`, this module should be imported. Use a global
 	// variable `__DEV__` may cause that miss the declaration (see #6535), or the
 	// declaration is behind of the using position (for example in `Model.extent`,
@@ -2275,7 +2289,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @type {string}
 	 */
 
-	var version = '4.0.1';
+	var version = '4.0.4';
 	/**
 	 * Initializing a zrender instance
 	 * @param {HTMLElement} dom
@@ -2449,7 +2463,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @param {number} [config.lastFrameAlpha=0.7] Motion blur factor. Larger value cause longer trailer
 	  */
 	  configLayer: function (zLevel, config) {
-	    this.painter.configLayer(zLevel, config);
+	    if (this.painter.configLayer) {
+	      this.painter.configLayer(zLevel, config);
+	    }
+
+	    this._needsRefresh = true;
+	  },
+
+	  /**
+	   * Set background color
+	   * @param {string} backgroundColor
+	   */
+	  setBackgroundColor: function (backgroundColor) {
+	    if (this.painter.setBackgroundColor) {
+	      this.painter.setBackgroundColor(backgroundColor);
+	    }
+
 	    this._needsRefresh = true;
 	  },
 
@@ -2710,7 +2739,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	var env = {};
 
-	if (typeof wx !== 'undefined') {
+	if (typeof wx === 'object' && typeof wx.getSystemInfoSync === 'function') {
 	  // In Weixin Application
 	  env = {
 	    browser: {},
@@ -7837,6 +7866,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      } else {
 	        colorArr[i] = (255 - colorArr[i]) * level + colorArr[i] | 0;
 	      }
+
+	      if (colorArr[i] > 255) {
+	        colorArr[i] = 255;
+	      } else if (color[i] < 0) {
+	        colorArr[i] = 0;
+	      }
 	    }
 
 	    return stringify(colorArr, colorArr.length === 4 ? 'rgba' : 'rgb');
@@ -9285,27 +9320,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var domRoot = this._domRoot = createRoot(this._width, this._height);
 	    root.appendChild(domRoot);
 	  } else {
+	    var width = root.width;
+	    var height = root.height;
+
 	    if (opts.width != null) {
-	      root.width = opts.width;
+	      width = opts.width;
 	    }
 
 	    if (opts.height != null) {
-	      root.height = opts.height;
-	    } // Use canvas width and height directly
+	      height = opts.height;
+	    }
 
+	    this.dpr = opts.devicePixelRatio || 1; // Use canvas width and height directly
 
-	    var width = root.width;
-	    var height = root.height;
+	    root.width = width * this.dpr;
+	    root.height = height * this.dpr;
 	    this._width = width;
 	    this._height = height; // Create layer if only one given canvas
-	    // Device pixel ratio is fixed to 1 because given canvas has its specified width and height
+	    // Device can be specified to create a high dpi image.
 
-	    var mainLayer = new Layer(root, this, 1);
+	    var mainLayer = new Layer(root, this, this.dpr);
 	    mainLayer.__builtin__ = true;
 	    mainLayer.initContext(); // FIXME Use canvas width and height
 	    // mainLayer.resize(width, height);
 
-	    layers[CANVAS_ZLEVEL] = mainLayer; // Not use common zlevel.
+	    layers[CANVAS_ZLEVEL] = mainLayer;
+	    mainLayer.zlevel = CANVAS_ZLEVEL; // Not use common zlevel.
 
 	    zlevelList.push(CANVAS_ZLEVEL);
 	    this._domRoot = root;
@@ -9368,7 +9408,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var layer = this._layers[z];
 
 	      if (!layer.__builtin__ && layer.refresh) {
-	        layer.refresh();
+	        var clearColor = i === 0 ? this._backgroundColor : null;
+	        layer.refresh(clearColor);
 	      }
 	    }
 
@@ -9518,15 +9559,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      ctx.save();
 	      var start = paintAll ? layer.__startIndex : layer.__drawIndex;
 	      var useTimer = !paintAll && layer.incremental && Date.now;
-	      var startTime = useTimer && Date.now(); // All elements in this layer are cleared.
+	      var startTime = useTimer && Date.now();
+	      var clearColor = layer.zlevel === this._zlevelList[0] ? this._backgroundColor : null; // All elements in this layer are cleared.
 
 	      if (layer.__startIndex === layer.__endIndex) {
-	        layer.clear();
+	        layer.clear(false, clearColor);
 	      } else if (start === layer.__startIndex) {
 	        var firstEl = list[start];
 
 	        if (!firstEl.incremental || !firstEl.notClear || paintAll) {
-	          layer.clear();
+	          layer.clear(false, clearColor);
 	        }
 	      }
 
@@ -9855,6 +9897,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  _clearLayer: function (layer) {
 	    layer.clear();
 	  },
+	  setBackgroundColor: function (backgroundColor) {
+	    this._backgroundColor = backgroundColor;
+	  },
 
 	  /**
 	   * 修改指定zlevel的绘制参数
@@ -9988,8 +10033,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var imageLayer = new Layer('image', this, opts.pixelRatio || this.dpr);
 	    imageLayer.initContext();
-	    imageLayer.clearColor = opts.backgroundColor;
-	    imageLayer.clear();
+	    imageLayer.clear(false, opts.backgroundColor || this._backgroundColor);
 
 	    if (opts.pixelRatio <= this.dpr) {
 	      this.refresh();
@@ -10269,8 +10313,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var dom = this.dom;
 	    var domStyle = dom.style;
 	    var domBack = this.domBack;
-	    domStyle.width = width + 'px';
-	    domStyle.height = height + 'px';
+
+	    if (domStyle) {
+	      domStyle.width = width + 'px';
+	      domStyle.height = height + 'px';
+	    }
+
 	    dom.width = width * dpr;
 	    dom.height = height * dpr;
 
@@ -10286,14 +10334,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  /**
 	   * 清空该层画布
-	   * @param {boolean} clearAll Clear all with out motion blur
+	   * @param {boolean} [clearAll]=false Clear all with out motion blur
+	   * @param {Color} [clearColor]
 	   */
-	  clear: function (clearAll) {
+	  clear: function (clearAll, clearColor) {
 	    var dom = this.dom;
 	    var ctx = this.ctx;
 	    var width = dom.width;
 	    var height = dom.height;
-	    var clearColor = this.clearColor;
+	    var clearColor = clearColor || this.clearColor;
 	    var haveMotionBLur = this.motionBlur && !clearAll;
 	    var lastFrameAlpha = this.lastFrameAlpha;
 	    var dpr = this.dpr;
@@ -10309,7 +10358,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    ctx.clearRect(0, 0, width, height);
 
-	    if (clearColor) {
+	    if (clearColor && clearColor !== 'transparent') {
 	      var clearColorGradientOrPattern; // Gradient
 
 	      if (clearColor.colorStops) {
@@ -13501,6 +13550,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var resetSourceDefaulter = _sourceHelper.resetSourceDefaulter;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * ECharts global model
 	 *
@@ -13529,7 +13597,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	var GlobalModel = Model.extend({
-	  constructor: GlobalModel,
 	  init: function (option, parentModel, theme, optionManager) {
 	    theme = theme || {};
 	    this.option = null; // Mark as not initialized.
@@ -13905,6 +13972,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 
 	  /**
+	   * Get series list before filtered by type.
+	   * FIXME: rename to getRawSeriesByType?
+	   *
 	   * @param {string} subType
 	   * @return {Array.<module:echarts/model/Series>}
 	   */
@@ -14158,6 +14228,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var isObject = zrUtil.isObject;
 	var isArray = zrUtil.isArray;
@@ -14195,6 +14283,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	function defaultEmphasis(opt, key, subOpts) {
+	  // Caution: performance sensitive.
 	  if (opt) {
 	    opt[key] = opt[key] || {};
 	    opt.emphasis = opt.emphasis || {};
@@ -14652,6 +14741,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var itemStyleMixin = __webpack_require__(84);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @module echarts/model/Model
 	 */
@@ -14841,6 +14949,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var TYPE_DELIMITER = '.';
 	var IS_CONTAINER = '___EC__COMPONENT__CONTAINER___';
 	/**
@@ -15085,6 +15211,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeStyleMapper = __webpack_require__(48);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var getLineStyle = makeStyleMapper([['lineWidth', 'width'], ['stroke', 'color'], ['opacity'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['shadowColor']]);
 	var _default = {
 	  getLineStyle: function (excludes) {
@@ -15112,6 +15256,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO Parse shadow style
 	// TODO Only shallow path support
 	function _default(properties) {
@@ -15151,6 +15313,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeStyleMapper = __webpack_require__(48);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var getAreaStyle = makeStyleMapper([['fill', 'color'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['opacity'], ['shadowColor']]);
 	var _default = {
 	  getAreaStyle: function (excludes, includes) {
@@ -15167,6 +15347,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphicUtil = __webpack_require__(51);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PATH_COLOR = ['textStyle', 'color'];
 	var _default = {
 	  /**
@@ -15282,6 +15480,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var IncrementalDisplayable = __webpack_require__(83);
 
 	exports.IncrementalDisplayable = IncrementalDisplayable;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var round = Math.round;
 	var mathMax = Math.max;
 	var mathMin = Math.min;
@@ -19214,8 +19431,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    dir = y1 < y0 ? 0.5 : -0.5;
 	  }
 
-	  var x_ = t * (x1 - x0) + x0;
-	  return x_ > x ? dir : 0;
+	  var x_ = t * (x1 - x0) + x0; // If (x, y) on the line, considered as "contain".
+
+	  return x_ === x ? Infinity : x_ > x ? dir : 0;
 	}
 
 	module.exports = windingLine;
@@ -20369,7 +20587,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	IncrementalDisplayble.prototype.brush = function (ctx, prevEl) {
 	  // Render persistant displayables.
 	  for (var i = this._cursor; i < this._displayables.length; i++) {
-	    var displayable = this._temporaryDisplayables[i];
+	    var displayable = this._displayables[i];
 	    displayable.beforeBrush && displayable.beforeBrush(ctx);
 	    displayable.brush(ctx, i === this._cursor ? null : this._displayables[i - 1]);
 	    displayable.afterBrush && displayable.afterBrush(ctx);
@@ -20438,6 +20656,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeStyleMapper = __webpack_require__(48);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var getItemStyle = makeStyleMapper([['fill', 'color'], ['stroke', 'borderColor'], ['lineWidth', 'borderWidth'], ['opacity'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['shadowColor'], ['textPosition'], ['textAlign']]);
 	var _default = {
 	  getItemStyle: function (excludes, includes) {
@@ -20475,6 +20711,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var layout = __webpack_require__(87);
 
 	var boxLayoutMixin = __webpack_require__(90);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Component model
@@ -20672,6 +20927,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _clazz = __webpack_require__(46);
 
 	var parseClassType = _clazz.parseClassType;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var base = 0;
 	/**
 	 * @public
@@ -20862,6 +21136,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var formatUtil = __webpack_require__(89);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Layout helpers for each component positioning
 	var each = zrUtil.each;
 	/**
@@ -21344,6 +21636,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var RADIAN_EPSILON = 1e-4;
 
 	function _trim(str) {
@@ -21840,6 +22150,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var numberUtil = __webpack_require__(88);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * 每三位默认加,格式化
 	 * @param {string|number} x
@@ -21873,9 +22202,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	var normalizeCssArray = zrUtil.normalizeCssArray;
+	var replaceReg = /([&<>"'])/g;
+	var replaceMap = {
+	  '&': '&amp;',
+	  '<': '&lt;',
+	  '>': '&gt;',
+	  '"': '&quot;',
+	  '\'': '&#39;'
+	};
 
 	function encodeHTML(source) {
-	  return String(source).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	  return source == null ? '' : (source + '').replace(replaceReg, function (str, c) {
+	    return replaceMap[c];
+	  });
 	}
 
 	var TPL_VAR_ALIAS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
@@ -22021,6 +22360,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 90 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = {
 	  getBoxLayoutParams: function () {
 	    return {
@@ -22039,6 +22396,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 91 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var platform = ''; // Navigator not exists in node
 
 	if (typeof navigator !== 'undefined') {
@@ -22099,6 +22474,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeInner = _model.makeInner;
 	var normalizeToArray = _model.normalizeToArray;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var inner = makeInner();
 
 	function getNearestColorPalette(colors, requestColorNum) {
@@ -22199,6 +22593,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var SOURCE_FORMAT_UNKNOWN = _sourceType.SOURCE_FORMAT_UNKNOWN;
 	var SOURCE_FORMAT_TYPED_ARRAY = _sourceType.SOURCE_FORMAT_TYPED_ARRAY;
 	var SERIES_LAYOUT_BY_ROW = _sourceType.SERIES_LAYOUT_BY_ROW;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var inner = makeInner();
 	/**
 	 * @see {module:echarts/data/Source}
@@ -22724,6 +23137,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var retrieve = _util.retrieve;
 	var each = _util.each;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * Helper for model references.
 	 * There are many manners to refer axis/coordSys.
@@ -22859,6 +23291,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var SOURCE_FORMAT_TYPED_ARRAY = _sourceType.SOURCE_FORMAT_TYPED_ARRAY;
 	var SOURCE_FORMAT_KEYED_COLUMNS = _sourceType.SOURCE_FORMAT_KEYED_COLUMNS;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * [sourceFormat]
 	 *
@@ -22980,6 +23431,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 96 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Avoid typo.
 	var SOURCE_FORMAT_ORIGINAL = 'original';
 	var SOURCE_FORMAT_ARRAY_ROWS = 'arrayRows';
@@ -23005,6 +23474,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var echartsAPIList = ['getDom', 'getZr', 'getWidth', 'getHeight', 'getDevicePixelRatio', 'dispatchAction', 'isDisposed', 'on', 'off', 'getDataURL', 'getConnectedDataURL', 'getModel', 'getOption', 'getViewOfComponentModel', 'getViewOfSeriesModel']; // And `getCoordinateSystems` and `getComponentByElement` will be injected in echarts.js
 
 	function ExtensionAPI(chartInstance) {
@@ -23022,6 +23509,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var coordinateSystemCreators = {};
 
 	function CoordinateSystemManager() {
@@ -23068,6 +23573,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var modelUtil = __webpack_require__(44);
 
 	var ComponentModel = __webpack_require__(85);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * ECharts option manager
@@ -23494,6 +24018,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var normalizeToArray = _model.normalizeToArray;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Compatitable with 2.0
 	function get(opt, path) {
 	  path = path.split(',');
@@ -23595,6 +24137,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var modelUtil = __webpack_require__(44);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var isObject = zrUtil.isObject;
 	var POSSIBLE_STYLES = ['areaStyle', 'lineStyle', 'nodeStyle', 'linkStyle', 'chordStyle', 'label', 'labelLine'];
@@ -23797,6 +24357,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    zrUtil.each(seriesOpt.levels, function (opt) {
 	      removeEC3NormalStatus(opt);
 	    });
+	  } else if (seriesOpt.type === 'tree') {
+	    removeEC3NormalStatus(seriesOpt.leaves);
 	  } // sunburst starts from ec4, so it does not need to compat levels.
 
 	}
@@ -23880,6 +24442,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	var createHashMap = _util.createHashMap;
 	var each = _util.each;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// (1) [Caution]: the logic is correct based on the premises:
 	//     data processing stage is blocked in stream.
 	//     See <module:echarts/stream/Scheduler#performDataProcessorTasks>
@@ -24020,6 +24600,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _dataProvider = __webpack_require__(105);
 
 	var retrieveRawValue = _dataProvider.retrieveRawValue;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var inner = modelUtil.makeInner();
 	var SeriesModel = ComponentModel.extend({
 	  type: 'series.__base__',
@@ -24143,7 +24742,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // Default data label emphasis `show`
 	    // FIXME Tree structure data ?
 	    // FIXME Performance ?
-	    if (data) {
+	    if (data && !zrUtil.isTypedArray(data)) {
 	      var props = ['show'];
 
 	      for (var i = 0; i < data.length; i++) {
@@ -24205,7 +24804,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (task) {
 	      var context = task.context; // Consider case: filter, data sample.
 
-	      if (context.data !== data && task.isOverallFilter) {
+	      if (context.data !== data && task.modifyOutputEnd) {
 	        task.setOutputEnd(data.count());
 	      }
 
@@ -24517,6 +25116,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var getTooltipMarker = _format.getTooltipMarker;
 	var formatTpl = _format.formatTpl;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var DIMENSION_LABEL_REG = /\{@(.+?)\}/g; // PENDING A little ugly
 
 	var _default = {
@@ -24530,7 +25148,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var data = this.getData(dataType);
 	    var rawValue = this.getRawValue(dataIndex, dataType);
 	    var rawDataIndex = data.getRawIndex(dataIndex);
-	    var name = data.getName(dataIndex, true);
+	    var name = data.getName(dataIndex);
 	    var itemOpt = data.getRawDataItem(dataIndex);
 	    var color = data.getItemVisual(dataIndex, 'color');
 	    return {
@@ -24648,6 +25266,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
 	var SOURCE_FORMAT_OBJECT_ROWS = _sourceType.SOURCE_FORMAT_OBJECT_ROWS;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO
 	// ??? refactor? check the outer usage of data provider.
 	// merge with defaultDimValueGetter?
@@ -24764,16 +25400,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    count: function () {
 	      return this._data ? this._data.length / this._dimSize : 0;
 	    },
-	    getItem: function (idx) {
+	    getItem: function (idx, out) {
 	      idx = idx - this._offset;
-	      var item = [];
+	      out = out || [];
 	      var offset = this._dimSize * idx;
 
 	      for (var i = 0; i < this._dimSize; i++) {
-	        item[i] = this._data[offset + i];
+	        out[i] = this._data[offset + i];
 	      }
 
-	      return item;
+	      return out;
 	    },
 	    appendData: function (newData) {
 	      this._data = newData;
@@ -24966,10 +25602,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _util = __webpack_require__(6);
 
 	var assert = _util.assert;
+	var isArray = _util.isArray;
 
 	var _config = __webpack_require__(2);
 
 	var __DEV__ = _config.__DEV__;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {Object} define
@@ -25005,6 +25661,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Object} performArgs
 	 * @param {number} [performArgs.step] Specified step.
 	 * @param {number} [performArgs.skip] Skip customer perform call.
+	 * @param {number} [performArgs.modBy] Sampling window size.
+	 * @param {number} [performArgs.modDataCount] Sampling count.
 	 */
 
 	taskProto.perform = function (performArgs) {
@@ -25026,6 +25684,23 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  if (this._plan && !skip) {
 	    planResult = this._plan(this.context);
+	  } // Support sharding by mod, which changes the render sequence and makes the rendered graphic
+	  // elements uniformed distributed when progress, especially when moving or zooming.
+
+
+	  var lastModBy = normalizeModBy(this._modBy);
+	  var lastModDataCount = this._modDataCount || 0;
+	  var modBy = normalizeModBy(performArgs && performArgs.modBy);
+	  var modDataCount = performArgs && performArgs.modDataCount || 0;
+
+	  if (lastModBy !== modBy || lastModDataCount !== modDataCount) {
+	    planResult = 'reset';
+	  }
+
+	  function normalizeModBy(val) {
+	    !(val >= 1) && (val = 1); // jshint ignore:line
+
+	    return val;
 	  }
 
 	  var forceFirstProgress;
@@ -25035,11 +25710,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    forceFirstProgress = reset(this, skip);
 	  }
 
+	  this._modBy = modBy;
+	  this._modDataCount = modDataCount;
 	  var step = performArgs && performArgs.step;
 
 	  if (upTask) {
-	    // ??? FIXME move to schedueler?
-	    // this._dueEnd = Math.max(upTask._outputDueEnd, this._dueEnd);
 	    this._dueEnd = upTask._outputDueEnd;
 	  } // DataTask or overallTask
 	  else {
@@ -25051,10 +25726,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (this._progress) {
 	    var start = this._dueIndex;
 	    var end = Math.min(step != null ? this._dueIndex + step : Infinity, this._dueEnd);
-	    !skip && (forceFirstProgress || start < end) && this._progress({
-	      start: start,
-	      end: end
-	    }, this.context);
+
+	    if (!skip && (forceFirstProgress || start < end)) {
+	      var progress = this._progress;
+
+	      if (isArray(progress)) {
+	        for (var i = 0; i < progress.length; i++) {
+	          doProgress(this, progress[i], start, end, modBy, modDataCount);
+	        }
+	      } else {
+	        doProgress(this, progress, start, end, modBy, modDataCount);
+	      }
+	    }
+
 	    this._dueIndex = end; // If no `outputDueEnd`, assume that output data and
 	    // input data is the same, so use `dueIndex` as `outputDueEnd`.
 
@@ -25070,14 +25754,54 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return this.unfinished();
 	};
 
+	var iterator = function () {
+	  var end;
+	  var current;
+	  var modBy;
+	  var modDataCount;
+	  var winCount;
+	  var it = {
+	    reset: function (s, e, sStep, sCount) {
+	      current = s;
+	      end = e;
+	      modBy = sStep;
+	      modDataCount = sCount;
+	      winCount = Math.ceil(modDataCount / modBy);
+	      it.next = modBy > 1 && modDataCount > 0 ? modNext : sequentialNext;
+	    }
+	  };
+	  return it;
+
+	  function sequentialNext() {
+	    return current < end ? current++ : null;
+	  }
+
+	  function modNext() {
+	    var dataIndex = current % winCount * modBy + Math.ceil(current / winCount);
+	    var result = current >= end ? null : dataIndex < modDataCount ? dataIndex // If modDataCount is smaller than data.count() (consider `appendData` case),
+	    // Use normal linear rendering mode.
+	    : current;
+	    current++;
+	    return result;
+	  }
+	}();
+
 	taskProto.dirty = function () {
 	  this._dirty = true;
 	  this._onDirty && this._onDirty(this.context);
 	};
-	/**
-	 * @param {Object} [params]
-	 */
 
+	function doProgress(taskIns, progress, start, end, modBy, modDataCount) {
+	  iterator.reset(start, end, modBy, modDataCount);
+	  taskIns._callingProgress = progress;
+
+	  taskIns._callingProgress({
+	    start: start,
+	    end: end,
+	    count: end - start,
+	    next: iterator.next
+	  }, taskIns.context);
+	}
 
 	function reset(taskIns, skip) {
 	  taskIns._dueIndex = taskIns._outputDueEnd = taskIns._dueEnd = 0;
@@ -25091,10 +25815,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (progress && progress.progress) {
 	      forceFirstProgress = progress.forceFirstProgress;
 	      progress = progress.progress;
+	    } // To simplify no progress checking, array must has item.
+
+
+	    if (isArray(progress) && !progress.length) {
+	      progress = null;
 	    }
 	  }
 
 	  taskIns._progress = progress;
+	  taskIns._modBy = taskIns._modDataCount = null;
 	  var downstream = taskIns._downstream;
 	  downstream && downstream.dirty();
 	  return forceFirstProgress;
@@ -25142,13 +25872,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 	taskProto.setOutputEnd = function (end) {
-	  // ??? FIXME: check
 	  // This only happend in dataTask, dataZoom, map, currently.
 	  // where dataZoom do not set end each time, but only set
 	  // when reset. So we should record the setted end, in case
 	  // that the stub of dataZoom perform again and earse the
 	  // setted end by upstream.
-	  this._outputDueEnd = this._settedOutputEnd = end; // this._outputDueEnd = end;
+	  this._outputDueEnd = this._settedOutputEnd = end;
 	}; ///////////////////////////////////////////////////////////
 	// For stream debug (Should be commented out after used!)
 	// Usage: printTask(this, 'begin');
@@ -25206,6 +25935,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var clazzUtil = __webpack_require__(46);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var Component = function () {
 	  /**
 	   * @type {module:zrender/container/Group}
@@ -25262,6 +26009,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createRenderPlanner = __webpack_require__(109);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var inner = modelUtil.makeInner();
 	var renderPlanner = createRenderPlanner();
 
@@ -25444,10 +26209,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var api = context.api;
 	  var payload = context.payload; // ???! remove updateView updateVisual
 
-	  var canProgressiveRender = seriesModel.pipelineContext.canProgressiveRender;
+	  var progressiveRender = seriesModel.pipelineContext.progressiveRender;
 	  var view = context.view;
 	  var updateMethod = payload && inner(payload).updateMethod;
-	  var methodName = canProgressiveRender ? 'incrementalPrepareRender' : updateMethod && view[updateMethod] ? updateMethod // `appendData` is also supported when data amount
+	  var methodName = progressiveRender ? 'incrementalPrepareRender' : updateMethod && view[updateMethod] ? updateMethod // `appendData` is also supported when data amount
 	  // is less than progressive threshold.
 	  : 'render';
 
@@ -25486,6 +26251,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeInner = _model.makeInner;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @return {string} If large mode changed, return string 'reset';
 	 */
@@ -25495,9 +26279,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var fields = inner(seriesModel);
 	    var pipelineContext = seriesModel.pipelineContext;
 	    var originalLarge = fields.large;
-	    var originalProgressive = fields.canProgressiveRender;
+	    var originalProgressive = fields.progressiveRender;
 	    var large = fields.large = pipelineContext.large;
-	    var progressive = fields.canProgressiveRender = pipelineContext.canProgressiveRender;
+	    var progressive = fields.progressiveRender = pipelineContext.progressiveRender;
 	    return !!(originalLarge ^ large || originalProgressive ^ progressive) && 'reset';
 	  };
 	}
@@ -25508,6 +26292,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 110 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var ORIGIN_METHOD = '\0__throttleOriginMethod';
 	var RATE = '\0__throttleRate';
 	var THROTTLE_TYPE = '\0__throttleType';
@@ -25546,7 +26348,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var thisDebounce = debounceNextCall || debounce;
 	    debounceNextCall = null;
 	    diff = currCall - (thisDebounce ? lastCall : lastExec) - thisDelay;
-	    clearTimeout(timer);
+	    clearTimeout(timer); // Here we should make sure that: the `exec` SHOULD NOT be called later
+	    // than a new call of `cb`, that is, preserving the command order. Consider
+	    // calculating "scale rate" when roaming as an example. When a call of `cb`
+	    // happens, either the `exec` is called dierectly, or the call is delayed.
+	    // But the delayed call should never be later than next call of `cb`. Under
+	    // this assurance, we can simply update view state each time `dispatchAction`
+	    // triggered by user roaming, but not need to add extra code to avoid the
+	    // state being "rolled-back".
 
 	    if (thisDebounce) {
 	      timer = setTimeout(exec, thisDelay);
@@ -25663,6 +26472,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Gradient = __webpack_require__(81);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = {
 	  createOnAllSeries: true,
 	  performRawSeries: true,
@@ -25713,6 +26540,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var retrieveRawValue = _dataProvider.retrieveRawValue;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(dom, ecModel) {
 	  var ariaModel = ecModel.getModel('aria');
 
@@ -25845,6 +26690,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 113 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = {
 	  toolbox: {
 	    brush: {
@@ -25952,6 +26815,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PI = Math.PI;
 	/**
 	 * @param {module:echarts/ExtensionAPI} api
@@ -26049,6 +26930,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _util = __webpack_require__(6);
 
 	var each = _util.each;
+	var map = _util.map;
+	var isArray = _util.isArray;
 	var isFunction = _util.isFunction;
 	var createHashMap = _util.createHashMap;
 	var noop = _util.noop;
@@ -26069,6 +26952,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var normalizeToArray = _model.normalizeToArray;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @module echarts/stream/Scheduler
 	 */
@@ -26077,7 +26979,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @constructor
 	 */
 	function Scheduler(ecInstance, api, dataProcessorHandlers, visualHandlers) {
-	  // this._pipelineMap = createHashMap();
 	  this.ecInstance = ecInstance;
 	  this.api = api;
 	  this.unfinished; // Fix current processors in case that in some rear cases that
@@ -26085,8 +26986,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Register processors incrementally for a echarts instance is
 	  // not supported by this stream architecture.
 
-	  this._dataProcessorHandlers = dataProcessorHandlers.slice();
-	  this._visualHandlers = visualHandlers.slice();
+	  var dataProcessorHandlers = this._dataProcessorHandlers = dataProcessorHandlers.slice();
+	  var visualHandlers = this._visualHandlers = visualHandlers.slice();
+	  this._allHandlers = dataProcessorHandlers.concat(visualHandlers);
 	  /**
 	   * @private
 	   * @type {
@@ -26102,7 +27004,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._stageTaskMap = createHashMap();
 	}
 
-	var proto = Scheduler.prototype; // If seriesModel provided, incremental threshold is check by series data.
+	var proto = Scheduler.prototype;
+	/**
+	 * @param {module:echarts/model/Global} ecModel
+	 * @param {Object} payload
+	 */
+
+	proto.restoreData = function (ecModel, payload) {
+	  // TODO: Only restroe needed series and components, but not all components.
+	  // Currently `restoreData` of all of the series and component will be called.
+	  // But some independent components like `title`, `legend`, `graphic`, `toolbox`,
+	  // `tooltip`, `axisPointer`, etc, do not need series refresh when `setOption`,
+	  // and some components like coordinate system, axes, dataZoom, visualMap only
+	  // need their target series refresh.
+	  // (1) If we are implementing this feature some day, we should consider these cases:
+	  // if a data processor depends on a component (e.g., dataZoomProcessor depends
+	  // on the settings of `dataZoom`), it should be re-performed if the component
+	  // is modified by `setOption`.
+	  // (2) If a processor depends on sevral series, speicified by its `getTargetSeries`,
+	  // it should be re-performed when the result array of `getTargetSeries` changed.
+	  // We use `dependencies` to cover these issues.
+	  // (3) How to update target series when coordinate system related components modified.
+	  // TODO: simply the dirty mechanism? Check whether only the case here can set tasks dirty,
+	  // and this case all of the tasks will be set as dirty.
+	  ecModel.restoreData(payload); // Theoretically an overall task not only depends on each of its target series, but also
+	  // depends on all of the series.
+	  // The overall task is not in pipeline, and `ecModel.restoreData` only set pipeline tasks
+	  // dirty. If `getTargetSeries` of an overall task returns nothing, we should also ensure
+	  // that the overall task is set as dirty and to be performed, otherwise it probably cause
+	  // state chaos. So we have to set dirty of all of the overall tasks manually, otherwise it
+	  // probably cause state chaos (consider `dataZoomProcessor`).
+
+	  this._stageTaskMap.each(function (taskRecord) {
+	    var overallTask = taskRecord.overallTask;
+	    overallTask && overallTask.dirty();
+	  });
+	}; // If seriesModel provided, incremental threshold is check by series data.
+
 
 	proto.getPerformArgs = function (task, isBlock) {
 	  // For overall task
@@ -26113,9 +27051,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var pipeline = this._pipelineMap.get(task.__pipeline.id);
 
 	  var pCtx = pipeline.context;
-	  var incremental = !isBlock && pipeline.progressiveEnabled && (!pCtx || pCtx.canProgressiveRender) && task.__idxInPipeline > pipeline.bockIndex;
+	  var incremental = !isBlock && pipeline.progressiveEnabled && (!pCtx || pCtx.progressiveRender) && task.__idxInPipeline > pipeline.blockIndex;
+	  var step = incremental ? pipeline.step : null;
+	  var modDataCount = pCtx && pCtx.modDataCount;
+	  var modBy = modDataCount != null ? Math.ceil(modDataCount / step) : null;
 	  return {
-	    step: incremental ? pipeline.step : null
+	    step: step,
+	    modBy: modBy,
+	    modDataCount: modDataCount
 	  };
 	};
 
@@ -26135,16 +27078,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var pipeline = this._pipelineMap.get(seriesModel.uid);
 
 	  var data = seriesModel.getData();
-	  var dataLen = data.count(); // `canProgressiveRender` means that can render progressively in each
+	  var dataLen = data.count(); // `progressiveRender` means that can render progressively in each
 	  // animation frame. Note that some types of series do not provide
 	  // `view.incrementalPrepareRender` but support `chart.appendData`. We
 	  // use the term `incremental` but not `progressive` to describe the
 	  // case that `chart.appendData`.
 
-	  var canProgressiveRender = pipeline.progressiveEnabled && view.incrementalPrepareRender && dataLen >= pipeline.threshold;
-	  var large = seriesModel.get('large') && dataLen >= seriesModel.get('largeThreshold');
+	  var progressiveRender = pipeline.progressiveEnabled && view.incrementalPrepareRender && dataLen >= pipeline.threshold;
+	  var large = seriesModel.get('large') && dataLen >= seriesModel.get('largeThreshold'); // TODO: modDataCount should not updated if `appendData`, otherwise cause whole repaint.
+	  // see `test/candlestick-large3.html`
+
+	  var modDataCount = seriesModel.get('progressiveChunkMode') === 'mod' ? dataLen : null;
 	  seriesModel.pipelineContext = pipeline.context = {
-	    canProgressiveRender: canProgressiveRender,
+	    progressiveRender: progressiveRender,
+	    modDataCount: modDataCount,
 	    large: large
 	  };
 	};
@@ -26161,9 +27108,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      tail: null,
 	      threshold: seriesModel.getProgressiveThreshold(),
 	      progressiveEnabled: progressive && !(seriesModel.preventIncremental && seriesModel.preventIncremental()),
-	      bockIndex: -1,
-	      step: progressive || 700,
-	      // ??? Temporarily number
+	      blockIndex: -1,
+	      step: Math.round(progressive || 700),
 	      count: 0
 	    });
 	    pipe(scheduler, seriesModel, seriesModel.dataTask);
@@ -26174,12 +27120,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var stageTaskMap = this._stageTaskMap;
 	  var ecModel = this.ecInstance.getModel();
 	  var api = this.api;
-	  each([this._dataProcessorHandlers, this._visualHandlers], function (stageHandlers) {
-	    each(stageHandlers, function (handler) {
-	      var record = stageTaskMap.get(handler.uid) || stageTaskMap.set(handler.uid, []);
-	      handler.reset && createSeriesStageTask(this, handler, record, ecModel, api);
-	      handler.overallReset && createOverallStageTask(this, handler, record, ecModel, api);
-	    }, this);
+	  each(this._allHandlers, function (handler) {
+	    var record = stageTaskMap.get(handler.uid) || stageTaskMap.set(handler.uid, []);
+	    handler.reset && createSeriesStageTask(this, handler, record, ecModel, api);
+	    handler.overallReset && createOverallStageTask(this, handler, record, ecModel, api);
 	  }, this);
 	};
 
@@ -26277,7 +27221,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    do {
 	      if (task.__block) {
-	        pipeline.bockIndex = task.__idxInPipeline;
+	        pipeline.blockIndex = task.__idxInPipeline;
 	        break;
 	      }
 
@@ -26352,7 +27296,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var seriesType = stageHandler.seriesType;
 	  var getTargetSeries = stageHandler.getTargetSeries;
 	  var overallProgress = true;
-	  var isOverallFilter = stageHandler.isOverallFilter; // An overall task with seriesType detected or has `getTargetSeries`, we add
+	  var modifyOutputEnd = stageHandler.modifyOutputEnd; // An overall task with seriesType detected or has `getTargetSeries`, we add
 	  // stub in each pipelines, it will set the overall task dirty when the pipeline
 	  // progress. Moreover, to avoid call the overall task each frame (too frequent),
 	  // we set the pipeline block.
@@ -26372,14 +27316,22 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  function createStub(seriesModel) {
 	    var pipelineId = seriesModel.uid;
-	    var stub = agentStubMap.get(pipelineId) || agentStubMap.set(pipelineId, createTask({
-	      reset: stubReset,
-	      onDirty: stubOnDirty
-	    }));
+	    var stub = agentStubMap.get(pipelineId);
+
+	    if (!stub) {
+	      stub = agentStubMap.set(pipelineId, createTask({
+	        reset: stubReset,
+	        onDirty: stubOnDirty
+	      })); // When the result of `getTargetSeries` changed, the overallTask
+	      // should be set as dirty and re-performed.
+
+	      overallTask.dirty();
+	    }
+
 	    stub.context = {
 	      model: seriesModel,
 	      overallProgress: overallProgress,
-	      isOverallFilter: isOverallFilter
+	      modifyOutputEnd: modifyOutputEnd
 	    };
 	    stub.agent = overallTask;
 	    stub.__block = overallProgress;
@@ -26390,7 +27342,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var pipelineMap = scheduler._pipelineMap;
 	  agentStubMap.each(function (stub, pipelineId) {
 	    if (!pipelineMap.get(pipelineId)) {
-	      stub.dispose();
+	      stub.dispose(); // When the result of `getTargetSeries` changed, the overallTask
+	      // should be set as dirty and re-performed.
+
+	      overallTask.dirty();
 	      agentStubMap.removeKey(pipelineId);
 	    }
 	  });
@@ -26423,18 +27378,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  var resetDefines = context.resetDefines = normalizeToArray(context.reset(context.model, context.ecModel, context.api, context.payload));
-
-	  if (resetDefines.length) {
-	    return seriesTaskProgress;
-	  }
+	  return resetDefines.length > 1 ? map(resetDefines, function (v, idx) {
+	    return makeSeriesTaskProgress(idx);
+	  }) : singleSeriesTaskProgress;
 	}
 
-	function seriesTaskProgress(params, context) {
-	  var data = context.data;
-	  var resetDefines = context.resetDefines;
+	var singleSeriesTaskProgress = makeSeriesTaskProgress(0);
 
-	  for (var k = 0; k < resetDefines.length; k++) {
-	    var resetDefine = resetDefines[k];
+	function makeSeriesTaskProgress(resetDefineIdx) {
+	  return function (params, context) {
+	    var data = context.data;
+	    var resetDefine = context.resetDefines[resetDefineIdx];
 
 	    if (resetDefine && resetDefine.dataEach) {
 	      for (var i = params.start; i < params.end; i++) {
@@ -26443,7 +27397,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    } else if (resetDefine && resetDefine.progress) {
 	      resetDefine.progress(params, data);
 	    }
-	  }
+	  };
 	}
 
 	function seriesTaskCount(context) {
@@ -26524,6 +27478,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 116 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var colorAll = ['#37A2DA', '#32C5E9', '#67E0E3', '#9FE6B8', '#FFDB5C', '#ff9f7f', '#fb7293', '#E062AE', '#E690D1', '#e7bcf3', '#9d96f5', '#8378EA', '#96BFFF'];
 	var _default = {
 	  color: colorAll,
@@ -26535,6 +27507,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 117 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var contrastColor = '#eee';
 
 	var axisCommon = function () {
@@ -26671,6 +27661,71 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 118 */
 /***/ function(module, exports, __webpack_require__) {
 
+	var ComponentModel = __webpack_require__(85);
+
+	var ComponentView = __webpack_require__(107);
+
+	var _sourceHelper = __webpack_require__(93);
+
+	var detectSourceFormat = _sourceHelper.detectSourceFormat;
+
+	var _sourceType = __webpack_require__(96);
+
+	var SERIES_LAYOUT_BY_COLUMN = _sourceType.SERIES_LAYOUT_BY_COLUMN;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
+	/**
+	 * This module is imported by echarts directly.
+	 *
+	 * Notice:
+	 * Always keep this file exists for backward compatibility.
+	 * Because before 4.1.0, dataset is an optional component,
+	 * some users may import this module manually.
+	 */
+	ComponentModel.extend({
+	  type: 'dataset',
+
+	  /**
+	   * @protected
+	   */
+	  defaultOption: {
+	    // 'row', 'column'
+	    seriesLayoutBy: SERIES_LAYOUT_BY_COLUMN,
+	    // null/'auto': auto detect header, see "module:echarts/data/helper/sourceHelper"
+	    sourceHeader: null,
+	    dimensions: null,
+	    source: null
+	  },
+	  optionUpdated: function () {
+	    detectSourceFormat(this);
+	  }
+	});
+	ComponentView.extend({
+	  type: 'dataset'
+	});
+
+/***/ },
+/* 119 */
+/***/ function(module, exports, __webpack_require__) {
+
 	var zrender = __webpack_require__(3);
 
 	exports.zrender = zrender;
@@ -26706,15 +27761,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	var throttle = _throttle.throttle;
 	exports.throttle = _throttle.throttle;
 
-	var ecHelper = __webpack_require__(119);
+	var ecHelper = __webpack_require__(120);
 
 	exports.helper = ecHelper;
 
-	var parseGeoJSON = __webpack_require__(138);
+	var parseGeoJSON = __webpack_require__(139);
 
 	exports.parseGeoJSON = parseGeoJSON;
 
-	var _List = __webpack_require__(121);
+	var _List = __webpack_require__(122);
 
 	exports.List = _List;
 
@@ -26722,13 +27777,32 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	exports.Model = _Model;
 
-	var _Axis = __webpack_require__(141);
+	var _Axis = __webpack_require__(142);
 
 	exports.Axis = _Axis;
 
 	var _env = __webpack_require__(5);
 
 	exports.env = _env;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Do not mount those modules on 'src/echarts' for better tree shaking.
@@ -26742,16 +27816,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.util = ecUtil;
 
 /***/ },
-/* 119 */
+/* 120 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
-	var axisModelCommonMixin = __webpack_require__(136);
+	var axisModelCommonMixin = __webpack_require__(137);
 
 	var Model = __webpack_require__(45);
 
@@ -26760,23 +27834,41 @@ return /******/ (function(modules) { // webpackBootstrap
 	var getLayoutRect = _layout.getLayoutRect;
 	exports.getLayoutRect = _layout.getLayoutRect;
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var enableDataStack = _dataStackHelper.enableDataStack;
 	var isDimensionStacked = _dataStackHelper.isDimensionStacked;
 
-	var _completeDimensions = __webpack_require__(125);
+	var _completeDimensions = __webpack_require__(126);
 
 	exports.completeDimensions = _completeDimensions;
 
-	var _createDimensions = __webpack_require__(124);
+	var _createDimensions = __webpack_require__(125);
 
 	exports.createDimensions = _createDimensions;
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	exports.createSymbol = _symbol.createSymbol;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// import createGraphFromNodeEdge from './chart/helper/createGraphFromNodeEdge';
 
 	/**
@@ -26850,20 +27942,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.mixinAxisModelCommonMethods = mixinAxisModelCommonMethods;
 
 /***/ },
-/* 120 */
+/* 121 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
-	var createDimensions = __webpack_require__(124);
+	var createDimensions = __webpack_require__(125);
 
 	var _sourceType = __webpack_require__(96);
 
 	var SOURCE_FORMAT_ORIGINAL = _sourceType.SOURCE_FORMAT_ORIGINAL;
 
-	var _dimensionHelper = __webpack_require__(123);
+	var _dimensionHelper = __webpack_require__(124);
 
 	var getDimensionTypeByAxis = _dimensionHelper.getDimensionTypeByAxis;
 
@@ -26879,9 +27971,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Source = __webpack_require__(95);
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var enableDataStack = _dataStackHelper.enableDataStack;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {module:echarts/data/Source|Array} source Or raw data.
@@ -26982,10 +28093,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 121 */
+/* 122 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(global) {var _config = __webpack_require__(2);
+	var _config = __webpack_require__(2);
 
 	var __DEV__ = _config.__DEV__;
 
@@ -26993,7 +28104,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Model = __webpack_require__(45);
 
-	var DataDiffer = __webpack_require__(122);
+	var DataDiffer = __webpack_require__(123);
 
 	var Source = __webpack_require__(95);
 
@@ -27002,30 +28113,50 @@ return /******/ (function(modules) { // webpackBootstrap
 	var defaultDimValueGetters = _dataProvider.defaultDimValueGetters;
 	var DefaultDataProvider = _dataProvider.DefaultDataProvider;
 
-	var _dimensionHelper = __webpack_require__(123);
+	var _dimensionHelper = __webpack_require__(124);
 
 	var summarizeDimensions = _dimensionHelper.summarizeDimensions;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * List for data storage
 	 * @module echarts/data/List
 	 */
 	var isObject = zrUtil.isObject;
-	var UNDEFINED = 'undefined';
-	var globalObj = typeof window === UNDEFINED ? global : window; // Use prefix to avoid index to be the same as otherIdList[idx],
+	var UNDEFINED = 'undefined'; // Use prefix to avoid index to be the same as otherIdList[idx],
 	// which will cause weird udpate animation.
 
 	var ID_PREFIX = 'e\0\0';
 	var dataCtors = {
-	  'float': typeof globalObj.Float64Array === UNDEFINED ? Array : globalObj.Float64Array,
-	  'int': typeof globalObj.Int32Array === UNDEFINED ? Array : globalObj.Int32Array,
+	  'float': typeof Float64Array === UNDEFINED ? Array : Float64Array,
+	  'int': typeof Int32Array === UNDEFINED ? Array : Int32Array,
 	  // Ordinal data type can be string or int
 	  'ordinal': Array,
 	  'number': Array,
 	  'time': Array
-	};
-	var CtorUint32Array = typeof globalObj.Uint32Array === UNDEFINED ? Array : globalObj.Uint32Array;
-	var CtorUint16Array = typeof globalObj.Uint16Array === UNDEFINED ? Array : globalObj.Uint16Array;
+	}; // Caution: MUST not use `new CtorUint32Array(arr, 0, len)`, because the Ctor of array is
+	// different from the Ctor of typed array.
+
+	var CtorUint32Array = typeof Uint32Array === UNDEFINED ? Array : Uint32Array;
+	var CtorUint16Array = typeof Uint16Array === UNDEFINED ? Array : Uint16Array;
 
 	function getIndicesCtor(list) {
 	  // The possible max value in this._indicies is always this._rawCount despite of filtering.
@@ -27038,15 +28169,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return Ctor === Array ? originalChunk.slice() : new Ctor(originalChunk);
 	}
 
-	var TRANSFERABLE_PROPERTIES = ['hasItemOption', '_nameList', '_idList', '_calculationInfo', '_invertedIndicesMap', '_rawData', '_rawExtent', '_chunkSize', '_chunkCount', '_dimValueGetter', '_count', '_rawCount', '_nameDimIdx', '_idDimIdx'];
+	var TRANSFERABLE_PROPERTIES = ['hasItemOption', '_nameList', '_idList', '_invertedIndicesMap', '_rawData', '_chunkSize', '_chunkCount', '_dimValueGetter', '_count', '_rawCount', '_nameDimIdx', '_idDimIdx'];
+	var CLONE_PROPERTIES = ['_extent', '_approximateExtent', '_rawExtent'];
 
-	function transferProperties(a, b) {
-	  zrUtil.each(TRANSFERABLE_PROPERTIES.concat(b.__wrappedMethods || []), function (propName) {
-	    if (b.hasOwnProperty(propName)) {
-	      a[propName] = b[propName];
+	function transferProperties(target, source) {
+	  zrUtil.each(TRANSFERABLE_PROPERTIES.concat(source.__wrappedMethods || []), function (propName) {
+	    if (source.hasOwnProperty(propName)) {
+	      target[propName] = source[propName];
 	    }
 	  });
-	  a.__wrappedMethods = b.__wrappedMethods;
+	  target.__wrappedMethods = source.__wrappedMethods;
+	  zrUtil.each(CLONE_PROPERTIES, function (propName) {
+	    target[propName] = zrUtil.clone(source[propName]);
+	  });
+	  target._calculationInfo = zrUtil.extend(source._calculationInfo);
 	}
 	/**
 	 * @constructor
@@ -27309,7 +28445,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *        If idx is not specified, return the first dim not extra.
 	 * @return {string|Array.<string>} concrete data dim.
 	 *        If idx is number, and not found, return null/undefined.
-	 *        If idx is `true`, and not found, return empty array.
+	 *        If idx is `true`, and not found, return empty array (always return array).
 	 */
 
 
@@ -27321,7 +28457,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  var dims = dimensionsSummary.encode[coordDim];
-	  return dims && (idx === true ? dims.slice() : dims[idx]);
+	  return idx === true // always return array if idx is `true`
+	  ? (dims || []).slice() : dims && dims[idx];
 	};
 	/**
 	 * Initialize from data
@@ -27399,6 +28536,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var rawData = this._rawData;
 	  var storage = this._storage;
 	  var dimensions = this.dimensions;
+	  var dimLen = dimensions.length;
 	  var dimensionInfoMap = this._dimensionInfos;
 	  var nameList = this._nameList;
 	  var idList = this._idList;
@@ -27408,7 +28546,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var chunkCount = this._chunkCount;
 	  var lastChunkIndex = chunkCount - 1;
 
-	  for (var i = 0; i < dimensions.length; i++) {
+	  for (var i = 0; i < dimLen; i++) {
 	    var dim = dimensions[i];
 
 	    if (!rawExtent[dim]) {
@@ -27452,9 +28590,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this._chunkCount = storage[dim].length;
 	  }
 
+	  var dataItem = new Array(dimLen);
+
 	  for (var idx = start; idx < end; idx++) {
 	    // NOTICE: Try not to write things into dataItem
-	    var dataItem = rawData.getItem(idx); // Each data item is value
+	    dataItem = rawData.getItem(idx, dataItem); // Each data item is value
 	    // [1, 2]
 	    // 2
 	    // Bar chart, line chart which uses category axis
@@ -27464,20 +28604,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var chunkIndex = Math.floor(idx / chunkSize);
 	    var chunkOffset = idx % chunkSize; // Store the data by dimensions
 
-	    for (var k = 0; k < dimensions.length; k++) {
+	    for (var k = 0; k < dimLen; k++) {
 	      var dim = dimensions[k];
 	      var dimStorage = storage[dim][chunkIndex]; // PENDING NULL is empty or zero
 
 	      var val = this._dimValueGetter(dataItem, dim, idx, k);
 
 	      dimStorage[chunkOffset] = val;
+	      var dimRawExtent = rawExtent[dim];
 
-	      if (val < rawExtent[dim][0]) {
-	        rawExtent[dim][0] = val;
+	      if (val < dimRawExtent[0]) {
+	        dimRawExtent[0] = val;
 	      }
 
-	      if (val > rawExtent[dim][1]) {
-	        rawExtent[dim][1] = val;
+	      if (val > dimRawExtent[1]) {
+	        dimRawExtent[1] = val;
 	      }
 	    } // ??? FIXME not check by pure but sourceFormat?
 	    // TODO refactor these logic.
@@ -27486,13 +28627,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (!rawData.pure) {
 	      var name = nameList[idx];
 
-	      if (dataItem && !name) {
-	        if (nameDimIdx != null) {
-	          name = this._getNameFromStore(idx);
-	        } else if (dataItem.name != null) {
+	      if (dataItem && name == null) {
+	        // If dataItem is {name: ...}, it has highest priority.
+	        // That is appropriate for many common cases.
+	        if (dataItem.name != null) {
 	          // There is no other place to persistent dataItem.name,
 	          // so save it to nameList.
 	          nameList[idx] = name = dataItem.name;
+	        } else if (nameDimIdx != null) {
+	          var nameDim = dimensions[nameDimIdx];
+	          var nameDimChunk = storage[nameDim][chunkIndex];
+
+	          if (nameDimChunk) {
+	            name = nameDimChunk[chunkOffset];
+	            var ordinalMeta = dimensionInfoMap[nameDim].ordinalMeta;
+
+	            if (ordinalMeta && ordinalMeta.categories.length) {
+	              name = ordinalMeta.categories[name];
+	            }
+	          }
 	        }
 	      } // Try using the id in option
 	      // id or name is used on dynamical data, mapping old and new items.
@@ -27548,47 +28701,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    }
 	  });
-	} // TODO refactor
+	}
 
+	function getRawValueFromStore(list, dimIndex, rawIndex) {
+	  var val;
 
-	listProto._getNameFromStore = function (rawIndex) {
-	  var nameDimIdx = this._nameDimIdx;
-
-	  if (nameDimIdx != null) {
-	    var chunkSize = this._chunkSize;
+	  if (dimIndex != null) {
+	    var chunkSize = list._chunkSize;
 	    var chunkIndex = Math.floor(rawIndex / chunkSize);
 	    var chunkOffset = rawIndex % chunkSize;
-	    var dim = this.dimensions[nameDimIdx];
-	    var ordinalMeta = this._dimensionInfos[dim].ordinalMeta;
+	    var dim = list.dimensions[dimIndex];
+	    var chunk = list._storage[dim][chunkIndex];
 
-	    if (ordinalMeta) {
-	      return ordinalMeta.categories[rawIndex];
-	    } else {
-	      var chunk = this._storage[dim][chunkIndex];
-	      return chunk && chunk[chunkOffset];
+	    if (chunk) {
+	      val = chunk[chunkOffset];
+	      var ordinalMeta = list._dimensionInfos[dim].ordinalMeta;
+
+	      if (ordinalMeta && ordinalMeta.categories.length) {
+	        val = ordinalMeta.categories[val];
+	      }
 	    }
 	  }
-	}; // TODO refactor
 
-
-	listProto._getIdFromStore = function (rawIndex) {
-	  var idDimIdx = this._idDimIdx;
-
-	  if (idDimIdx != null) {
-	    var chunkSize = this._chunkSize;
-	    var chunkIndex = Math.floor(rawIndex / chunkSize);
-	    var chunkOffset = rawIndex % chunkSize;
-	    var dim = this.dimensions[idDimIdx];
-	    var ordinalMeta = this._dimensionInfos[dim].ordinalMeta;
-
-	    if (ordinalMeta) {
-	      return ordinalMeta.categories[rawIndex];
-	    } else {
-	      var chunk = this._storage[dim][chunkIndex];
-	      return chunk && chunk[chunkOffset];
-	    }
-	  }
-	};
+	  return val;
+	}
 	/**
 	 * @return {number}
 	 */
@@ -27599,19 +28735,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 	listProto.getIndices = function () {
-	  if (this._indices) {
-	    var Ctor = this._indices.constructor;
-	    return new Ctor(this._indices.buffer, 0, this._count);
+	  var newIndices;
+	  var indices = this._indices;
+
+	  if (indices) {
+	    var Ctor = indices.constructor;
+	    var thisCount = this._count; // `new Array(a, b, c)` is different from `new Uint32Array(a, b, c)`.
+
+	    if (Ctor === Array) {
+	      newIndices = new Ctor(thisCount);
+
+	      for (var i = 0; i < thisCount; i++) {
+	        newIndices[i] = indices[i];
+	      }
+	    } else {
+	      newIndices = new Ctor(indices.buffer, 0, thisCount);
+	    }
+	  } else {
+	    var Ctor = getIndicesCtor(this);
+	    var newIndices = new Ctor(this.count());
+
+	    for (var i = 0; i < newIndices.length; i++) {
+	      newIndices[i] = i;
+	    }
 	  }
 
-	  var Ctor = getIndicesCtor(this);
-	  var arr = new Ctor(this.count());
-
-	  for (var i = 0; i < arr.length; i++) {
-	    arr[i] = i;
-	  }
-
-	  return arr;
+	  return newIndices;
 	};
 	/**
 	 * Get value. Return NaN if idx is out of range.
@@ -27870,6 +29019,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  return sum;
+	};
+	/**
+	 * Get median of data in one dimension
+	 * @param {string} dim
+	 */
+
+
+	listProto.getMedian = function (dim
+	/*, stack */
+	) {
+	  var dimDataArray = []; // map all data of one dimension
+
+	  this.each(dim, function (val, idx) {
+	    if (!isNaN(val)) {
+	      dimDataArray.push(val);
+	    }
+	  }); // TODO
+	  // Use quick select?
+	  // immutability & sort
+
+	  var sortedDimDataArray = [].concat(dimDataArray).sort(function (a, b) {
+	    return a - b;
+	  });
+	  var len = this.count(); // calculate median
+
+	  return len === 0 ? 0 : len % 2 === 1 ? sortedDimDataArray[(len - 1) / 2] : (sortedDimDataArray[len / 2] + sortedDimDataArray[len / 2 - 1]) / 2;
 	}; // /**
 	//  * Retreive the index with given value
 	//  * @param {string} dim Concrete dimension.
@@ -28071,7 +29246,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	listProto.getName = function (idx) {
 	  var rawIndex = this.getRawIndex(idx);
-	  return this._nameList[rawIndex] || this._getNameFromStore(rawIndex) || '';
+	  return this._nameList[rawIndex] || getRawValueFromStore(this, this._nameDimIdx, rawIndex) || '';
 	};
 	/**
 	 * @param {number} idx
@@ -28088,7 +29263,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var id = list._idList[rawIndex];
 
 	  if (id == null) {
-	    id = list._getIdFromStore(rawIndex);
+	    id = getRawValueFromStore(list, list._idDimIdx, rawIndex);
 	  }
 
 	  if (id == null) {
@@ -28251,15 +29426,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 
-	listProto.selectRange = function (range
-	/*, stack */
-	) {
+	listProto.selectRange = function (range) {
 	  'use strict';
 
 	  if (!this._count) {
 	    return;
-	  } // stack = stack || false;
-
+	  }
 
 	  var dimensions = [];
 
@@ -28284,67 +29456,69 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var max = range[dim0][1];
 	  var quickFinished = false;
 
-	  if (!this._indices
-	  /* && !stack */
-	  ) {
-	      // Extreme optimization for common case. About 2x faster in chrome.
-	      var idx = 0;
+	  if (!this._indices) {
+	    // Extreme optimization for common case. About 2x faster in chrome.
+	    var idx = 0;
 
-	      if (dimSize === 1) {
-	        var dimStorage = this._storage[dimensions[0]];
+	    if (dimSize === 1) {
+	      var dimStorage = this._storage[dimensions[0]];
 
-	        for (var k = 0; k < this._chunkCount; k++) {
-	          var chunkStorage = dimStorage[k];
-	          var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
+	      for (var k = 0; k < this._chunkCount; k++) {
+	        var chunkStorage = dimStorage[k];
+	        var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
 
-	          for (var i = 0; i < len; i++) {
-	            var val = chunkStorage[i];
+	        for (var i = 0; i < len; i++) {
+	          var val = chunkStorage[i]; // NaN will not be filtered. Consider the case, in line chart, empty
+	          // value indicates the line should be broken. But for the case like
+	          // scatter plot, a data item with empty value will not be rendered,
+	          // but the axis extent may be effected if some other dim of the data
+	          // item has value. Fortunately it is not a significant negative effect.
 
-	            if (val >= min && val <= max) {
-	              newIndices[offset++] = idx;
-	            }
-
-	            idx++;
+	          if (val >= min && val <= max || isNaN(val)) {
+	            newIndices[offset++] = idx;
 	          }
+
+	          idx++;
 	        }
-
-	        quickFinished = true;
-	      } else if (dimSize === 2) {
-	        var dimStorage = this._storage[dim0];
-	        var dimStorage2 = this._storage[dimensions[1]];
-	        var min2 = range[dimensions[1]][0];
-	        var max2 = range[dimensions[1]][1];
-
-	        for (var k = 0; k < this._chunkCount; k++) {
-	          var chunkStorage = dimStorage[k];
-	          var chunkStorage2 = dimStorage2[k];
-	          var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
-
-	          for (var i = 0; i < len; i++) {
-	            var val = chunkStorage[i];
-	            var val2 = chunkStorage2[i];
-
-	            if (val >= min && val <= max && val2 >= min2 && val2 <= max2) {
-	              newIndices[offset++] = idx;
-	            }
-
-	            idx++;
-	          }
-	        }
-
-	        quickFinished = true;
 	      }
+
+	      quickFinished = true;
+	    } else if (dimSize === 2) {
+	      var dimStorage = this._storage[dim0];
+	      var dimStorage2 = this._storage[dimensions[1]];
+	      var min2 = range[dimensions[1]][0];
+	      var max2 = range[dimensions[1]][1];
+
+	      for (var k = 0; k < this._chunkCount; k++) {
+	        var chunkStorage = dimStorage[k];
+	        var chunkStorage2 = dimStorage2[k];
+	        var len = Math.min(this._count - k * this._chunkSize, this._chunkSize);
+
+	        for (var i = 0; i < len; i++) {
+	          var val = chunkStorage[i];
+	          var val2 = chunkStorage2[i]; // Do not filter NaN, see comment above.
+
+	          if ((val >= min && val <= max || isNaN(val)) && (val2 >= min2 && val2 <= max2 || isNaN(val2))) {
+	            newIndices[offset++] = idx;
+	          }
+
+	          idx++;
+	        }
+	      }
+
+	      quickFinished = true;
 	    }
+	  }
 
 	  if (!quickFinished) {
 	    if (dimSize === 1) {
-	      // stack = stack || !!this.getCalculationInfo(dim0);
 	      for (var i = 0; i < originalCount; i++) {
-	        var rawIndex = this.getRawIndex(i); // var val = stack ? this.get(dim0, i, true) : this._getFast(dim0, rawIndex);
+	        var rawIndex = this.getRawIndex(i);
 
-	        var val = this._getFast(dim0, rawIndex);
+	        var val = this._getFast(dim0, rawIndex); // Do not filter NaN, see comment above.
 
-	        if (val >= min && val <= max) {
+
+	        if (val >= min && val <= max || isNaN(val)) {
 	          newIndices[offset++] = rawIndex;
 	        }
 	      }
@@ -28354,9 +29528,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var rawIndex = this.getRawIndex(i);
 
 	        for (var k = 0; k < dimSize; k++) {
-	          var dimk = dimensions[k]; // var val = stack ? this.get(dimk, i, true) : this._getFast(dim, rawIndex);
+	          var dimk = dimensions[k];
 
-	          var val = this._getFast(dim, rawIndex);
+	          var val = this._getFast(dim, rawIndex); // Do not filter NaN, see comment above.
+
 
 	          if (val < range[dimk][0] || val > range[dimk][1]) {
 	            keep = false;
@@ -28416,16 +29591,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  transferProperties(list, original);
 	  var storage = list._storage = {};
-	  var originalStorage = original._storage;
-	  var rawExtent = zrUtil.extend({}, original._rawExtent); // Init storage
+	  var originalStorage = original._storage; // Init storage
 
 	  for (var i = 0; i < allDimensions.length; i++) {
 	    var dim = allDimensions[i];
 
 	    if (originalStorage[dim]) {
+	      // Notice that we do not reset invertedIndicesMap here, becuase
+	      // there is no scenario of mapping or sampling ordinal dimension.
 	      if (zrUtil.indexOf(excludeDimensions, dim) >= 0) {
 	        storage[dim] = cloneDimStore(originalStorage[dim]);
-	        rawExtent[dim] = getInitialExtent();
+	        list._rawExtent[dim] = getInitialExtent();
+	        list._extent[dim] = null;
 	      } else {
 	        // Direct reference for other dimensions
 	        storage[dim] = originalStorage[dim];
@@ -28839,8 +30016,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  list.getRawIndex = list._indices ? getRawIndexWithIndices : getRawIndexWithoutIndices;
-	  list._extent = zrUtil.clone(this._extent);
-	  list._approximateExtent = zrUtil.clone(this._approximateExtent);
 	  return list;
 	};
 	/**
@@ -28874,12 +30049,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	listProto.CHANGABLE_METHODS = ['filterSelf', 'selectRange'];
 	var _default = List;
 	module.exports = _default;
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
-/* 122 */
+/* 123 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function defaultKeyGetter(item) {
 	  return item;
 	}
@@ -29007,7 +30199,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 123 */
+/* 124 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
@@ -29019,6 +30211,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _config = __webpack_require__(2);
 
 	var __DEV__ = _config.__DEV__;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var OTHER_DIMENSIONS = createHashMap(['tooltip', 'label', 'itemName', 'itemId', 'seriesName']);
 
 	function summarizeDimensions(data) {
@@ -29026,6 +30237,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var encode = summary.encode = {};
 	  var notExtraCoordDimMap = createHashMap();
 	  var defaultedLabel = [];
+	  var defaultedTooltip = [];
 	  each(data.dimensions, function (dimName) {
 	    var dimItem = data.getDimensionInfo(dimName);
 	    var coordDim = dimItem.coordDim;
@@ -29048,6 +30260,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if (mayLabelDimType(dimItem.type)) {
 	          defaultedLabel[0] = dimName;
 	        }
+	      }
+
+	      if (dimItem.defaultTooltip) {
+	        defaultedTooltip.push(dimName);
 	      }
 	    }
 
@@ -29086,11 +30302,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    defaultedLabel = encodeLabel.slice();
 	  }
 
-	  var defaultedTooltip = defaultedLabel.slice();
 	  var encodeTooltip = encode.tooltip;
 
 	  if (encodeTooltip && encodeTooltip.length) {
 	    defaultedTooltip = encodeTooltip.slice();
+	  } else if (!defaultedTooltip.length) {
+	    defaultedTooltip = defaultedLabel.slice();
 	  }
 
 	  encode.defaultedLabel = defaultedLabel;
@@ -29125,10 +30342,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.getDimensionTypeByAxis = getDimensionTypeByAxis;
 
 /***/ },
-/* 124 */
+/* 125 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var completeDimensions = __webpack_require__(125);
+	var completeDimensions = __webpack_require__(126);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Substitute `completeDimensions`.
@@ -29160,7 +30396,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 125 */
+/* 126 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
@@ -29183,9 +30419,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Source = __webpack_require__(95);
 
-	var _dimensionHelper = __webpack_require__(123);
+	var _dimensionHelper = __webpack_require__(124);
 
 	var OTHER_DIMENSIONS = _dimensionHelper.OTHER_DIMENSIONS;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @deprecated
@@ -29204,7 +30459,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *      provides not only dim template, but also default order.
 	 *      properties: 'name', 'type', 'displayName'.
 	 *      `name` of each item provides default coord name.
-	 *      [{dimsDef: [string...]}, ...] dimsDef of sysDim item provides default dim name, and
+	 *      [{dimsDef: [string|Object, ...]}, ...] dimsDef of sysDim item provides default dim name, and
 	 *                                    provide dims count that the sysDim required.
 	 *      [{ordinalMeta}] can be specified.
 	 * @param {module:echarts/data/Source|Array|Object} source or data (for compatibal with pervious)
@@ -29330,7 +30585,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      applyDim(defaults(resultItem, sysDimItem), coordDim, coordDimIndex);
 
 	      if (resultItem.name == null && sysDimItemDimsDef) {
-	        resultItem.name = resultItem.displayName = sysDimItemDimsDef[coordDimIndex];
+	        var sysDimItemDimsDefItem = sysDimItemDimsDef[coordDimIndex];
+	        !isObject(sysDimItemDimsDefItem) && (sysDimItemDimsDefItem = {
+	          name: sysDimItemDimsDefItem
+	        });
+	        resultItem.name = resultItem.displayName = sysDimItemDimsDefItem.name;
+	        resultItem.defaultTooltip = sysDimItemDimsDefItem.defaultTooltip;
 	      } // FIXME refactor, currently only used in case: {otherDims: {tooltip: false}}
 
 
@@ -29420,13 +30680,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 126 */
+/* 127 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
 
 	var each = _util.each;
 	var isString = _util.isString;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Note that it is too complicated to support 3d stack by value
@@ -29542,7 +30821,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.isDimensionStacked = isDimensionStacked;
 
 /***/ },
-/* 127 */
+/* 128 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
@@ -29551,23 +30830,44 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var textContain = __webpack_require__(36);
+	var OrdinalScale = __webpack_require__(129);
 
-	var OrdinalScale = __webpack_require__(128);
+	var IntervalScale = __webpack_require__(132);
 
-	var IntervalScale = __webpack_require__(131);
-
-	var Scale = __webpack_require__(129);
+	var Scale = __webpack_require__(130);
 
 	var numberUtil = __webpack_require__(88);
 
-	var _barGrid = __webpack_require__(133);
+	var _barGrid = __webpack_require__(134);
 
-	var calBarWidthAndOffset = _barGrid.calBarWidthAndOffset;
+	var prepareLayoutBarSeries = _barGrid.prepareLayoutBarSeries;
+	var makeColumnLayout = _barGrid.makeColumnLayout;
+	var retrieveColumnLayout = _barGrid.retrieveColumnLayout;
 
-	__webpack_require__(134);
+	var BoundingRect = __webpack_require__(24);
 
 	__webpack_require__(135);
+
+	__webpack_require__(136);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Get axis scale extent before niced.
@@ -29643,7 +30943,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  (min == null || !isFinite(min)) && (min = NaN);
 	  (max == null || !isFinite(max)) && (max = NaN);
-	  scale.setBlank(zrUtil.eqNaN(min) || zrUtil.eqNaN(max)); // Evaluate if axis needs cross zero
+	  scale.setBlank(zrUtil.eqNaN(min) || zrUtil.eqNaN(max) || scaleType === 'ordinal' && !scale.getOrdinalMeta().categories.length); // Evaluate if axis needs cross zero
 
 	  if (model.getNeedCrossZero()) {
 	    // Axis is over zero and min is not set
@@ -29659,7 +30959,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // is base axis
 	  // FIXME
 	  // (1) Consider support value axis, where below zero and axis `onZero` should be handled properly.
-	  // (2) Refactor the logic with `barGrid`. Is it not need to `calBarWidthAndOffset` twice with different extent?
+	  // (2) Refactor the logic with `barGrid`. Is it not need to `makeBarWidthAndOffsetInfo` twice with different extent?
 	  //     Should not depend on series type `bar`?
 	  // (3) Fix that might overlap when using dataZoom.
 	  // (4) Consider other chart types using `barGrid`?
@@ -29671,18 +30971,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (ecModel && scaleType === 'time'
 	  /*|| scaleType === 'interval' */
 	  ) {
-	    var barSeriesModels = [];
+	    var barSeriesModels = prepareLayoutBarSeries('bar', ecModel);
 	    var isBaseAxisAndHasBarSeries;
-	    zrUtil.each(ecModel.getSeriesByType('bar'), function (seriesModel) {
-	      if (seriesModel.coordinateSystem && seriesModel.coordinateSystem.type === 'cartesian2d') {
-	        barSeriesModels.push(seriesModel);
-	        isBaseAxisAndHasBarSeries |= seriesModel.getBaseAxis() === model.axis;
-	      }
+	    zrUtil.each(barSeriesModels, function (seriesModel) {
+	      isBaseAxisAndHasBarSeries |= seriesModel.getBaseAxis() === model.axis;
 	    });
 
 	    if (isBaseAxisAndHasBarSeries) {
-	      // Adjust axis min and max to account for overflow
-	      var adjustedScale = adjustScaleForOverflow(min, max, model, barSeriesModels);
+	      // Calculate placement of bars on axis
+	      var barWidthAndOffset = makeColumnLayout(barSeriesModels); // Adjust axis min and max to account for overflow
+
+	      var adjustedScale = adjustScaleForOverflow(min, max, model, barWidthAndOffset);
 	      min = adjustedScale.min;
 	      max = adjustedScale.max;
 	    }
@@ -29691,15 +30990,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return [min, max];
 	}
 
-	function adjustScaleForOverflow(min, max, model, barSeriesModels) {
+	function adjustScaleForOverflow(min, max, model, barWidthAndOffset) {
 	  // Get Axis Length
 	  var axisExtent = model.axis.getExtent();
-	  var axisLength = axisExtent[1] - axisExtent[0]; // Calculate placement of bars on axis
+	  var axisLength = axisExtent[1] - axisExtent[0]; // Get bars on current base axis and calculate min and max overflow
 
-	  var barWidthAndOffset = calBarWidthAndOffset(barSeriesModels); // Get bars on current base axis and calculate min and max overflow
-
-	  var baseAxisKey = model.axis.dim + model.axis.index;
-	  var barsOnCurrentAxis = barWidthAndOffset[baseAxisKey];
+	  var barsOnCurrentAxis = retrieveColumnLayout(barWidthAndOffset, model.axis);
 
 	  if (barsOnCurrentAxis === undefined) {
 	    return {
@@ -29798,68 +31094,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return !(min > 0 && max > 0 || min < 0 && max < 0);
 	}
 	/**
-	 * @param {Array.<number>} tickCoords In axis self coordinate.
-	 * @param {Array.<string>} labels
-	 * @param {string} font
-	 * @param {number} axisRotate 0: towards right horizontally, clock-wise is negative.
-	 * @param {number} [labelRotate=0] 0: towards right horizontally, clock-wise is negative.
-	 * @return {number}
+	 * @param {module:echarts/coord/Axis} axis
+	 * @return {Function} Label formatter function.
+	 *         param: {number} tickValue,
+	 *         param: {number} idx, the index in all ticks.
+	 *                         If category axis, this param is not requied.
+	 *         return: {string} label string.
 	 */
 
 
-	function getAxisLabelInterval(tickCoords, labels, font, axisRotate, labelRotate) {
-	  var textSpaceTakenRect;
-	  var autoLabelInterval = 0;
-	  var accumulatedLabelInterval = 0;
-	  var rotation = (axisRotate - labelRotate) / 180 * Math.PI;
-	  var step = 1;
-
-	  if (labels.length > 40) {
-	    // Simple optimization for large amount of labels
-	    step = Math.floor(labels.length / 40);
-	  }
-
-	  for (var i = 0; i < tickCoords.length; i += step) {
-	    var tickCoord = tickCoords[i]; // Not precise, do not consider align and vertical align
-	    // and each distance from axis line yet.
-
-	    var rect = textContain.getBoundingRect(labels[i], font, 'center', 'top');
-	    rect.x += tickCoord * Math.cos(rotation);
-	    rect.y += tickCoord * Math.sin(rotation); // Magic number
-
-	    rect.width *= 1.3;
-	    rect.height *= 1.3;
-
-	    if (!textSpaceTakenRect) {
-	      textSpaceTakenRect = rect.clone();
-	    } // There is no space for current label;
-	    else if (textSpaceTakenRect.intersect(rect)) {
-	        accumulatedLabelInterval++;
-	        autoLabelInterval = Math.max(autoLabelInterval, accumulatedLabelInterval);
-	      } else {
-	        textSpaceTakenRect.union(rect); // Reset
-
-	        accumulatedLabelInterval = 0;
-	      }
-	  }
-
-	  if (autoLabelInterval === 0 && step > 1) {
-	    return step;
-	  }
-
-	  return (autoLabelInterval + 1) * step - 1;
-	}
-	/**
-	 * @param {Object} axis
-	 * @param {Function} labelFormatter
-	 * @return {Array.<string>}
-	 */
-
-
-	function getFormattedLabels(axis, labelFormatter) {
-	  var scale = axis.scale;
-	  var labels = scale.getTicksLabels();
-	  var ticks = scale.getTicks();
+	function makeLabelFormatter(axis) {
+	  var labelFormatter = axis.getLabelModel().get('formatter');
+	  var categoryTickStart = axis.type === 'category' ? axis.scale.getExtent()[0] : null;
 
 	  if (typeof labelFormatter === 'string') {
 	    labelFormatter = function (tpl) {
@@ -29869,13 +31115,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }(labelFormatter); // Consider empty array
 
 
-	    return zrUtil.map(labels, labelFormatter);
+	    return labelFormatter;
 	  } else if (typeof labelFormatter === 'function') {
-	    return zrUtil.map(ticks, function (tick, idx) {
-	      return labelFormatter(getAxisRawValue(axis, tick), idx);
-	    }, this);
+	    return function (tickValue, idx) {
+	      // The original intention of `idx` is "the index of the tick in all ticks".
+	      // But the previous implementation of category axis do not consider the
+	      // `axisLabel.interval`, which cause that, for example, the `interval` is
+	      // `1`, then the ticks "name5", "name7", "name9" are displayed, where the
+	      // corresponding `idx` are `0`, `2`, `4`, but not `0`, `1`, `2`. So we keep
+	      // the definition here for back compatibility.
+	      if (categoryTickStart != null) {
+	        idx = tickValue - categoryTickStart;
+	      }
+
+	      return labelFormatter(getAxisRawValue(axis, tickValue), idx);
+	    };
 	  } else {
-	    return labels;
+	    return function (tick) {
+	      return axis.scale.getLabel(tick);
+	    };
 	  }
 	}
 
@@ -29885,24 +31143,99 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // in category axis.
 	  return axis.type === 'category' ? axis.scale.getLabel(value) : value;
 	}
+	/**
+	 * @param {module:echarts/coord/Axis} axis
+	 * @return {module:zrender/core/BoundingRect} Be null/undefined if no labels.
+	 */
+
+
+	function estimateLabelUnionRect(axis) {
+	  var axisModel = axis.model;
+	  var scale = axis.scale;
+
+	  if (!axisModel.get('axisLabel.show') || scale.isBlank()) {
+	    return;
+	  }
+
+	  var isCategory = axis.type === 'category';
+	  var realNumberScaleTicks;
+	  var tickCount;
+	  var categoryScaleExtent = scale.getExtent(); // Optimize for large category data, avoid call `getTicks()`.
+
+	  if (isCategory) {
+	    tickCount = scale.count();
+	  } else {
+	    realNumberScaleTicks = scale.getTicks();
+	    tickCount = realNumberScaleTicks.length;
+	  }
+
+	  var axisLabelModel = axis.getLabelModel();
+	  var labelFormatter = makeLabelFormatter(axis);
+	  var rect;
+	  var step = 1; // Simple optimization for large amount of labels
+
+	  if (tickCount > 40) {
+	    step = Math.ceil(tickCount / 40);
+	  }
+
+	  for (var i = 0; i < tickCount; i += step) {
+	    var tickValue = realNumberScaleTicks ? realNumberScaleTicks[i] : categoryScaleExtent[0] + i;
+	    var label = labelFormatter(tickValue);
+	    var unrotatedSingleRect = axisLabelModel.getTextRect(label);
+	    var singleRect = rotateTextRect(unrotatedSingleRect, axisLabelModel.get('rotate') || 0);
+	    rect ? rect.union(singleRect) : rect = singleRect;
+	  }
+
+	  return rect;
+	}
+
+	function rotateTextRect(textRect, rotate) {
+	  var rotateRadians = rotate * Math.PI / 180;
+	  var boundingBox = textRect.plain();
+	  var beforeWidth = boundingBox.width;
+	  var beforeHeight = boundingBox.height;
+	  var afterWidth = beforeWidth * Math.cos(rotateRadians) + beforeHeight * Math.sin(rotateRadians);
+	  var afterHeight = beforeWidth * Math.sin(rotateRadians) + beforeHeight * Math.cos(rotateRadians);
+	  var rotatedRect = new BoundingRect(boundingBox.x, boundingBox.y, afterWidth, afterHeight);
+	  return rotatedRect;
+	}
 
 	exports.getScaleExtent = getScaleExtent;
 	exports.niceScaleExtent = niceScaleExtent;
 	exports.createScaleByModel = createScaleByModel;
 	exports.ifAxisCrossZero = ifAxisCrossZero;
-	exports.getAxisLabelInterval = getAxisLabelInterval;
-	exports.getFormattedLabels = getFormattedLabels;
+	exports.makeLabelFormatter = makeLabelFormatter;
 	exports.getAxisRawValue = getAxisRawValue;
+	exports.estimateLabelUnionRect = estimateLabelUnionRect;
 
 /***/ },
-/* 128 */
+/* 129 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Scale = __webpack_require__(129);
+	var Scale = __webpack_require__(130);
 
-	var OrdinalMeta = __webpack_require__(130);
+	var OrdinalMeta = __webpack_require__(131);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Linear continuous scale
@@ -29973,7 +31306,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @return {string}
 	   */
 	  getLabel: function (n) {
-	    return this._ordinalMeta.categories[n];
+	    if (!this.isBlank()) {
+	      // Note that if no data, ordinalMeta.categories is an empty array.
+	      return this._ordinalMeta.categories[n];
+	    }
 	  },
 
 	  /**
@@ -29988,6 +31324,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  unionExtentFromData: function (data, dim) {
 	    this.unionExtent(data.getApproximateExtent(dim));
+	  },
+	  getOrdinalMeta: function () {
+	    return this._ordinalMeta;
 	  },
 	  niceTicks: zrUtil.noop,
 	  niceExtent: zrUtil.noop
@@ -30004,10 +31343,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 129 */
+/* 130 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var clazzUtil = __webpack_require__(46);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * // Scale class management
@@ -30135,21 +31493,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	};
 	/**
-	 * @return {Array.<string>}
-	 */
-
-
-	Scale.prototype.getTicksLabels = function () {
-	  var labels = [];
-	  var ticks = this.getTicks();
-
-	  for (var i = 0; i < ticks.length; i++) {
-	    labels.push(this.getLabel(ticks[i]));
-	  }
-
-	  return labels;
-	};
-	/**
 	 * When axis extent depends on data and no data exists,
 	 * axis ticks should not be drawn, which is named 'blank'.
 	 */
@@ -30165,6 +31508,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	Scale.prototype.setBlank = function (isBlank) {
 	  this._isBlank = isBlank;
 	};
+	/**
+	 * @abstract
+	 * @param {*} tick
+	 * @return {string} label of the tick.
+	 */
+
+	Scale.prototype.getLabel = null;
 	clazzUtil.enableClassExtend(Scale);
 	clazzUtil.enableClassManagement(Scale, {
 	  registerWhenExtend: true
@@ -30173,7 +31523,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 130 */
+/* 131 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
@@ -30181,6 +31531,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var createHashMap = _util.createHashMap;
 	var isObject = _util.isObject;
 	var map = _util.map;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @constructor
@@ -30306,16 +31675,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 131 */
+/* 132 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var numberUtil = __webpack_require__(88);
 
 	var formatUtil = __webpack_require__(89);
 
-	var Scale = __webpack_require__(129);
+	var Scale = __webpack_require__(130);
 
-	var helper = __webpack_require__(132);
+	var helper = __webpack_require__(133);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Interval scale
@@ -30373,20 +31761,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  getTicks: function () {
 	    return helper.intervalScaleGetTicks(this._interval, this._extent, this._niceExtent, this._intervalPrecision);
-	  },
-
-	  /**
-	   * @return {Array.<string>}
-	   */
-	  getTicksLabels: function () {
-	    var labels = [];
-	    var ticks = this.getTicks();
-
-	    for (var i = 0; i < ticks.length; i++) {
-	      labels.push(this.getLabel(ticks[i]));
-	    }
-
-	    return labels;
 	  },
 
 	  /**
@@ -30509,10 +31883,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 132 */
+/* 133 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var numberUtil = __webpack_require__(88);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * For testable.
@@ -30621,7 +32014,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.intervalScaleGetTicks = intervalScaleGetTicks;
 
 /***/ },
-/* 133 */
+/* 134 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
@@ -30630,10 +32023,33 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var parsePercent = _number.parsePercent;
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var isDimensionStacked = _dataStackHelper.isDimensionStacked;
+
+	var createRenderPlanner = __webpack_require__(109);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var STACK_PREFIX = '__ec_stack_';
+	var LARGE_BAR_MIN_WIDTH = 0.5;
+	var LargeArr = typeof Float32Array !== 'undefined' ? Float32Array : Array;
 
 	function getSeriesStackId(seriesModel) {
 	  return seriesModel.get('stack') || STACK_PREFIX + seriesModel.seriesIndex;
@@ -30654,7 +32070,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 
-	function getLayoutOnAxis(opt, api) {
+	function getLayoutOnAxis(opt) {
 	  var params = [];
 	  var baseAxis = opt.axis;
 	  var axisKey = 'axis0';
@@ -30673,7 +32089,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }, opt));
 	  }
 
-	  var widthAndOffsets = doCalBarWidthAndOffset(params, api);
+	  var widthAndOffsets = doCalBarWidthAndOffset(params);
 	  var result = [];
 
 	  for (var i = 0; i < opt.count; i++) {
@@ -30685,8 +32101,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return result;
 	}
 
-	function calBarWidthAndOffset(barSeries, api) {
-	  var seriesInfoList = zrUtil.map(barSeries, function (seriesModel) {
+	function prepareLayoutBarSeries(seriesType, ecModel) {
+	  var seriesModels = [];
+	  ecModel.eachSeriesByType(seriesType, function (seriesModel) {
+	    // Check series coordinate, do layout for cartesian2d only
+	    if (isOnCartesian(seriesModel) && !isInLargeMode(seriesModel)) {
+	      seriesModels.push(seriesModel);
+	    }
+	  });
+	  return seriesModels;
+	}
+
+	function makeColumnLayout(barSeries) {
+	  var seriesInfoList = [];
+	  zrUtil.each(barSeries, function (seriesModel) {
 	    var data = seriesModel.getData();
 	    var cartesian = seriesModel.coordinateSystem;
 	    var baseAxis = cartesian.getBaseAxis();
@@ -30696,7 +32124,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var barMaxWidth = parsePercent(seriesModel.get('barMaxWidth'), bandWidth);
 	    var barGap = seriesModel.get('barGap');
 	    var barCategoryGap = seriesModel.get('barCategoryGap');
-	    return {
+	    seriesInfoList.push({
 	      bandWidth: bandWidth,
 	      barWidth: barWidth,
 	      barMaxWidth: barMaxWidth,
@@ -30704,12 +32132,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      barCategoryGap: barCategoryGap,
 	      axisKey: getAxisKey(baseAxis),
 	      stackId: getSeriesStackId(seriesModel)
-	    };
+	    });
 	  });
-	  return doCalBarWidthAndOffset(seriesInfoList, api);
+	  return doCalBarWidthAndOffset(seriesInfoList);
 	}
 
-	function doCalBarWidthAndOffset(seriesInfoList, api) {
+	function doCalBarWidthAndOffset(seriesInfoList) {
 	  // Columns info on each category axis. Key is cartesian name
 	  var columnsMap = {};
 	  zrUtil.each(seriesInfoList, function (seriesInfo, idx) {
@@ -30813,18 +32241,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return result;
 	}
 	/**
-	 * @param {string} seriesType
-	 * @param {module:echarts/model/Global} ecModel
-	 * @param {module:echarts/ExtensionAPI} api
+	 * @param {Object} barWidthAndOffset The result of makeColumnLayout
+	 * @param {module:echarts/coord/Axis} axis
+	 * @param {module:echarts/model/Series} [seriesModel] If not provided, return all.
+	 * @return {Object} {stackId: {offset, width}} or {offset, width} if seriesModel provided.
 	 */
 
 
-	function layout(seriesType, ecModel, api) {
-	  var seriesModels = zrUtil.filter(ecModel.getSeriesByType(seriesType), function (seriesModel) {
-	    // Check series coordinate, do layout for cartesian2d only
-	    return seriesModel.coordinateSystem && seriesModel.coordinateSystem.type === 'cartesian2d';
-	  });
-	  var barWidthAndOffset = calBarWidthAndOffset(seriesModels);
+	function retrieveColumnLayout(barWidthAndOffset, axis, seriesModel) {
+	  if (barWidthAndOffset && axis) {
+	    var result = barWidthAndOffset[getAxisKey(axis)];
+
+	    if (result != null && seriesModel != null) {
+	      result = result[getSeriesStackId(seriesModel)];
+	    }
+
+	    return result;
+	  }
+	}
+	/**
+	 * @param {string} seriesType
+	 * @param {module:echarts/model/Global} ecModel
+	 */
+
+
+	function layout(seriesType, ecModel) {
+	  var seriesModels = prepareLayoutBarSeries(seriesType, ecModel);
+	  var barWidthAndOffset = makeColumnLayout(seriesModels);
 	  var lastStackCoords = {};
 	  var lastStackCoordsOrigin = {};
 	  zrUtil.each(seriesModels, function (seriesModel) {
@@ -30848,7 +32291,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var baseDim = data.mapDimension(baseAxis.dim);
 	    var stacked = isDimensionStacked(data, valueDim, baseDim);
 	    var isValueAxisH = valueAxis.isHorizontal();
-	    var valueAxisStart = baseAxis.onZero || stacked ? valueAxis.toGlobalCoord(valueAxis.dataToCoord(0)) : valueAxis.getGlobalExtent()[0];
+	    var valueAxisStart = getValueAxisStart(baseAxis, valueAxis, stacked);
 
 	    for (var idx = 0, len = data.count(); idx < len; idx++) {
 	      var value = data.get(valueDim, idx);
@@ -30917,14 +32360,82 @@ return /******/ (function(modules) { // webpackBootstrap
 	      });
 	    }
 	  }, this);
+	} // TODO: Do not support stack in large mode yet.
+
+
+	var largeLayout = {
+	  seriesType: 'bar',
+	  plan: createRenderPlanner(),
+	  reset: function (seriesModel) {
+	    if (!isOnCartesian(seriesModel) || !isInLargeMode(seriesModel)) {
+	      return;
+	    }
+
+	    var data = seriesModel.getData();
+	    var cartesian = seriesModel.coordinateSystem;
+	    var baseAxis = cartesian.getBaseAxis();
+	    var valueAxis = cartesian.getOtherAxis(baseAxis);
+	    var valueDim = data.mapDimension(valueAxis.dim);
+	    var baseDim = data.mapDimension(baseAxis.dim);
+	    var valueAxisHorizontal = valueAxis.isHorizontal();
+	    var valueDimIdx = valueAxisHorizontal ? 0 : 1;
+	    var barWidth = retrieveColumnLayout(makeColumnLayout([seriesModel]), baseAxis, seriesModel).width;
+
+	    if (!(barWidth > LARGE_BAR_MIN_WIDTH)) {
+	      // jshint ignore:line
+	      barWidth = LARGE_BAR_MIN_WIDTH;
+	    }
+
+	    return {
+	      progress: progress
+	    };
+
+	    function progress(params, data) {
+	      var largePoints = new LargeArr(params.count * 2);
+	      var dataIndex;
+	      var coord = [];
+	      var valuePair = [];
+	      var offset = 0;
+
+	      while ((dataIndex = params.next()) != null) {
+	        valuePair[valueDimIdx] = data.get(valueDim, dataIndex);
+	        valuePair[1 - valueDimIdx] = data.get(baseDim, dataIndex);
+	        coord = cartesian.dataToPoint(valuePair, null, coord);
+	        largePoints[offset++] = coord[0];
+	        largePoints[offset++] = coord[1];
+	      }
+
+	      data.setLayout({
+	        largePoints: largePoints,
+	        barWidth: barWidth,
+	        valueAxisStart: getValueAxisStart(baseAxis, valueAxis, false),
+	        valueAxisHorizontal: valueAxisHorizontal
+	      });
+	    }
+	  }
+	};
+
+	function isOnCartesian(seriesModel) {
+	  return seriesModel.coordinateSystem && seriesModel.coordinateSystem.type === 'cartesian2d';
+	}
+
+	function isInLargeMode(seriesModel) {
+	  return seriesModel.pipelineContext && seriesModel.pipelineContext.large;
+	}
+
+	function getValueAxisStart(baseAxis, valueAxis, stacked) {
+	  return zrUtil.indexOf(baseAxis.getAxesOnZeroOf(), valueAxis) >= 0 || stacked ? valueAxis.toGlobalCoord(valueAxis.dataToCoord(0)) : valueAxis.getGlobalExtent()[0];
 	}
 
 	exports.getLayoutOnAxis = getLayoutOnAxis;
-	exports.calBarWidthAndOffset = calBarWidthAndOffset;
+	exports.prepareLayoutBarSeries = prepareLayoutBarSeries;
+	exports.makeColumnLayout = makeColumnLayout;
+	exports.retrieveColumnLayout = retrieveColumnLayout;
 	exports.layout = layout;
+	exports.largeLayout = largeLayout;
 
 /***/ },
-/* 134 */
+/* 135 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
@@ -30933,10 +32444,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var formatUtil = __webpack_require__(89);
 
-	var scaleHelper = __webpack_require__(132);
+	var scaleHelper = __webpack_require__(133);
 
-	var IntervalScale = __webpack_require__(131);
+	var IntervalScale = __webpack_require__(132);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// [About UTC and local time zone]:
 	// In most cases, `number.parseDate` will treat input data string as local time
 	// (except time zone is specified in time string). And `format.formateTime` returns
@@ -31118,16 +32647,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 135 */
+/* 136 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Scale = __webpack_require__(129);
+	var Scale = __webpack_require__(130);
 
 	var numberUtil = __webpack_require__(88);
 
-	var IntervalScale = __webpack_require__(131);
+	var IntervalScale = __webpack_require__(132);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Log scale
@@ -31289,22 +32837,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 136 */
+/* 137 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = {
-	  /**
-	   * Format labels
-	   * @return {Array.<string>}
-	   */
-	  getFormattedLabels: function () {
-	    return axisHelper.getFormattedLabels(this.axis, this.get('axisLabel.formatter'));
-	  },
-
 	  /**
 	   * @param {boolean} origin
 	   * @return {number|string} min value or 'dataMin' or null/undefined (means auto) or NaN
@@ -31369,7 +32927,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 137 */
+/* 138 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
@@ -31378,6 +32936,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var BoundingRect = __webpack_require__(24);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Symbol factory
 
 	/**
@@ -31675,12 +33251,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.createSymbol = createSymbol;
 
 /***/ },
-/* 138 */
+/* 139 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Region = __webpack_require__(139);
+	var Region = __webpack_require__(140);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Parse and decode geo json
@@ -31795,7 +33390,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 139 */
+/* 140 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var BoundingRect = __webpack_require__(24);
@@ -31804,7 +33399,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vec2 = __webpack_require__(8);
 
-	var polygonContain = __webpack_require__(140);
+	var polygonContain = __webpack_require__(141);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @module echarts/coord/geo/Region
@@ -31963,7 +33577,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 140 */
+/* 141 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var windingLine = __webpack_require__(63);
@@ -32001,34 +33615,52 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.contain = contain;
 
 /***/ },
-/* 141 */
+/* 142 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var zrUtil = __webpack_require__(6);
+	var _util = __webpack_require__(6);
 
-	var numberUtil = __webpack_require__(88);
+	var each = _util.each;
+	var map = _util.map;
 
-	var axisHelper = __webpack_require__(127);
+	var _number = __webpack_require__(88);
 
-	var linearMap = numberUtil.linearMap;
+	var linearMap = _number.linearMap;
+	var getPixelPrecision = _number.getPixelPrecision;
 
-	function fixExtentWithBands(extent, nTick) {
-	  var size = extent[1] - extent[0];
-	  var len = nTick;
-	  var margin = size / len / 2;
-	  extent[0] += margin;
-	  extent[1] -= margin;
-	}
+	var _axisTickLabelBuilder = __webpack_require__(143);
 
-	var normalizedExtent = [0, 1];
+	var createAxisTicks = _axisTickLabelBuilder.createAxisTicks;
+	var createAxisLabels = _axisTickLabelBuilder.createAxisLabels;
+	var calculateCategoryInterval = _axisTickLabelBuilder.calculateCategoryInterval;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	var NORMALIZED_EXTENT = [0, 1];
 	/**
-	 * @name module:echarts/coord/CartesianAxis
+	 * Base class of Axis.
 	 * @constructor
 	 */
 
 	var Axis = function (dim, scale, extent) {
 	  /**
-	   * Axis dimension. Such as 'x', 'y', 'z', 'angle', 'radius'
+	   * Axis dimension. Such as 'x', 'y', 'z', 'angle', 'radius'.
 	   * @type {string}
 	   */
 	  this.dim = dim;
@@ -32055,12 +33687,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 
 	  this.onBand = false;
-	  /**
-	   * @private
-	   * @type {number}
-	   */
-
-	  this._labelInterval;
 	};
 
 	Axis.prototype = {
@@ -32101,7 +33727,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @return {number}
 	   */
 	  getPixelPrecision: function (dataExtent) {
-	    return numberUtil.getPixelPrecision(dataExtent || this.scale.getExtent(), this._extent);
+	    return getPixelPrecision(dataExtent || this.scale.getExtent(), this._extent);
 	  },
 
 	  /**
@@ -32131,7 +33757,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      fixExtentWithBands(extent, scale.count());
 	    }
 
-	    return linearMap(data, normalizedExtent, extent, clamp);
+	    return linearMap(data, NORMALIZED_EXTENT, extent, clamp);
 	  },
 
 	  /**
@@ -32149,7 +33775,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      fixExtentWithBands(extent, scale.count());
 	    }
 
-	    var t = linearMap(coord, extent, normalizedExtent, clamp);
+	    var t = linearMap(coord, extent, NORMALIZED_EXTENT, clamp);
 	    return this.scale.scale(t);
 	  },
 
@@ -32163,57 +33789,63 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 
 	  /**
-	   * @return {Array.<number>}
+	   * Different from `zrUtil.map(axis.getTicks(), axis.dataToCoord, axis)`,
+	   * `axis.getTicksCoords` considers `onBand`, which is used by
+	   * `boundaryGap:true` of category axis and splitLine and splitArea.
+	   * @param {Object} [opt]
+	   * @param {number} [opt.tickModel=axis.model.getModel('axisTick')]
+	   * @param {boolean} [opt.clamp] If `true`, the first and the last
+	   *        tick must be at the axis end points. Otherwise, clip ticks
+	   *        that outside the axis extent.
+	   * @return {Array.<Object>} [{
+	   *     coord: ...,
+	   *     tickValue: ...
+	   * }, ...]
 	   */
-	  getTicksCoords: function (alignWithLabel) {
-	    if (this.onBand && !alignWithLabel) {
-	      var bands = this.getBands();
-	      var coords = [];
-
-	      for (var i = 0; i < bands.length; i++) {
-	        coords.push(bands[i][0]);
-	      }
-
-	      if (bands[i - 1]) {
-	        coords.push(bands[i - 1][1]);
-	      }
-
-	      return coords;
-	    } else {
-	      return zrUtil.map(this.scale.getTicks(), this.dataToCoord, this);
-	    }
+	  getTicksCoords: function (opt) {
+	    opt = opt || {};
+	    var tickModel = opt.tickModel || this.getTickModel();
+	    var result = createAxisTicks(this, tickModel);
+	    var ticks = result.ticks;
+	    var ticksCoords = map(ticks, function (tickValue) {
+	      return {
+	        coord: this.dataToCoord(tickValue),
+	        tickValue: tickValue
+	      };
+	    }, this);
+	    var alignWithLabel = tickModel.get('alignWithLabel');
+	    fixOnBandTicksCoords(this, ticksCoords, result.tickCategoryInterval, alignWithLabel, opt.clamp);
+	    return ticksCoords;
 	  },
 
 	  /**
-	   * Coords of labels are on the ticks or on the middle of bands
-	   * @return {Array.<number>}
+	   * @return {Array.<Object>} [{
+	   *     formattedLabel: string,
+	   *     rawLabel: axis.scale.getLabel(tickValue)
+	   *     tickValue: number
+	   * }, ...]
 	   */
-	  getLabelsCoords: function () {
-	    return zrUtil.map(this.scale.getTicks(), this.dataToCoord, this);
+	  getViewLabels: function () {
+	    return createAxisLabels(this).labels;
 	  },
 
 	  /**
-	   * Get bands.
-	   *
-	   * If axis has labels [1, 2, 3, 4]. Bands on the axis are
-	   * |---1---|---2---|---3---|---4---|.
-	   *
-	   * @return {Array}
+	   * @return {module:echarts/coord/model/Model}
 	   */
-	  // FIXME Situation when labels is on ticks
-	  getBands: function () {
-	    var extent = this.getExtent();
-	    var bands = [];
-	    var len = this.scale.count();
-	    var start = extent[0];
-	    var end = extent[1];
-	    var span = end - start;
+	  getLabelModel: function () {
+	    return this.model.getModel('axisLabel');
+	  },
 
-	    for (var i = 0; i < len; i++) {
-	      bands.push([span * i / len + start, span * (i + 1) / len + start]);
-	    }
-
-	    return bands;
+	  /**
+	   * Notice here we only get the default tick model. For splitLine
+	   * or splitArea, we should pass the splitLineModel or splitAreaModel
+	   * manually when calling `getTicksCoords`.
+	   * In GL, this method may be overrided to:
+	   * `axisModel.getModel('axisTick', grid3DModel.getModel('axisTick'));`
+	   * @return {module:echarts/coord/model/Model}
+	   */
+	  getTickModel: function () {
+	    return this.model.getModel('axisTick');
 	  },
 
 	  /**
@@ -32243,50 +33875,495 @@ return /******/ (function(modules) { // webpackBootstrap
 	  getRotate: null,
 
 	  /**
-	   * Get interval of the axis label.
-	   * To get precise result, at least one of `getRotate` and `isHorizontal`
-	   * should be implemented.
-	   * @return {number}
+	   * Only be called in category axis.
+	   * Can be overrided, consider other axes like in 3D.
+	   * @param {boolean} hideLabel
+	   * @return {number} Auto interval for cateogry axis tick and label
 	   */
-	  getLabelInterval: function () {
-	    var labelInterval = this._labelInterval;
-
-	    if (!labelInterval) {
-	      var axisModel = this.model;
-	      var labelModel = axisModel.getModel('axisLabel');
-	      labelInterval = labelModel.get('interval');
-
-	      if (this.type === 'category' && (labelInterval == null || labelInterval === 'auto')) {
-	        labelInterval = axisHelper.getAxisLabelInterval(zrUtil.map(this.scale.getTicks(), this.dataToCoord, this), axisModel.getFormattedLabels(), labelModel.getFont(), this.getRotate ? this.getRotate() : this.isHorizontal && !this.isHorizontal() ? 90 : 0, labelModel.get('rotate'));
-	      }
-
-	      this._labelInterval = labelInterval;
-	    }
-
-	    return labelInterval;
+	  calculateCategoryInterval: function (hideLabel) {
+	    return calculateCategoryInterval(this, hideLabel);
 	  }
 	};
+
+	function fixExtentWithBands(extent, nTick) {
+	  var size = extent[1] - extent[0];
+	  var len = nTick;
+	  var margin = size / len / 2;
+	  extent[0] += margin;
+	  extent[1] -= margin;
+	} // If axis has labels [1, 2, 3, 4]. Bands on the axis are
+	// |---1---|---2---|---3---|---4---|.
+	// So the displayed ticks and splitLine/splitArea should between
+	// each data item, otherwise cause misleading (e.g., split tow bars
+	// of a single data item when there are two bar series).
+	// Also consider if tickCategoryInterval > 0 and onBand, ticks and
+	// splitLine/spliteArea should layout appropriately corresponding
+	// to displayed labels. (So we should not use `getBandWidth` in this
+	// case).
+
+
+	function fixOnBandTicksCoords(axis, ticksCoords, tickCategoryInterval, alignWithLabel, clamp) {
+	  var ticksLen = ticksCoords.length;
+
+	  if (!axis.onBand || alignWithLabel || !ticksLen) {
+	    return;
+	  }
+
+	  var axisExtent = axis.getExtent();
+	  var last;
+
+	  if (ticksLen === 1) {
+	    ticksCoords[0].coord = axisExtent[0];
+	    last = ticksCoords[1] = {
+	      coord: axisExtent[0]
+	    };
+	  } else {
+	    var shift = ticksCoords[1].coord - ticksCoords[0].coord;
+	    each(ticksCoords, function (ticksItem) {
+	      ticksItem.coord -= shift / 2;
+	      var tickCategoryInterval = tickCategoryInterval || 0; // Avoid split a single data item when odd interval.
+
+	      if (tickCategoryInterval % 2 > 0) {
+	        ticksItem.coord -= shift / ((tickCategoryInterval + 1) * 2);
+	      }
+	    });
+	    last = {
+	      coord: ticksCoords[ticksLen - 1].coord + shift
+	    };
+	    ticksCoords.push(last);
+	  }
+
+	  var inverse = axisExtent[0] > axisExtent[1];
+
+	  if (littleThan(ticksCoords[0].coord, axisExtent[0])) {
+	    clamp ? ticksCoords[0].coord = axisExtent[0] : ticksCoords.shift();
+	  }
+
+	  if (clamp && littleThan(axisExtent[0], ticksCoords[0].coord)) {
+	    ticksCoords.unshift({
+	      coord: axisExtent[0]
+	    });
+	  }
+
+	  if (littleThan(axisExtent[1], last.coord)) {
+	    clamp ? last.coord = axisExtent[1] : ticksCoords.pop();
+	  }
+
+	  if (clamp && littleThan(last.coord, axisExtent[1])) {
+	    ticksCoords.push({
+	      coord: axisExtent[1]
+	    });
+	  }
+
+	  function littleThan(a, b) {
+	    return inverse ? a > b : a < b;
+	  }
+	}
+
 	var _default = Axis;
 	module.exports = _default;
 
 /***/ },
-/* 142 */
+/* 143 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var zrUtil = __webpack_require__(6);
+
+	var textContain = __webpack_require__(36);
+
+	var _model = __webpack_require__(44);
+
+	var makeInner = _model.makeInner;
+
+	var _axisHelper = __webpack_require__(128);
+
+	var makeLabelFormatter = _axisHelper.makeLabelFormatter;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	var inner = makeInner();
+	/**
+	 * @param {module:echats/coord/Axis} axis
+	 * @return {Object} {
+	 *     labels: [{
+	 *         formattedLabel: string,
+	 *         rawLabel: string,
+	 *         tickValue: number
+	 *     }, ...],
+	 *     labelCategoryInterval: number
+	 * }
+	 */
+
+	function createAxisLabels(axis) {
+	  // Only ordinal scale support tick interval
+	  return axis.type === 'category' ? makeCategoryLabels(axis) : makeRealNumberLabels(axis);
+	}
+	/**
+	 * @param {module:echats/coord/Axis} axis
+	 * @param {module:echarts/model/Model} tickModel For example, can be axisTick, splitLine, splitArea.
+	 * @return {Object} {
+	 *     ticks: Array.<number>
+	 *     tickCategoryInterval: number
+	 * }
+	 */
+
+
+	function createAxisTicks(axis, tickModel) {
+	  // Only ordinal scale support tick interval
+	  return axis.type === 'category' ? makeCategoryTicks(axis, tickModel) : {
+	    ticks: axis.scale.getTicks()
+	  };
+	}
+
+	function makeCategoryLabels(axis) {
+	  var labelModel = axis.getLabelModel();
+	  var labelsCache = getListCache(axis, 'labels');
+	  var optionLabelInterval = getOptionCategoryInterval(labelModel);
+	  var result = listCacheGet(labelsCache, optionLabelInterval);
+
+	  if (result) {
+	    return result;
+	  }
+
+	  var labels;
+	  var numericLabelInterval;
+
+	  if (!labelModel.get('show') || axis.scale.isBlank()) {
+	    labels = [];
+	  } else if (zrUtil.isFunction(optionLabelInterval)) {
+	    labels = makeLabelsByCustomizedCategoryInterval(axis, optionLabelInterval);
+	  } else {
+	    numericLabelInterval = optionLabelInterval === 'auto' ? makeAutoCategoryInterval(axis) : optionLabelInterval;
+	    labels = makeLabelsByNumericCategoryInterval(axis, numericLabelInterval);
+	  } // Cache to avoid calling interval function repeatly.
+
+
+	  return listCacheSet(labelsCache, optionLabelInterval, {
+	    labels: labels,
+	    labelCategoryInterval: numericLabelInterval
+	  });
+	}
+
+	function makeCategoryTicks(axis, tickModel) {
+	  var ticksCache = getListCache(axis, 'ticks');
+	  var optionTickInterval = getOptionCategoryInterval(tickModel);
+	  var result = listCacheGet(ticksCache, optionTickInterval);
+
+	  if (result) {
+	    return result;
+	  }
+
+	  var ticks;
+	  var numericTickInterval = optionTickInterval; // Optimize for the case that large category data and no label displayed,
+	  // we should not return all ticks.
+
+	  if (!tickModel.get('show') || axis.scale.isBlank()) {
+	    ticks = [];
+	  }
+
+	  if (zrUtil.isFunction(numericTickInterval)) {
+	    ticks = makeLabelsByCustomizedCategoryInterval(axis, numericTickInterval, true);
+	  } // Always use label interval by default.
+	  else {
+	      if (numericTickInterval === 'auto') {
+	        var labelsResult = makeCategoryLabels(axis);
+	        numericTickInterval = labelsResult.labelCategoryInterval;
+
+	        if (numericTickInterval != null) {
+	          ticks = zrUtil.map(labelsResult.labels, function (labelItem) {
+	            return labelItem.tickValue;
+	          });
+	        } else {
+	          numericTickInterval = makeAutoCategoryInterval(axis, true);
+	        }
+	      }
+
+	      if (ticks == null) {
+	        ticks = makeLabelsByNumericCategoryInterval(axis, numericTickInterval, true);
+	      }
+	    } // Cache to avoid calling interval function repeatly.
+
+
+	  return listCacheSet(ticksCache, optionTickInterval, {
+	    ticks: ticks,
+	    tickCategoryInterval: numericTickInterval
+	  });
+	}
+
+	function makeRealNumberLabels(axis) {
+	  var ticks = axis.scale.getTicks();
+	  var labelFormatter = makeLabelFormatter(axis);
+	  return {
+	    labels: zrUtil.map(ticks, function (tickValue, idx) {
+	      return {
+	        formattedLabel: labelFormatter(tickValue, idx),
+	        rawLabel: axis.scale.getLabel(tickValue),
+	        tickValue: tickValue
+	      };
+	    })
+	  };
+	} // Large category data calculation is performence sensitive, and ticks and label
+	// probably be fetched by multiple times. So we cache the result.
+	// axis is created each time during a ec process, so we do not need to clear cache.
+
+
+	function getListCache(axis, prop) {
+	  // Because key can be funciton, and cache size always be small, we use array cache.
+	  return inner(axis)[prop] || (inner(axis)[prop] = []);
+	}
+
+	function listCacheGet(cache, key) {
+	  for (var i = 0; i < cache.length; i++) {
+	    if (cache[i].key === key) {
+	      return cache[i].value;
+	    }
+	  }
+	}
+
+	function listCacheSet(cache, key, value) {
+	  cache.push({
+	    key: key,
+	    value: value
+	  });
+	  return value;
+	}
+
+	function makeAutoCategoryInterval(axis, hideLabel) {
+	  var cacheKey = hideLabel ? 'tickAutoInterval' : 'autoInterval';
+	  var result = inner(axis)[cacheKey];
+
+	  if (result != null) {
+	    return result;
+	  }
+
+	  return inner(axis)[cacheKey] = axis.calculateCategoryInterval(hideLabel);
+	}
+	/**
+	 * Calculate interval for category axis ticks and labels.
+	 * To get precise result, at least one of `getRotate` and `isHorizontal`
+	 * should be implemented in axis.
+	 */
+
+
+	function calculateCategoryInterval(axis, hideLabel) {
+	  var params = fetchAutoCategoryIntervalCalculationParams(axis);
+	  var labelFormatter = makeLabelFormatter(axis);
+	  var rotation = (params.axisRotate - params.labelRotate) / 180 * Math.PI;
+	  var ordinalScale = axis.scale;
+	  var ordinalExtent = ordinalScale.getExtent(); // Providing this method is for optimization:
+	  // avoid generating a long array by `getTicks`
+	  // in large category data case.
+
+	  var tickCount = ordinalScale.count();
+
+	  if (ordinalExtent[1] - ordinalExtent[0] < 1) {
+	    return 0;
+	  }
+
+	  var step = 1; // Simple optimization. Empirical value: tick count should less than 40.
+
+	  if (tickCount > 40) {
+	    step = Math.max(1, Math.floor(tickCount / 40));
+	  }
+
+	  var tickValue = ordinalExtent[0];
+	  var unitSpan = axis.dataToCoord(tickValue + 1) - axis.dataToCoord(tickValue);
+	  var unitW = Math.abs(unitSpan * Math.cos(rotation));
+	  var unitH = Math.abs(unitSpan * Math.sin(rotation));
+	  var maxW = 0;
+	  var maxH = 0; // Caution: Performance sensitive for large category data.
+	  // Consider dataZoom, we should make appropriate step to avoid O(n) loop.
+
+	  for (; tickValue <= ordinalExtent[1]; tickValue += step) {
+	    var width = 0;
+	    var height = 0;
+
+	    if (!hideLabel) {
+	      // Polar is also calculated in assumptive linear layout here.
+	      // Not precise, do not consider align and vertical align
+	      // and each distance from axis line yet.
+	      var rect = textContain.getBoundingRect(labelFormatter(tickValue), params.font, 'center', 'top'); // Magic number
+
+	      width = rect.width * 1.3;
+	      height = rect.height * 1.3;
+	    } // Min size, void long loop.
+
+
+	    maxW = Math.max(maxW, width, 7);
+	    maxH = Math.max(maxH, height, 7);
+	  }
+
+	  var dw = maxW / unitW;
+	  var dh = maxH / unitH; // 0/0 is NaN, 1/0 is Infinity.
+
+	  isNaN(dw) && (dw = Infinity);
+	  isNaN(dh) && (dh = Infinity);
+	  var interval = Math.max(0, Math.floor(Math.min(dw, dh)));
+	  var cache = inner(axis.model);
+	  var lastAutoInterval = cache.lastAutoInterval;
+	  var lastTickCount = cache.lastTickCount; // Use cache to keep interval stable while moving zoom window,
+	  // otherwise the calculated interval might jitter when the zoom
+	  // window size is close to the interval-changing size.
+
+	  if (lastAutoInterval != null && lastTickCount != null && Math.abs(lastAutoInterval - interval) <= 1 && Math.abs(lastTickCount - tickCount) <= 1 // Always choose the bigger one, otherwise the critical
+	  // point is not the same when zooming in or zooming out.
+	  && lastAutoInterval > interval) {
+	    interval = lastAutoInterval;
+	  } // Only update cache if cache not used, otherwise the
+	  // changing of interval is too insensitive.
+	  else {
+	      cache.lastTickCount = tickCount;
+	      cache.lastAutoInterval = interval;
+	    }
+
+	  return interval;
+	}
+
+	function fetchAutoCategoryIntervalCalculationParams(axis) {
+	  var labelModel = axis.getLabelModel();
+	  return {
+	    axisRotate: axis.getRotate ? axis.getRotate() : axis.isHorizontal && !axis.isHorizontal() ? 90 : 0,
+	    labelRotate: labelModel.get('rotate') || 0,
+	    font: labelModel.getFont()
+	  };
+	}
+
+	function makeLabelsByNumericCategoryInterval(axis, categoryInterval, onlyTick) {
+	  var labelFormatter = makeLabelFormatter(axis);
+	  var ordinalScale = axis.scale;
+	  var ordinalExtent = ordinalScale.getExtent();
+	  var labelModel = axis.getLabelModel();
+	  var result = []; // TODO: axisType: ordinalTime, pick the tick from each month/day/year/...
+
+	  var step = Math.max((categoryInterval || 0) + 1, 1);
+	  var startTick = ordinalExtent[0];
+	  var tickCount = ordinalScale.count(); // Calculate start tick based on zero if possible to keep label consistent
+	  // while zooming and moving while interval > 0. Otherwise the selection
+	  // of displayable ticks and symbols probably keep changing.
+	  // 3 is empirical value.
+
+	  if (startTick !== 0 && step > 1 && tickCount / step > 2) {
+	    startTick = Math.round(Math.ceil(startTick / step) * step);
+	  } // (1) Only add min max label here but leave overlap checking
+	  // to render stage, which also ensure the returned list
+	  // suitable for splitLine and splitArea rendering.
+	  // (2) Scales except category always contain min max label so
+	  // do not need to perform this process.
+
+
+	  var showMinMax = {
+	    min: labelModel.get('showMinLabel'),
+	    max: labelModel.get('showMaxLabel')
+	  };
+
+	  if (showMinMax.min && startTick !== ordinalExtent[0]) {
+	    addItem(ordinalExtent[0]);
+	  } // Optimize: avoid generating large array by `ordinalScale.getTicks()`.
+
+
+	  var tickValue = startTick;
+
+	  for (; tickValue <= ordinalExtent[1]; tickValue += step) {
+	    addItem(tickValue);
+	  }
+
+	  if (showMinMax.max && tickValue !== ordinalExtent[1]) {
+	    addItem(ordinalExtent[1]);
+	  }
+
+	  function addItem(tVal) {
+	    result.push(onlyTick ? tVal : {
+	      formattedLabel: labelFormatter(tVal),
+	      rawLabel: ordinalScale.getLabel(tVal),
+	      tickValue: tVal
+	    });
+	  }
+
+	  return result;
+	} // When interval is function, the result `false` means ignore the tick.
+	// It is time consuming for large category data.
+
+
+	function makeLabelsByCustomizedCategoryInterval(axis, categoryInterval, onlyTick) {
+	  var ordinalScale = axis.scale;
+	  var labelFormatter = makeLabelFormatter(axis);
+	  var result = [];
+	  zrUtil.each(ordinalScale.getTicks(), function (tickValue) {
+	    var rawLabel = ordinalScale.getLabel(tickValue);
+
+	    if (categoryInterval(tickValue, rawLabel)) {
+	      result.push(onlyTick ? tickValue : {
+	        formattedLabel: labelFormatter(tickValue),
+	        rawLabel: rawLabel,
+	        tickValue: tickValue
+	      });
+	    }
+	  });
+	  return result;
+	} // Can be null|'auto'|number|function
+
+
+	function getOptionCategoryInterval(model) {
+	  var interval = model.get('interval');
+	  return interval == null ? 'auto' : interval;
+	}
+
+	exports.createAxisLabels = createAxisLabels;
+	exports.createAxisTicks = createAxisTicks;
+	exports.calculateCategoryInterval = calculateCategoryInterval;
+
+/***/ },
+/* 144 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	__webpack_require__(143);
+	__webpack_require__(145);
 
-	__webpack_require__(144);
+	__webpack_require__(146);
 
-	var visualSymbol = __webpack_require__(151);
+	var visualSymbol = __webpack_require__(153);
 
-	var layoutPoints = __webpack_require__(152);
+	var layoutPoints = __webpack_require__(154);
 
-	var dataSample = __webpack_require__(153);
+	var dataSample = __webpack_require__(155);
 
-	__webpack_require__(154);
+	__webpack_require__(156);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// In case developer forget to include grid component
 	echarts.registerVisual(visualSymbol('line', 'circle', 'line'));
 	echarts.registerLayout(layoutPoints('line')); // Down sample after filter
@@ -32294,17 +34371,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	echarts.registerProcessor(echarts.PRIORITY.PROCESSOR.STATISTIC, dataSample('line'));
 
 /***/ },
-/* 143 */
+/* 145 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
 
 	var __DEV__ = _config.__DEV__;
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
 	var SeriesModel = __webpack_require__(103);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.line',
 	  dependencies: ['grid', 'polar'],
@@ -32313,9 +34408,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 	  defaultOption: {
 	    zlevel: 0,
-	    // 一级层叠
 	    z: 2,
-	    // 二级层叠
 	    coordinateSystem: 'cartesian2d',
 	    legendHoverLink: true,
 	    hoverAnimation: true,
@@ -32347,19 +34440,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // Disabled if step is true
 	    smooth: false,
 	    smoothMonotone: null,
-	    // 拐点图形类型
 	    symbol: 'emptyCircle',
-	    // 拐点图形大小
 	    symbolSize: 4,
-	    // 拐点图形旋转控制
 	    symbolRotate: null,
-	    // 是否显示 symbol, 只有在 tooltip hover 的时候显示
 	    showSymbol: true,
-	    // 标志图形默认只有主轴显示（随主轴标签间隔隐藏策略）
-	    showAllSymbol: false,
-	    // 是否连接断点
+	    // `false`: follow the label interval strategy.
+	    // `true`: show all symbols.
+	    // `'auto'`: If possible, show all symbols, otherwise
+	    //           follow the label interval strategy.
+	    showAllSymbol: 'auto',
+	    // Whether to connect break point.
 	    connectNulls: false,
-	    // 数据过滤，'average', 'max', 'min', 'sum'
+	    // Sampling for large data. Can be: 'average', 'max', 'min', 'sum'.
 	    sampling: 'none',
 	    animationEasing: 'linear',
 	    // Disable progressive
@@ -32371,7 +34463,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 144 */
+/* 146 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
@@ -32380,28 +34472,50 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var SymbolDraw = __webpack_require__(145);
+	var SymbolDraw = __webpack_require__(147);
 
-	var SymbolClz = __webpack_require__(146);
+	var SymbolClz = __webpack_require__(148);
 
-	var lineAnimationDiff = __webpack_require__(148);
+	var lineAnimationDiff = __webpack_require__(150);
 
 	var graphic = __webpack_require__(51);
 
 	var modelUtil = __webpack_require__(44);
 
-	var _poly = __webpack_require__(150);
+	var _poly = __webpack_require__(152);
 
 	var Polyline = _poly.Polyline;
 	var Polygon = _poly.Polygon;
 
 	var ChartView = __webpack_require__(108);
 
-	var _helper = __webpack_require__(149);
+	var _number = __webpack_require__(88);
+
+	var round = _number.round;
+
+	var _helper = __webpack_require__(151);
 
 	var prepareDataCoordInfo = _helper.prepareDataCoordInfo;
 	var getStackedOnPoint = _helper.getStackedOnPoint;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// FIXME step not support polar
 	function isPointsSame(points1, points2) {
 	  if (points1.length !== points2.length) {
@@ -32459,24 +34573,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return points;
 	}
 
-	function createGridClipShape(cartesian, hasAnimation, seriesModel) {
+	function createGridClipShape(cartesian, hasAnimation, forSymbol, seriesModel) {
 	  var xExtent = getAxisExtentWithGap(cartesian.getAxis('x'));
 	  var yExtent = getAxisExtentWithGap(cartesian.getAxis('y'));
 	  var isHorizontal = cartesian.getBaseAxis().isHorizontal();
 	  var x = Math.min(xExtent[0], xExtent[1]);
 	  var y = Math.min(yExtent[0], yExtent[1]);
 	  var width = Math.max(xExtent[0], xExtent[1]) - x;
-	  var height = Math.max(yExtent[0], yExtent[1]) - y;
-	  var lineWidth = seriesModel.get('lineStyle.width') || 2; // Expand clip shape to avoid clipping when line value exceeds axis
+	  var height = Math.max(yExtent[0], yExtent[1]) - y; // Avoid float number rounding error for symbol on the edge of axis extent.
+	  // See #7913 and `test/dataZoom-clip.html`.
 
-	  var expandSize = seriesModel.get('clipOverflow') ? lineWidth / 2 : Math.max(width, height);
-
-	  if (isHorizontal) {
-	    y -= expandSize;
-	    height += expandSize * 2;
+	  if (forSymbol) {
+	    x -= 0.5;
+	    width += 0.5;
+	    y -= 0.5;
+	    height += 0.5;
 	  } else {
-	    x -= expandSize;
-	    width += expandSize * 2;
+	    var lineWidth = seriesModel.get('lineStyle.width') || 2; // Expand clip shape to avoid clipping when line value exceeds axis
+
+	    var expandSize = seriesModel.get('clipOverflow') ? lineWidth / 2 : Math.max(width, height);
+
+	    if (isHorizontal) {
+	      y -= expandSize;
+	      height += expandSize * 2;
+	    } else {
+	      x -= expandSize;
+	      width += expandSize * 2;
+	    }
 	  }
 
 	  var clipPath = new graphic.Rect({
@@ -32501,18 +34624,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return clipPath;
 	}
 
-	function createPolarClipShape(polar, hasAnimation, seriesModel) {
+	function createPolarClipShape(polar, hasAnimation, forSymbol, seriesModel) {
 	  var angleAxis = polar.getAngleAxis();
 	  var radiusAxis = polar.getRadiusAxis();
-	  var radiusExtent = radiusAxis.getExtent();
+	  var radiusExtent = radiusAxis.getExtent().slice();
+	  radiusExtent[0] > radiusExtent[1] && radiusExtent.reverse();
 	  var angleExtent = angleAxis.getExtent();
-	  var RADIAN = Math.PI / 180;
+	  var RADIAN = Math.PI / 180; // Avoid float number rounding error for symbol on the edge of axis extent.
+
+	  if (forSymbol) {
+	    radiusExtent[0] -= 0.5;
+	    radiusExtent[1] += 0.5;
+	  }
+
 	  var clipPath = new graphic.Sector({
 	    shape: {
-	      cx: polar.cx,
-	      cy: polar.cy,
-	      r0: radiusExtent[0],
-	      r: radiusExtent[1],
+	      cx: round(polar.cx, 1),
+	      cy: round(polar.cy, 1),
+	      r0: round(radiusExtent[0], 1),
+	      r: round(radiusExtent[1], 1),
 	      startAngle: -angleExtent[0] * RADIAN,
 	      endAngle: -angleExtent[1] * RADIAN,
 	      clockwise: angleAxis.inverse
@@ -32531,8 +34661,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return clipPath;
 	}
 
-	function createClipShape(coordSys, hasAnimation, seriesModel) {
-	  return coordSys.type === 'polar' ? createPolarClipShape(coordSys, hasAnimation, seriesModel) : createGridClipShape(coordSys, hasAnimation, seriesModel);
+	function createClipShape(coordSys, hasAnimation, forSymbol, seriesModel) {
+	  return coordSys.type === 'polar' ? createPolarClipShape(coordSys, hasAnimation, forSymbol, seriesModel) : createGridClipShape(coordSys, hasAnimation, forSymbol, seriesModel);
 	}
 
 	function turnPointsIntoStep(points, coordSys, stepTurnAt) {
@@ -32663,6 +34793,63 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return gradient;
 	}
 
+	function getIsIgnoreFunc(seriesModel, data, coordSys) {
+	  var showAllSymbol = seriesModel.get('showAllSymbol');
+	  var isAuto = showAllSymbol === 'auto';
+
+	  if (showAllSymbol && !isAuto) {
+	    return;
+	  }
+
+	  var categoryAxis = coordSys.getAxesByScale('ordinal')[0];
+
+	  if (!categoryAxis) {
+	    return;
+	  } // Note that category label interval strategy might bring some weird effect
+	  // in some scenario: users may wonder why some of the symbols are not
+	  // displayed. So we show all symbols as possible as we can.
+
+
+	  if (isAuto // Simplify the logic, do not determine label overlap here.
+	  && canShowAllSymbolForCategory(categoryAxis, data)) {
+	    return;
+	  } // Otherwise follow the label interval strategy on category axis.
+
+
+	  var categoryDataDim = data.mapDimension(categoryAxis.dim);
+	  var labelMap = {};
+	  zrUtil.each(categoryAxis.getViewLabels(), function (labelItem) {
+	    labelMap[labelItem.tickValue] = 1;
+	  });
+	  return function (dataIndex) {
+	    return !labelMap.hasOwnProperty(data.get(categoryDataDim, dataIndex));
+	  };
+	}
+
+	function canShowAllSymbolForCategory(categoryAxis, data) {
+	  // In mose cases, line is monotonous on category axis, and the label size
+	  // is close with each other. So we check the symbol size and some of the
+	  // label size alone with the category axis to estimate whether all symbol
+	  // can be shown without overlap.
+	  var axisExtent = categoryAxis.getExtent();
+	  var availSize = Math.abs(axisExtent[1] - axisExtent[0]) / categoryAxis.scale.count();
+	  isNaN(availSize) && (availSize = 0); // 0/0 is NaN.
+	  // Sampling some points, max 5.
+
+	  var dataLen = data.count();
+	  var step = Math.max(1, Math.round(dataLen / 5));
+
+	  for (var dataIndex = 0; dataIndex < dataLen; dataIndex += step) {
+	    if (SymbolClz.getSymbolSize(data, dataIndex // Only for cartesian, where `isHorizontal` exists.
+	    )[categoryAxis.isHorizontal() ? 1 : 0] // Empirical number
+	    * 1.5 > availSize) {
+	      return false;
+	    }
+	  }
+
+	  return true;
+	}
+
 	var _default = ChartView.extend({
 	  type: 'line',
 	  init: function () {
@@ -32691,9 +34878,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var dataCoordInfo = prepareDataCoordInfo(coordSys, data, valueOrigin);
 	    var stackedOnPoints = getStackedOnPoints(coordSys, data, dataCoordInfo);
 	    var showSymbol = seriesModel.get('showSymbol');
-
-	    var isSymbolIgnore = showSymbol && !isCoordSysPolar && !seriesModel.get('showAllSymbol') && this._getSymbolIgnoreFunc(data, coordSys); // Remove temporary symbols
-
+	    var isIgnoreFunc = showSymbol && !isCoordSysPolar && getIsIgnoreFunc(seriesModel, data, coordSys); // Remove temporary symbols
 
 	    var oldData = this._data;
 	    oldData && oldData.eachItemGraphicEl(function (el, idx) {
@@ -32713,8 +34898,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    if (!(polyline && prevCoordSys.type === coordSys.type && step === this._step)) {
 	      showSymbol && symbolDraw.updateData(data, {
-	        isIgnore: isSymbolIgnore,
-	        clipShape: createClipShape(coordSys, false, seriesModel)
+	        isIgnore: isIgnoreFunc,
+	        clipShape: createClipShape(coordSys, false, true, seriesModel)
 	      });
 
 	      if (step) {
@@ -32729,7 +34914,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        polygon = this._newPolygon(points, stackedOnPoints, coordSys, hasAnimation);
 	      }
 
-	      lineGroup.setClipPath(createClipShape(coordSys, true, seriesModel));
+	      lineGroup.setClipPath(createClipShape(coordSys, true, false, seriesModel));
 	    } else {
 	      if (isAreaChart && !polygon) {
 	        // If areaStyle is added
@@ -32738,16 +34923,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // If areaStyle is removed
 	        lineGroup.remove(polygon);
 	        polygon = this._polygon = null;
-	      }
+	      } // Update clipPath
 
-	      var coordSysClipShape = createClipShape(coordSys, false, seriesModel); // Update clipPath
 
-	      lineGroup.setClipPath(coordSysClipShape); // Always update, or it is wrong in the case turning on legend
+	      lineGroup.setClipPath(createClipShape(coordSys, false, false, seriesModel)); // Always update, or it is wrong in the case turning on legend
 	      // because points are not changed
 
 	      showSymbol && symbolDraw.updateData(data, {
-	        isIgnore: isSymbolIgnore,
-	        clipShape: coordSysClipShape
+	        isIgnore: isIgnoreFunc,
+	        clipShape: createClipShape(coordSys, false, true, seriesModel)
 	      }); // Stop symbol animation and sync with line points
 	      // FIXME performance?
 
@@ -32935,17 +35119,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  /**
 	   * @private
 	   */
-	  _getSymbolIgnoreFunc: function (data, coordSys) {
-	    var categoryAxis = coordSys.getAxesByScale('ordinal')[0]; // `getLabelInterval` is provided by echarts/component/axis
-
-	    if (categoryAxis && categoryAxis.isLabelIgnored) {
-	      return zrUtil.bind(categoryAxis.isLabelIgnored, categoryAxis);
-	    }
-	  },
-
-	  /**
-	   * @private
-	   */
 	  // FIXME Two value axis
 	  _updateAnimation: function (data, stackedOnPoints, coordSys, api, step, valueOrigin) {
 	    var polyline = this._polyline;
@@ -33039,16 +35212,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 145 */
+/* 147 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var graphic = __webpack_require__(51);
 
-	var SymbolClz = __webpack_require__(146);
+	var SymbolClz = __webpack_require__(148);
 
 	var _util = __webpack_require__(6);
 
 	var isObject = _util.isObject;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @module echarts/chart/helper/SymbolDraw
@@ -33067,8 +35259,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	var symbolDrawProto = SymbolDraw.prototype;
 
 	function symbolNeedsDraw(data, point, idx, opt) {
-	  return point && !isNaN(point[0]) && !isNaN(point[1]) && !(opt.isIgnore && opt.isIgnore(idx)) // We do not set clipShape on group, because it will
-	  // cut part of the symbol element shape.
+	  return point && !isNaN(point[0]) && !isNaN(point[1]) && !(opt.isIgnore && opt.isIgnore(idx)) // We do not set clipShape on group, because it will cut part of
+	  // the symbol element shape. We use the same clip shape here as
+	  // the line clip.
 	  && !(opt.clipShape && !opt.clipShape.contain(point[0], point[1])) && data.getItemVisual(idx, 'symbol') !== 'none';
 	}
 	/**
@@ -33228,12 +35421,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 146 */
+/* 148 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
@@ -33243,21 +35436,33 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var parsePercent = _number.parsePercent;
 
-	var _labelHelper = __webpack_require__(147);
+	var _labelHelper = __webpack_require__(149);
 
 	var getDefaultLabel = _labelHelper.getDefaultLabel;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @module echarts/chart/helper/Symbol
 	 */
-	function getSymbolSize(data, idx) {
-	  var symbolSize = data.getItemVisual(idx, 'symbolSize');
-	  return symbolSize instanceof Array ? symbolSize.slice() : [+symbolSize, +symbolSize];
-	}
 
-	function getScale(symbolSize) {
-	  return [symbolSize[0] / 2, symbolSize[1] / 2];
-	}
 	/**
 	 * @constructor
 	 * @alias {module:echarts/chart/helper/Symbol}
@@ -33265,20 +35470,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {number} idx
 	 * @extends {module:zrender/graphic/Group}
 	 */
-
-
 	function SymbolClz(data, idx, seriesScope) {
 	  graphic.Group.call(this);
 	  this.updateData(data, idx, seriesScope);
 	}
 
 	var symbolProto = SymbolClz.prototype;
+	/**
+	 * @public
+	 * @static
+	 * @param {module:echarts/data/List} data
+	 * @param {number} dataIndex
+	 * @return {Array.<number>} [width, height]
+	 */
+
+	var getSymbolSize = SymbolClz.getSymbolSize = function (data, idx) {
+	  var symbolSize = data.getItemVisual(idx, 'symbolSize');
+	  return symbolSize instanceof Array ? symbolSize.slice() : [+symbolSize, +symbolSize];
+	};
+
+	function getScale(symbolSize) {
+	  return [symbolSize[0] / 2, symbolSize[1] / 2];
+	}
 
 	function driftSymbol(dx, dy) {
 	  this.parent.drift(dx, dy);
 	}
 
-	symbolProto._createSymbol = function (symbolType, data, idx, symbolSize) {
+	symbolProto._createSymbol = function (symbolType, data, idx, symbolSize, keepAspect) {
 	  // Remove paths created before
 	  this.removeAll();
 	  var color = data.getItemVisual(idx, 'color'); // var symbolPath = createSymbol(
@@ -33288,7 +35507,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // and macOS Sierra, a circle stroke become a rect, no matter what
 	  // the scale is set. So we set width/height as 2. See #4150.
 
-	  var symbolPath = createSymbol(symbolType, -1, -1, 2, 2, color);
+	  var symbolPath = createSymbol(symbolType, -1, -1, 2, 2, color, keepAspect);
 	  symbolPath.attr({
 	    z2: 100,
 	    culling: true,
@@ -33391,7 +35610,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var isInit = symbolType !== this._symbolType;
 
 	  if (isInit) {
-	    this._createSymbol(symbolType, data, idx, symbolSize);
+	    var keepAspect = data.getItemVisual(idx, 'symbolKeepAspect');
+
+	    this._createSymbol(symbolType, data, idx, symbolSize, keepAspect);
 	  } else {
 	    var symbolPath = this.childAt(0);
 	    symbolPath.silent = false;
@@ -33484,6 +35705,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	    elStyle.opacity = opacity;
 	  }
 
+	  var liftZ = data.getItemVisual(idx, 'liftZ');
+	  var z2Origin = symbolPath.__z2Origin;
+
+	  if (liftZ != null) {
+	    if (z2Origin == null) {
+	      symbolPath.__z2Origin = symbolPath.z2;
+	      symbolPath.z2 += liftZ;
+	    }
+	  } else if (z2Origin != null) {
+	    symbolPath.z2 = z2Origin;
+	    symbolPath.__z2Origin = null;
+	  }
+
 	  var useNameLabel = seriesScope && seriesScope.useNameLabel;
 	  graphic.setLabelStyle(elStyle, hoverItemStyle, labelModel, hoverLabelModel, {
 	    labelFetcher: seriesModel,
@@ -33557,12 +35791,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 147 */
+/* 149 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _dataProvider = __webpack_require__(105);
 
 	var retrieveRawValue = _dataProvider.retrieveRawValue;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {module:echarts/data/List} data
@@ -33590,14 +35843,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.getDefaultLabel = getDefaultLabel;
 
 /***/ },
-/* 148 */
+/* 150 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _helper = __webpack_require__(149);
+	var _helper = __webpack_require__(151);
 
 	var prepareDataCoordInfo = _helper.prepareDataCoordInfo;
 	var getStackedOnPoint = _helper.getStackedOnPoint;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// var arrayDiff = require('zrender/src/core/arrayDiff');
 	// 'zrender/src/core/arrayDiff' has been used before, but it did
 	// not do well in performance when roam with fixed dataZoom window.
@@ -33748,16 +36019,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 149 */
+/* 151 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var isDimensionStacked = _dataStackHelper.isDimensionStacked;
 
 	var _util = __webpack_require__(6);
 
 	var map = _util.map;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {Object} coordSys
@@ -33773,16 +36063,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var valueDim = data.mapDimension(valueAxisDim);
 	  var baseDim = data.mapDimension(baseAxisDim);
 	  var baseDataOffset = valueAxisDim === 'x' || valueAxisDim === 'radius' ? 1 : 0;
-	  var stacked = isDimensionStacked(data, valueDim, baseDim);
-	  var dataDimsForPoint = map(coordSys.dimensions, function (coordDim) {
+	  var dims = map(coordSys.dimensions, function (coordDim) {
 	    return data.mapDimension(coordDim);
 	  });
+	  var stacked;
+	  var stackResultDim = data.getCalculationInfo('stackResultDimension');
+
+	  if (stacked |= isDimensionStacked(data, dims[0], dims[1])) {
+	    // jshint ignore:line
+	    dims[0] = stackResultDim;
+	  }
+
+	  if (stacked |= isDimensionStacked(data, dims[1], dims[0])) {
+	    // jshint ignore:line
+	    dims[1] = stackResultDim;
+	  }
+
 	  return {
-	    dataDimsForPoint: dataDimsForPoint,
+	    dataDimsForPoint: dims,
 	    valueStart: valueStart,
 	    valueAxisDim: valueAxisDim,
 	    baseAxisDim: baseAxisDim,
-	    stacked: stacked,
+	    stacked: !!stacked,
 	    valueDim: valueDim,
 	    baseDim: baseDim,
 	    baseDataOffset: baseDataOffset,
@@ -33835,7 +36137,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.getStackedOnPoint = getStackedOnPoint;
 
 /***/ },
-/* 150 */
+/* 152 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var Path = __webpack_require__(53);
@@ -33844,6 +36146,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var fixClipWithShadow = __webpack_require__(68);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Poly path support NaN point
 	var vec2Min = vec2.min;
 	var vec2Max = vec2.max;
@@ -34175,22 +36495,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.Polygon = Polygon;
 
 /***/ },
-/* 151 */
+/* 153 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(seriesType, defaultSymbolType, legendSymbol) {
 	  // Encoding visual for all series include which is filtered for legend drawing
 	  return {
 	    seriesType: seriesType,
+	    // For legend.
 	    performRawSeries: true,
 	    reset: function (seriesModel, ecModel, api) {
 	      var data = seriesModel.getData();
 	      var symbolType = seriesModel.get('symbol') || defaultSymbolType;
 	      var symbolSize = seriesModel.get('symbolSize');
+	      var keepAspect = seriesModel.get('symbolKeepAspect');
 	      data.setVisual({
 	        legendSymbol: legendSymbol || symbolType,
 	        symbol: symbolType,
-	        symbolSize: symbolSize
+	        symbolSize: symbolSize,
+	        symbolKeepAspect: keepAspect
 	      }); // Only visible series has each data be visual encoded
 
 	      if (ecModel.isSeriesFiltered(seriesModel)) {
@@ -34210,7 +36551,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if (data.hasItemOption) {
 	          var itemModel = data.getItemModel(idx);
 	          var itemSymbolType = itemModel.getShallow('symbol', true);
-	          var itemSymbolSize = itemModel.getShallow('symbolSize', true); // If has item symbol
+	          var itemSymbolSize = itemModel.getShallow('symbolSize', true);
+	          var itemSymbolKeepAspect = itemModel.getShallow('symbolKeepAspect', true); // If has item symbol
 
 	          if (itemSymbolType != null) {
 	            data.setItemVisual(idx, 'symbol', itemSymbolType);
@@ -34219,6 +36561,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	          if (itemSymbolSize != null) {
 	            // PENDING Transform symbolSize ?
 	            data.setItemVisual(idx, 'symbolSize', itemSymbolSize);
+	          }
+
+	          if (itemSymbolKeepAspect != null) {
+	            data.setItemVisual(idx, 'symbolKeepAspect', itemSymbolKeepAspect);
 	          }
 	        }
 	      }
@@ -34233,7 +36579,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 152 */
+/* 154 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
@@ -34242,10 +36588,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createRenderPlanner = __webpack_require__(109);
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var isDimensionStacked = _dataStackHelper.isDimensionStacked;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(seriesType) {
 	  return {
 	    seriesType: seriesType,
@@ -34264,13 +36628,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return data.mapDimension(dim);
 	      }).slice(0, 2);
 	      var dimLen = dims.length;
+	      var stackResultDim = data.getCalculationInfo('stackResultDimension');
 
 	      if (isDimensionStacked(data, dims[0], dims[1])) {
-	        dims[0] = data.getCalculationInfo('stackResultDimension');
+	        dims[0] = stackResultDim;
 	      }
 
 	      if (isDimensionStacked(data, dims[1], dims[0])) {
-	        dims[1] = data.getCalculationInfo('stackResultDimension');
+	        dims[1] = stackResultDim;
 	      }
 
 	      function progress(params, data) {
@@ -34281,11 +36646,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	          var point;
 
 	          if (dimLen === 1) {
-	            var x = data.get(dims[0], i, true);
+	            var x = data.get(dims[0], i);
 	            point = !isNaN(x) && coordSys.dataToPoint(x, null, tmpOut);
 	          } else {
-	            var x = tmpIn[0] = data.get(dims[0], i, true);
-	            var y = tmpIn[1] = data.get(dims[1], i, true); // Also {Array.<number>}, not undefined to avoid if...else... statement
+	            var x = tmpIn[0] = data.get(dims[0], i);
+	            var y = tmpIn[1] = data.get(dims[1], i); // Also {Array.<number>}, not undefined to avoid if...else... statement
 
 	            point = !isNaN(x) && !isNaN(y) && coordSys.dataToPoint(tmpIn, null, tmpOut);
 	          }
@@ -34311,9 +36676,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 153 */
+/* 155 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var samplers = {
 	  average: function (frame) {
 	    var sum = 0;
@@ -34344,18 +36727,20 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    for (var i = 0; i < frame.length; i++) {
 	      frame[i] > max && (max = frame[i]);
-	    }
+	    } // NaN will cause illegal axis extent.
 
-	    return max;
+
+	    return isFinite(max) ? max : NaN;
 	  },
 	  min: function (frame) {
 	    var min = Infinity;
 
 	    for (var i = 0; i < frame.length; i++) {
 	      frame[i] < min && (min = frame[i]);
-	    }
+	    } // NaN will cause illegal axis extent.
 
-	    return min;
+
+	    return isFinite(min) ? min : NaN;
 	  },
 	  // TODO
 	  // Median
@@ -34371,6 +36756,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	function _default(seriesType) {
 	  return {
 	    seriesType: seriesType,
+	    modifyOutputEnd: true,
 	    reset: function (seriesModel, ecModel, api) {
 	      var data = seriesModel.getData();
 	      var sampling = seriesModel.get('sampling');
@@ -34394,7 +36780,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          }
 
 	          if (sampler) {
-	            seriesModel.setData(data.downSample(valueAxis.dim, 1 / rate, sampler, indexSampler));
+	            // Only support sample the first dim mapped from value axis.
+	            seriesModel.setData(data.downSample(data.mapDimension(valueAxis.dim), 1 / rate, sampler, indexSampler));
 	          }
 	        }
 	      }
@@ -34405,7 +36792,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 154 */
+/* 156 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
@@ -34414,10 +36801,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	__webpack_require__(155);
+	__webpack_require__(157);
 
-	__webpack_require__(163);
+	__webpack_require__(165);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Grid view
 	echarts.extendComponentView({
 	  type: 'grid',
@@ -34444,30 +36849,58 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 155 */
+/* 157 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
 
 	var __DEV__ = _config.__DEV__;
 
-	var zrUtil = __webpack_require__(6);
+	var _util = __webpack_require__(6);
 
-	var BoundingRect = __webpack_require__(24);
+	var isObject = _util.isObject;
+	var each = _util.each;
+	var map = _util.map;
+	var indexOf = _util.indexOf;
+	var retrieve = _util.retrieve;
 
 	var _layout = __webpack_require__(87);
 
 	var getLayoutRect = _layout.getLayoutRect;
 
-	var axisHelper = __webpack_require__(127);
+	var _axisHelper = __webpack_require__(128);
 
-	var Cartesian2D = __webpack_require__(156);
+	var createScaleByModel = _axisHelper.createScaleByModel;
+	var ifAxisCrossZero = _axisHelper.ifAxisCrossZero;
+	var niceScaleExtent = _axisHelper.niceScaleExtent;
+	var estimateLabelUnionRect = _axisHelper.estimateLabelUnionRect;
 
-	var Axis2D = __webpack_require__(158);
+	var Cartesian2D = __webpack_require__(158);
+
+	var Axis2D = __webpack_require__(160);
 
 	var CoordinateSystem = __webpack_require__(98);
 
-	__webpack_require__(159);
+	__webpack_require__(161);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Grid is a region which contains at most 4 cartesian systems
@@ -34475,51 +36908,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * TODO Default cartesian
 	 */
 	// Depends on GridModel, AxisModel, which performs preprocess.
-	var each = zrUtil.each;
-	var ifAxisCrossZero = axisHelper.ifAxisCrossZero;
-	var niceScaleExtent = axisHelper.niceScaleExtent;
+
 	/**
 	 * Check if the axis is used in the specified grid
 	 * @inner
 	 */
-
 	function isAxisUsedInTheGrid(axisModel, gridModel, ecModel) {
 	  return axisModel.getCoordSysModel() === gridModel;
-	}
-
-	function rotateTextRect(textRect, rotate) {
-	  var rotateRadians = rotate * Math.PI / 180;
-	  var boundingBox = textRect.plain();
-	  var beforeWidth = boundingBox.width;
-	  var beforeHeight = boundingBox.height;
-	  var afterWidth = beforeWidth * Math.cos(rotateRadians) + beforeHeight * Math.sin(rotateRadians);
-	  var afterHeight = beforeWidth * Math.sin(rotateRadians) + beforeHeight * Math.cos(rotateRadians);
-	  var rotatedRect = new BoundingRect(boundingBox.x, boundingBox.y, afterWidth, afterHeight);
-	  return rotatedRect;
-	}
-
-	function getLabelUnionRect(axis) {
-	  var axisModel = axis.model;
-	  var labels = axisModel.get('axisLabel.show') ? axisModel.getFormattedLabels() : [];
-	  var axisLabelModel = axisModel.getModel('axisLabel');
-	  var rect;
-	  var step = 1;
-	  var labelCount = labels.length;
-
-	  if (labelCount > 40) {
-	    // Simple optimization for large amount of labels
-	    step = Math.ceil(labelCount / 40);
-	  }
-
-	  for (var i = 0; i < labelCount; i += step) {
-	    if (!axis.isLabelIgnored(i)) {
-	      var unrotatedSingleRect = axisLabelModel.getTextRect(labels[i]);
-	      var singleRect = rotateTextRect(unrotatedSingleRect, axisLabelModel.get('rotate') || 0);
-	      rect ? rect.union(singleRect) : rect = singleRect;
-	    }
-	  }
-
-	  return rect;
 	}
 
 	function Grid(gridModel, ecModel, api) {
@@ -34583,47 +36978,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 	function fixAxisOnZero(axesMap, otherAxisDim, axis) {
-	  // onZero can not be enabled in these two situations:
+	  axis.getAxesOnZeroOf = function () {
+	    // TODO: onZero of multiple axes.
+	    return otherAxis ? [otherAxis] : [];
+	  }; // onZero can not be enabled in these two situations:
 	  // 1. When any other axis is a category axis.
 	  // 2. When no axis is cross 0 point.
-	  var axes = axesMap[otherAxisDim];
 
-	  if (!axis.onZero) {
+
+	  var otherAxes = axesMap[otherAxisDim];
+	  var otherAxis;
+	  var axisModel = axis.model;
+	  var onZero = axisModel.get('axisLine.onZero');
+	  var onZeroAxisIndex = axisModel.get('axisLine.onZeroAxisIndex');
+
+	  if (!onZero) {
 	    return;
-	  }
+	  } // If target axis is specified.
 
-	  var onZeroAxisIndex = axis.onZeroAxisIndex; // If target axis is specified.
 
 	  if (onZeroAxisIndex != null) {
-	    var otherAxis = axes[onZeroAxisIndex];
-
-	    if (otherAxis && canNotOnZeroToAxis(otherAxis)) {
-	      axis.onZero = false;
+	    if (canOnZeroToAxis(otherAxes[onZeroAxisIndex])) {
+	      otherAxis = otherAxes[onZeroAxisIndex];
 	    }
 
 	    return;
-	  }
+	  } // Find the first available other axis.
 
-	  for (var idx in axes) {
-	    if (axes.hasOwnProperty(idx)) {
-	      var otherAxis = axes[idx];
 
-	      if (otherAxis && !canNotOnZeroToAxis(otherAxis)) {
-	        onZeroAxisIndex = +idx;
-	        break;
-	      }
+	  for (var idx in otherAxes) {
+	    if (otherAxes.hasOwnProperty(idx) && canOnZeroToAxis(otherAxes[idx])) {
+	      otherAxis = otherAxes[idx];
+	      break;
 	    }
 	  }
-
-	  if (onZeroAxisIndex == null) {
-	    axis.onZero = false;
-	  }
-
-	  axis.onZeroAxisIndex = onZeroAxisIndex;
 	}
 
-	function canNotOnZeroToAxis(axis) {
-	  return axis.type === 'category' || axis.type === 'time' || !ifAxisCrossZero(axis);
+	function canOnZeroToAxis(axis) {
+	  return axis && axis.type !== 'category' && axis.type !== 'time' && ifAxisCrossZero(axis);
 	}
 	/**
 	 * Resize the grid
@@ -34644,7 +37036,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (!ignoreContainLabel && gridModel.get('containLabel')) {
 	    each(axesList, function (axis) {
 	      if (!axis.model.get('axisLabel.inside')) {
-	        var labelUnionRect = getLabelUnionRect(axis);
+	        var labelUnionRect = estimateLabelUnionRect(axis);
 
 	        if (labelUnionRect) {
 	          var dim = axis.isHorizontal() ? 'height' : 'width';
@@ -34720,7 +37112,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return this._coordsMap[key];
 	  }
 
-	  if (zrUtil.isObject(xAxisIndex)) {
+	  if (isObject(xAxisIndex)) {
 	    yAxisIndex = xAxisIndex.yAxisIndex;
 	    xAxisIndex = xAxisIndex.xAxisIndex;
 	  } // When only xAxisIndex or yAxisIndex given, find its first cartesian.
@@ -34774,7 +37166,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  if (seriesModel) {
 	    cartesian = seriesModel.coordinateSystem;
-	    zrUtil.indexOf(coordsList, cartesian) < 0 && (cartesian = null);
+	    indexOf(coordsList, cartesian) < 0 && (cartesian = null);
 	  } else if (xAxisModel && yAxisModel) {
 	    cartesian = this.getCartesian(xAxisModel.componentIndex, yAxisModel.componentIndex);
 	  } else if (xAxisModel) {
@@ -34888,12 +37280,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 
 	      axisPositionUsed[axisPosition] = true;
-	      var axis = new Axis2D(axisType, axisHelper.createScaleByModel(axisModel), [0, 0], axisModel.get('type'), axisPosition);
+	      var axis = new Axis2D(axisType, createScaleByModel(axisModel), [0, 0], axisModel.get('type'), axisPosition);
 	      var isCategory = axis.type === 'category';
 	      axis.onBand = isCategory && axisModel.get('boundaryGap');
-	      axis.inverse = axisModel.get('inverse');
-	      axis.onZero = axisModel.get('axisLine.onZero');
-	      axis.onZeroAxisIndex = axisModel.get('axisLine.onZeroAxisIndex'); // Inject axis into axisModel
+	      axis.inverse = axisModel.get('inverse'); // Inject axis into axisModel
 
 	      axisModel.axis = axis; // Inject axisModel into axis
 
@@ -34919,7 +37309,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	gridProto._updateScale = function (ecModel, gridModel) {
 	  // Reset scale
-	  zrUtil.each(this._axesList, function (axis) {
+	  each(this._axesList, function (axis) {
 	    axis.scale.setExtent(Infinity, -Infinity);
 	  });
 	  ecModel.eachSeries(function (seriesModel) {
@@ -34962,8 +37352,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  each(this.getCartesians(), function (cartesian) {
 	    var baseAxis = dim != null && dim !== 'auto' ? cartesian.getAxis(dim) : cartesian.getBaseAxis();
 	    var otherAxis = cartesian.getOtherAxis(baseAxis);
-	    zrUtil.indexOf(baseAxes, baseAxis) < 0 && baseAxes.push(baseAxis);
-	    zrUtil.indexOf(otherAxes, otherAxis) < 0 && otherAxes.push(otherAxis);
+	    indexOf(baseAxes, baseAxis) < 0 && baseAxes.push(baseAxis);
+	    indexOf(otherAxes, otherAxis) < 0 && otherAxes.push(otherAxis);
 	  });
 	  return {
 	    baseAxes: baseAxes,
@@ -34997,7 +37387,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	function findAxesModels(seriesModel, ecModel) {
-	  return zrUtil.map(axesTypes, function (axisType) {
+	  return map(axesTypes, function (axisType) {
 	    var axisModel = seriesModel.getReferringComponents(axisType)[0];
 	    return axisModel;
 	  });
@@ -35045,13 +37435,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 156 */
+/* 158 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Cartesian = __webpack_require__(157);
+	var Cartesian = __webpack_require__(159);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function Cartesian2D(name) {
 	  Cartesian.call(this, name);
 	}
@@ -35115,11 +37523,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @return {Array.<number>}
 	   */
 	  clampData: function (data, out) {
-	    var xAxisExtent = this.getAxis('x').scale.getExtent();
-	    var yAxisExtent = this.getAxis('y').scale.getExtent();
+	    var xScale = this.getAxis('x').scale;
+	    var yScale = this.getAxis('y').scale;
+	    var xAxisExtent = xScale.getExtent();
+	    var yAxisExtent = yScale.getExtent();
+	    var x = xScale.parse(data[0]);
+	    var y = yScale.parse(data[1]);
 	    out = out || [];
-	    out[0] = Math.min(Math.max(Math.min(xAxisExtent[0], xAxisExtent[1]), data[0]), Math.max(xAxisExtent[0], xAxisExtent[1]));
-	    out[1] = Math.min(Math.max(Math.min(yAxisExtent[0], yAxisExtent[1]), data[1]), Math.max(yAxisExtent[0], yAxisExtent[1]));
+	    out[0] = Math.min(Math.max(Math.min(xAxisExtent[0], xAxisExtent[1]), x), Math.max(xAxisExtent[0], xAxisExtent[1]));
+	    out[1] = Math.min(Math.max(Math.min(yAxisExtent[0], yAxisExtent[1]), y), Math.max(yAxisExtent[0], yAxisExtent[1]));
 	    return out;
 	  },
 
@@ -35150,10 +37562,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 157 */
+/* 159 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Cartesian coordinate system
@@ -35255,12 +37686,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 158 */
+/* 160 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Extend axis 2d
@@ -35304,10 +37754,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  index: 0,
 
 	  /**
-	   * If axis is on the zero position of the other axis
-	   * @type {boolean}
+	   * Implemented in <module:echarts/coord/cartesian/Grid>.
+	   * @return {Array.<module:echarts/coord/cartesian/Axis2D>}
+	   *         If not on zero of other axis, return null/undefined.
+	   *         If no axes, return an empty array.
 	   */
-	  onZero: false,
+	  getAxesOnZeroOf: null,
 
 	  /**
 	   * Axis model
@@ -35339,19 +37791,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 
 	  /**
-	   * If label is ignored.
-	   * Automatically used when axis is category and label can not be all shown
-	   * @param  {number}  idx
-	   * @return {boolean}
-	   */
-	  isLabelIgnored: function (idx) {
-	    if (this.type === 'category') {
-	      var labelInterval = this.getLabelInterval();
-	      return typeof labelInterval === 'function' && !labelInterval(idx, this.scale.getLabel(idx)) || idx % (labelInterval + 1);
-	    }
-	  },
-
-	  /**
 	   * @override
 	   */
 	  pointToData: function (point, clamp) {
@@ -35379,13 +37818,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 159 */
+/* 161 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(160);
+	__webpack_require__(162);
 
 	var ComponentModel = __webpack_require__(85);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Grid 是在有直角坐标系的时候必须要存在的
 	// 所以这里也要被 Cartesian2D 依赖
 	var _default = ComponentModel.extend({
@@ -35418,17 +37875,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 160 */
+/* 162 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var ComponentModel = __webpack_require__(85);
 
-	var axisModelCreator = __webpack_require__(161);
+	var axisModelCreator = __webpack_require__(163);
 
-	var axisModelCommonMixin = __webpack_require__(136);
+	var axisModelCommonMixin = __webpack_require__(137);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var AxisModel = ComponentModel.extend({
 	  type: 'cartesian2dAxis',
 
@@ -35492,12 +37967,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 161 */
+/* 163 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var axisDefault = __webpack_require__(162);
+	var axisDefault = __webpack_require__(164);
 
 	var ComponentModel = __webpack_require__(85);
 
@@ -35506,8 +37981,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	var getLayoutParams = _layout.getLayoutParams;
 	var mergeLayoutParam = _layout.mergeLayoutParam;
 
-	var OrdinalMeta = __webpack_require__(130);
+	var OrdinalMeta = __webpack_require__(131);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// FIXME axisType is fixed ?
 	var AXIS_TYPES = ['value', 'category', 'time', 'log'];
 	/**
@@ -35553,10 +38046,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	       * Should not be called before all of 'getInitailData' finished.
 	       * Because categories are collected during initializing data.
 	       */
-	      getCategories: function () {
-	        // FIXME
+	      getCategories: function (rawData) {
+	        var option = this.option; // FIXME
 	        // warning if called before all of 'getInitailData' finished.
-	        if (this.option.type === 'category') {
+
+	        if (option.type === 'category') {
+	          if (rawData) {
+	            return option.data;
+	          }
+
 	          return this.__ordinalMeta.categories;
 	        }
 	      },
@@ -35572,103 +38070,104 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 162 */
+/* 164 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var defaultOption = {
 	  show: true,
 	  zlevel: 0,
-	  // 一级层叠
 	  z: 0,
-	  // 二级层叠
-	  // 反向坐标轴
+	  // Inverse the axis.
 	  inverse: false,
-	  // 坐标轴名字，默认为空
+	  // Axis name displayed.
 	  name: '',
-	  // 坐标轴名字位置，支持'start' | 'middle' | 'end'
+	  // 'start' | 'middle' | 'end'
 	  nameLocation: 'end',
-	  // 坐标轴名字旋转，degree。
+	  // By degree. By defualt auto rotate by nameLocation.
 	  nameRotate: null,
-	  // Adapt to axis rotate, when nameLocation is 'middle'.
 	  nameTruncate: {
 	    maxWidth: null,
 	    ellipsis: '...',
 	    placeholder: '.'
 	  },
-	  // 坐标轴文字样式，默认取全局样式
+	  // Use global text style by default.
 	  nameTextStyle: {},
-	  // 文字与轴线距离
+	  // The gap between axisName and axisLine.
 	  nameGap: 15,
+	  // Default `false` to support tooltip.
 	  silent: false,
-	  // Default false to support tooltip.
+	  // Default `false` to avoid legacy user event listener fail.
 	  triggerEvent: false,
-	  // Default false to avoid legacy user event listener fail.
 	  tooltip: {
 	    show: false
 	  },
 	  axisPointer: {},
-	  // 坐标轴线
 	  axisLine: {
-	    // 默认显示，属性show控制显示与否
 	    show: true,
 	    onZero: true,
 	    onZeroAxisIndex: null,
-	    // 属性lineStyle控制线条样式
 	    lineStyle: {
 	      color: '#333',
 	      width: 1,
 	      type: 'solid'
 	    },
-	    // 坐标轴两端的箭头
+	    // The arrow at both ends the the axis.
 	    symbol: ['none', 'none'],
 	    symbolSize: [10, 15]
 	  },
-	  // 坐标轴小标记
 	  axisTick: {
-	    // 属性show控制显示与否，默认显示
 	    show: true,
-	    // 控制小标记是否在grid里
+	    // Whether axisTick is inside the grid or outside the grid.
 	    inside: false,
-	    // 属性length控制线长
+	    // The length of axisTick.
 	    length: 5,
-	    // 属性lineStyle控制线条样式
 	    lineStyle: {
 	      width: 1
 	    }
 	  },
-	  // 坐标轴文本标签，详见axis.axisLabel
 	  axisLabel: {
 	    show: true,
-	    // 控制文本标签是否在grid里
+	    // Whether axisLabel is inside the grid or outside the grid.
 	    inside: false,
 	    rotate: 0,
+	    // true | false | null/undefined (auto)
 	    showMinLabel: null,
-	    // true | false | null (auto)
+	    // true | false | null/undefined (auto)
 	    showMaxLabel: null,
-	    // true | false | null (auto)
 	    margin: 8,
 	    // formatter: null,
-	    // 其余属性默认使用全局文本样式，详见TEXTSTYLE
 	    fontSize: 12
 	  },
-	  // 分隔线
 	  splitLine: {
-	    // 默认显示，属性show控制显示与否
 	    show: true,
-	    // 属性lineStyle（详见lineStyle）控制线条样式
 	    lineStyle: {
 	      color: ['#ccc'],
 	      width: 1,
 	      type: 'solid'
 	    }
 	  },
-	  // 分隔区域
 	  splitArea: {
-	    // 默认不显示，属性show控制显示与否
 	    show: false,
-	    // 属性areaStyle（详见areaStyle）控制区域样式
 	    areaStyle: {
 	      color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
 	    }
@@ -35676,7 +38175,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	var axisDefault = {};
 	axisDefault.categoryAxis = zrUtil.merge({
-	  // 类目起始和结束两端空白策略
+	  // The gap at both ends of the axis. For categoryAxis, boolean.
 	  boundaryGap: true,
 	  // Set false to faster category collection.
 	  // Only usefull in the case like: category is
@@ -35692,39 +38191,48 @@ return /******/ (function(modules) { // webpackBootstrap
 	  splitLine: {
 	    show: false
 	  },
-	  // 坐标轴小标记
 	  axisTick: {
 	    // If tick is align with label when boundaryGap is true
 	    alignWithLabel: false,
 	    interval: 'auto'
 	  },
-	  // 坐标轴文本标签，详见axis.axisLabel
 	  axisLabel: {
 	    interval: 'auto'
 	  }
 	}, defaultOption);
 	axisDefault.valueAxis = zrUtil.merge({
-	  // 数值起始和结束两端空白策略
+	  // The gap at both ends of the axis. For value axis, [GAP, GAP], where
+	  // `GAP` can be an absolute pixel number (like `35`), or percent (like `'30%'`)
 	  boundaryGap: [0, 0],
 	  // TODO
 	  // min/max: [30, datamin, 60] or [20, datamin] or [datamin, 60]
-	  // 最小值, 设置成 'dataMin' 则从数据中计算最小值
+	  // Min value of the axis. can be:
+	  // + a number
+	  // + 'dataMin': use the min value in data.
+	  // + null/undefined: auto decide min value (consider pretty look and boundaryGap).
 	  // min: null,
-	  // 最大值，设置成 'dataMax' 则从数据中计算最大值
+	  // Max value of the axis. can be:
+	  // + a number
+	  // + 'dataMax': use the max value in data.
+	  // + null/undefined: auto decide max value (consider pretty look and boundaryGap).
 	  // max: null,
 	  // Readonly prop, specifies start value of the range when using data zoom.
 	  // rangeStart: null
 	  // Readonly prop, specifies end value of the range when using data zoom.
 	  // rangeEnd: null
-	  // 脱离0值比例，放大聚焦到最终_min，_max区间
+	  // Optional value can be:
+	  // + `false`: always include value 0.
+	  // + `true`: the extent do not consider value 0.
 	  // scale: false,
-	  // 分割段数，默认为5
-	  splitNumber: 5 // Minimum interval
+	  // AxisTick and axisLabel and splitLine are caculated based on splitNumber.
+	  splitNumber: 5 // Interval specifies the span of the ticks is mandatorily.
+	  // interval: null
+	  // Specify min interval when auto calculate tick interval.
 	  // minInterval: null
+	  // Specify max interval when auto calculate tick interval.
 	  // maxInterval: null
 
-	}, defaultOption); // FIXME
-
+	}, defaultOption);
 	axisDefault.timeAxis = zrUtil.defaults({
 	  scale: true,
 	  min: 'dataMin',
@@ -35738,29 +38246,45 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 163 */
+/* 165 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(160);
+	__webpack_require__(162);
 
-	__webpack_require__(164);
+	__webpack_require__(166);
 
 /***/ },
-/* 164 */
+/* 166 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var graphic = __webpack_require__(51);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
-	var cartesianAxisHelper = __webpack_require__(168);
+	var cartesianAxisHelper = __webpack_require__(170);
 
-	var ifIgnoreOnTick = AxisBuilder.ifIgnoreOnTick;
-	var getInterval = AxisBuilder.getInterval;
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var axisBuilderAttrs = ['axisLine', 'axisTickLabel', 'axisName'];
 	var selfBuilderAttrs = ['splitArea', 'splitLine']; // function getAlignWithLabel(model, axisModel) {
 	//     var alignWithLabel = model.get('alignWithLabel');
@@ -35796,20 +38320,22 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    zrUtil.each(selfBuilderAttrs, function (name) {
 	      if (axisModel.get(name + '.show')) {
-	        this['_' + name](axisModel, gridModel, layout.labelInterval);
+	        this['_' + name](axisModel, gridModel);
 	      }
 	    }, this);
 	    graphic.groupTransition(oldAxisGroup, this._axisGroup, axisModel);
 	    CartesianAxisView.superCall(this, 'render', axisModel, ecModel, api, payload);
 	  },
+	  remove: function () {
+	    this._splitAreaColors = null;
+	  },
 
 	  /**
 	   * @param {module:echarts/coord/cartesian/AxisModel} axisModel
 	   * @param {module:echarts/coord/cartesian/GridModel} gridModel
-	   * @param {number|Function} labelInterval
 	   * @private
 	   */
-	  _splitLine: function (axisModel, gridModel, labelInterval) {
+	  _splitLine: function (axisModel, gridModel) {
 	    var axis = axisModel.axis;
 
 	    if (axis.scale.isBlank()) {
@@ -35819,15 +38345,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var splitLineModel = axisModel.getModel('splitLine');
 	    var lineStyleModel = splitLineModel.getModel('lineStyle');
 	    var lineColors = lineStyleModel.get('color');
-	    var lineInterval = getInterval(splitLineModel, labelInterval);
 	    lineColors = zrUtil.isArray(lineColors) ? lineColors : [lineColors];
 	    var gridRect = gridModel.coordinateSystem.getRect();
 	    var isHorizontal = axis.isHorizontal();
 	    var lineCount = 0;
-	    var ticksCoords = axis.getTicksCoords();
-	    var ticks = axis.scale.getTicks();
-	    var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-	    var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
+	    var ticksCoords = axis.getTicksCoords({
+	      tickModel: splitLineModel
+	    });
 	    var p1 = [];
 	    var p2 = []; // Simple optimization
 	    // Batching the lines if color are the same
@@ -35835,11 +38359,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var lineStyle = lineStyleModel.getLineStyle();
 
 	    for (var i = 0; i < ticksCoords.length; i++) {
-	      if (ifIgnoreOnTick(axis, i, lineInterval, ticksCoords.length, showMinLabel, showMaxLabel)) {
-	        continue;
-	      }
-
-	      var tickCoord = axis.toGlobalCoord(ticksCoords[i]);
+	      var tickCoord = axis.toGlobalCoord(ticksCoords[i].coord);
 
 	      if (isHorizontal) {
 	        p1[0] = tickCoord;
@@ -35856,7 +38376,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var colorIndex = lineCount++ % lineColors.length;
 
 	      this._axisGroup.add(new graphic.Line(graphic.subPixelOptimizeLine({
-	        anid: 'line_' + ticks[i],
+	        anid: 'line_' + ticksCoords[i].tickValue,
 	        shape: {
 	          x1: p1[0],
 	          y1: p1[1],
@@ -35874,10 +38394,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  /**
 	   * @param {module:echarts/coord/cartesian/AxisModel} axisModel
 	   * @param {module:echarts/coord/cartesian/GridModel} gridModel
-	   * @param {number|Function} labelInterval
 	   * @private
 	   */
-	  _splitArea: function (axisModel, gridModel, labelInterval) {
+	  _splitArea: function (axisModel, gridModel) {
 	    var axis = axisModel.axis;
 
 	    if (axis.scale.isBlank()) {
@@ -35888,44 +38407,63 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var areaStyleModel = splitAreaModel.getModel('areaStyle');
 	    var areaColors = areaStyleModel.get('color');
 	    var gridRect = gridModel.coordinateSystem.getRect();
-	    var ticksCoords = axis.getTicksCoords();
-	    var ticks = axis.scale.getTicks();
-	    var prevX = axis.toGlobalCoord(ticksCoords[0]);
-	    var prevY = axis.toGlobalCoord(ticksCoords[0]);
-	    var count = 0;
-	    var areaInterval = getInterval(splitAreaModel, labelInterval);
+	    var ticksCoords = axis.getTicksCoords({
+	      tickModel: splitAreaModel,
+	      clamp: true
+	    });
+
+	    if (!ticksCoords.length) {
+	      return;
+	    } // For Making appropriate splitArea animation, the color and anid
+	    // should be corresponding to previous one if possible.
+
+
+	    var areaColorsLen = areaColors.length;
+	    var lastSplitAreaColors = this._splitAreaColors;
+	    var newSplitAreaColors = zrUtil.createHashMap();
+	    var colorIndex = 0;
+
+	    if (lastSplitAreaColors) {
+	      for (var i = 0; i < ticksCoords.length; i++) {
+	        var cIndex = lastSplitAreaColors.get(ticksCoords[i].tickValue);
+
+	        if (cIndex != null) {
+	          colorIndex = (cIndex + (areaColorsLen - 1) * i) % areaColorsLen;
+	          break;
+	        }
+	      }
+	    }
+
+	    var prev = axis.toGlobalCoord(ticksCoords[0].coord);
 	    var areaStyle = areaStyleModel.getAreaStyle();
 	    areaColors = zrUtil.isArray(areaColors) ? areaColors : [areaColors];
-	    var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-	    var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
 
 	    for (var i = 1; i < ticksCoords.length; i++) {
-	      if (ifIgnoreOnTick(axis, i, areaInterval, ticksCoords.length, showMinLabel, showMaxLabel) && i < ticksCoords.length - 1) {
-	        continue;
-	      }
-
-	      var tickCoord = axis.toGlobalCoord(ticksCoords[i]);
+	      var tickCoord = axis.toGlobalCoord(ticksCoords[i].coord);
 	      var x;
 	      var y;
 	      var width;
 	      var height;
 
 	      if (axis.isHorizontal()) {
-	        x = prevX;
+	        x = prev;
 	        y = gridRect.y;
 	        width = tickCoord - x;
 	        height = gridRect.height;
+	        prev = x + width;
 	      } else {
 	        x = gridRect.x;
-	        y = prevY;
+	        y = prev;
 	        width = gridRect.width;
 	        height = tickCoord - y;
+	        prev = y + height;
 	      }
 
-	      var colorIndex = count++ % areaColors.length;
+	      var tickValue = ticksCoords[i - 1].tickValue;
+	      tickValue != null && newSplitAreaColors.set(tickValue, colorIndex);
 
 	      this._axisGroup.add(new graphic.Rect({
-	        anid: 'area_' + ticks[i],
+	        anid: 'area_' + tickValue,
 	        shape: {
 	          x: x,
 	          y: y,
@@ -35938,9 +38476,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        silent: true
 	      }));
 
-	      prevX = x + width;
-	      prevY = y + height;
+	      colorIndex = (colorIndex + 1) % areaColorsLen;
 	    }
+
+	    this._splitAreaColors = newSplitAreaColors;
 	  }
 	});
 	CartesianAxisView.extend({
@@ -35951,7 +38490,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 165 */
+/* 167 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
@@ -35972,7 +38511,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var isRadianAroundZero = _number.isRadianAroundZero;
 	var remRadian = _number.remRadian;
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
@@ -35981,6 +38520,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _vector = __webpack_require__(8);
 
 	var v2ApplyTransform = _vector.applyTransform;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PI = Math.PI;
 
 	function makeAxisEventDataBase(axisModel) {
@@ -36025,8 +38583,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {string} [opt.axisName] default get from axisModel.
 	 * @param {number} [opt.axisNameAvailableWidth]
 	 * @param {number} [opt.labelRotate] by degree, default get from axisModel.
-	 * @param {number} [opt.labelInterval] Default label interval when label
-	 *                                     interval from model is null or 'auto'.
 	 * @param {number} [opt.strokeContainThreshold] Default label interval when label
 	 * @param {number} [opt.nameTruncateMaxWidth]
 	 */
@@ -36426,36 +38982,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	function isNameLocationCenter(nameLocation) {
 	  return nameLocation === 'middle' || nameLocation === 'center';
 	}
-	/**
-	 * @static
-	 */
-
-
-	var ifIgnoreOnTick = AxisBuilder.ifIgnoreOnTick = function (axis, i, interval, ticksCnt, showMinLabel, showMaxLabel) {
-	  if (i === 0 && showMinLabel || i === ticksCnt - 1 && showMaxLabel) {
-	    return false;
-	  } // FIXME
-	  // Have not consider label overlap (if label is too long) yet.
-
-
-	  var rawTick;
-	  var scale = axis.scale;
-	  return scale.type === 'ordinal' && (typeof interval === 'function' ? (rawTick = scale.getTicks()[i], !interval(rawTick, scale.getLabel(rawTick))) : i % (interval + 1));
-	};
-	/**
-	 * @static
-	 */
-
-
-	var getInterval = AxisBuilder.getInterval = function (model, labelInterval) {
-	  var interval = model.get('interval');
-
-	  if (interval == null || interval == 'auto') {
-	    interval = labelInterval;
-	  }
-
-	  return interval;
-	};
 
 	function buildAxisTick(axisBuilder, axisModel, opt) {
 	  var axis = axisModel.axis;
@@ -36467,26 +38993,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var tickModel = axisModel.getModel('axisTick');
 	  var lineStyleModel = tickModel.getModel('lineStyle');
 	  var tickLen = tickModel.get('length');
-	  var tickInterval = getInterval(tickModel, opt.labelInterval);
-	  var ticksCoords = axis.getTicksCoords(tickModel.get('alignWithLabel')); // FIXME
-	  // Corresponds to ticksCoords ?
-
-	  var ticks = axis.scale.getTicks();
-	  var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-	  var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
+	  var ticksCoords = axis.getTicksCoords();
 	  var pt1 = [];
 	  var pt2 = [];
 	  var matrix = axisBuilder._transform;
 	  var tickEls = [];
-	  var ticksCnt = ticksCoords.length;
 
-	  for (var i = 0; i < ticksCnt; i++) {
-	    // Only ordinal scale support tick interval
-	    if (ifIgnoreOnTick(axis, i, tickInterval, ticksCnt, showMinLabel, showMaxLabel)) {
-	      continue;
-	    }
-
-	    var tickCoord = ticksCoords[i];
+	  for (var i = 0; i < ticksCoords.length; i++) {
+	    var tickCoord = ticksCoords[i].coord;
 	    pt1[0] = tickCoord;
 	    pt1[1] = 0;
 	    pt2[0] = tickCoord;
@@ -36500,7 +39014,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var tickEl = new graphic.Line(graphic.subPixelOptimizeLine({
 	      // Id for animation
-	      anid: 'tick_' + ticks[i],
+	      anid: 'tick_' + ticksCoords[i].tickValue,
 	      shape: {
 	        x1: pt1[0],
 	        y1: pt1[1],
@@ -36530,58 +39044,53 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  var labelModel = axisModel.getModel('axisLabel');
 	  var labelMargin = labelModel.get('margin');
-	  var ticks = axis.scale.getTicks();
-	  var labels = axisModel.getFormattedLabels(); // Special label rotate.
+	  var labels = axis.getViewLabels(); // Special label rotate.
 
 	  var labelRotation = (retrieve(opt.labelRotate, labelModel.get('rotate')) || 0) * PI / 180;
 	  var labelLayout = innerTextLayout(opt.rotation, labelRotation, opt.labelDirection);
-	  var categoryData = axisModel.getCategories();
+	  var rawCategoryData = axisModel.getCategories(true);
 	  var labelEls = [];
 	  var silent = isSilent(axisModel);
 	  var triggerEvent = axisModel.get('triggerEvent');
-	  var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-	  var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
-	  each(ticks, function (tickVal, index) {
-	    if (ifIgnoreOnTick(axis, index, opt.labelInterval, ticks.length, showMinLabel, showMaxLabel)) {
-	      return;
-	    }
-
+	  each(labels, function (labelItem, index) {
+	    var tickValue = labelItem.tickValue;
+	    var formattedLabel = labelItem.formattedLabel;
+	    var rawLabel = labelItem.rawLabel;
 	    var itemLabelModel = labelModel;
 
-	    if (categoryData && categoryData[tickVal] && categoryData[tickVal].textStyle) {
-	      itemLabelModel = new Model(categoryData[tickVal].textStyle, labelModel, axisModel.ecModel);
+	    if (rawCategoryData && rawCategoryData[tickValue] && rawCategoryData[tickValue].textStyle) {
+	      itemLabelModel = new Model(rawCategoryData[tickValue].textStyle, labelModel, axisModel.ecModel);
 	    }
 
 	    var textColor = itemLabelModel.getTextColor() || axisModel.get('axisLine.lineStyle.color');
-	    var tickCoord = axis.dataToCoord(tickVal);
+	    var tickCoord = axis.dataToCoord(tickValue);
 	    var pos = [tickCoord, opt.labelOffset + opt.labelDirection * labelMargin];
-	    var labelStr = axis.scale.getLabel(tickVal);
 	    var textEl = new graphic.Text({
 	      // Id for animation
-	      anid: 'label_' + tickVal,
+	      anid: 'label_' + tickValue,
 	      position: pos,
 	      rotation: labelLayout.rotation,
 	      silent: silent,
 	      z2: 10
 	    });
 	    graphic.setTextStyle(textEl.style, itemLabelModel, {
-	      text: labels[index],
+	      text: formattedLabel,
 	      textAlign: itemLabelModel.getShallow('align', true) || labelLayout.textAlign,
 	      textVerticalAlign: itemLabelModel.getShallow('verticalAlign', true) || itemLabelModel.getShallow('baseline', true) || labelLayout.textVerticalAlign,
 	      textFill: typeof textColor === 'function' ? textColor( // (1) In category axis with data zoom, tick is not the original
 	      // index of axis.data. So tick should not be exposed to user
 	      // in category axis.
-	      // (2) Compatible with previous version, which always returns labelStr.
-	      // But in interval scale labelStr is like '223,445', which maked
-	      // user repalce ','. So we modify it to return original val but remain
+	      // (2) Compatible with previous version, which always use formatted label as
+	      // input. But in interval scale the formatted label is like '223,445', which
+	      // maked user repalce ','. So we modify it to return original val but remain
 	      // it as 'string' to avoid error in replacing.
-	      axis.type === 'category' ? labelStr : axis.type === 'value' ? tickVal + '' : tickVal, index) : textColor
+	      axis.type === 'category' ? rawLabel : axis.type === 'value' ? tickValue + '' : tickValue, index) : textColor
 	    }); // Pack data for mouse event
 
 	    if (triggerEvent) {
 	      textEl.eventData = makeAxisEventDataBase(axisModel);
 	      textEl.eventData.targetType = 'axisLabel';
-	      textEl.eventData.value = labelStr;
+	      textEl.eventData.value = rawLabel;
 	    } // FIXME
 
 
@@ -36599,7 +39108,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 166 */
+/* 168 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
@@ -36608,7 +39117,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
-	var axisPointerModelHelper = __webpack_require__(167);
+	var axisPointerModelHelper = __webpack_require__(169);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Base class of AxisView.
@@ -36702,13 +39230,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 167 */
+/* 169 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var Model = __webpack_require__(45);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var curry = zrUtil.curry; // Build axisPointerModel, mergin tooltip.axisPointer model for each axis.
 	// allAxesInfo should be updated when setOption performed.
@@ -36998,16 +39544,38 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.makeKey = makeKey;
 
 /***/ },
-/* 168 */
+/* 170 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
+	 * Can only be called after coordinate system creation stage.
+	 * (Can be called before coordinate system update stage).
+	 *
 	 * @param {Object} opt {labelInside}
 	 * @return {Object} {
 	 *  position, rotation, labelDirection, labelOffset,
-	 *  tickDirection, labelRotate, labelInterval, z2
+	 *  tickDirection, labelRotate, z2
 	 * }
 	 */
 	function layout(gridModel, axisModel, opt) {
@@ -37015,8 +39583,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var grid = gridModel.coordinateSystem;
 	  var axis = axisModel.axis;
 	  var layout = {};
+	  var otherAxisOnZeroOf = axis.getAxesOnZeroOf()[0];
 	  var rawAxisPosition = axis.position;
-	  var axisPosition = axis.onZero ? 'onZero' : rawAxisPosition;
+	  var axisPosition = otherAxisOnZeroOf ? 'onZero' : rawAxisPosition;
 	  var axisDim = axis.dim;
 	  var rect = grid.getRect();
 	  var rectBound = [rect.x, rect.x + rect.width, rect.y, rect.y + rect.height];
@@ -37030,9 +39599,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var axisOffset = axisModel.get('offset') || 0;
 	  var posBound = axisDim === 'x' ? [rectBound[2] - axisOffset, rectBound[3] + axisOffset] : [rectBound[0] - axisOffset, rectBound[1] + axisOffset];
 
-	  if (axis.onZero) {
-	    var otherAxis = grid.getAxis(axisDim === 'x' ? 'y' : 'x', axis.onZeroAxisIndex);
-	    var onZeroCoord = otherAxis.toGlobalCoord(otherAxis.dataToCoord(0));
+	  if (otherAxisOnZeroOf) {
+	    var onZeroCoord = otherAxisOnZeroOf.toGlobalCoord(otherAxisOnZeroOf.dataToCoord(0));
 	    posBound[idx['onZero']] = Math.max(Math.min(onZeroCoord, posBound[1]), posBound[0]);
 	  } // Axis position
 
@@ -37048,7 +39616,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    right: 1
 	  };
 	  layout.labelDirection = layout.tickDirection = layout.nameDirection = dirMap[rawAxisPosition];
-	  layout.labelOffset = axis.onZero ? posBound[idx[rawAxisPosition]] - posBound[idx['onZero']] : 0;
+	  layout.labelOffset = otherAxisOnZeroOf ? posBound[idx[rawAxisPosition]] - posBound[idx['onZero']] : 0;
 
 	  if (axisModel.get('axisTick.inside')) {
 	    layout.tickDirection = -layout.tickDirection;
@@ -37060,9 +39628,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	  var labelRotate = axisModel.get('axisLabel.rotate');
-	  layout.labelRotate = axisPosition === 'top' ? -labelRotate : labelRotate; // label interval when auto mode.
-
-	  layout.labelInterval = axis.getLabelInterval(); // Over splitLine and splitArea
+	  layout.labelRotate = axisPosition === 'top' ? -labelRotate : labelRotate; // Over splitLine and splitArea
 
 	  layout.z2 = 1;
 	  return layout;
@@ -37071,57 +39637,137 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.layout = layout;
 
 /***/ },
-/* 169 */
+/* 171 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
 	var zrUtil = __webpack_require__(6);
 
-	var _barGrid = __webpack_require__(133);
+	var _barGrid = __webpack_require__(134);
 
 	var layout = _barGrid.layout;
+	var largeLayout = _barGrid.largeLayout;
 
-	__webpack_require__(155);
-
-	__webpack_require__(170);
+	__webpack_require__(157);
 
 	__webpack_require__(172);
 
-	__webpack_require__(154);
+	__webpack_require__(174);
 
+	__webpack_require__(156);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// In case developer forget to include grid component
-	echarts.registerLayout(zrUtil.curry(layout, 'bar')); // Visual coding for legend
+	echarts.registerLayout(zrUtil.curry(layout, 'bar')); // Should after normal bar layout, otherwise it is blocked by normal bar layout.
 
-	echarts.registerVisual(function (ecModel) {
-	  ecModel.eachSeriesByType('bar', function (seriesModel) {
-	    var data = seriesModel.getData();
-	    data.setVisual('legendSymbol', 'roundRect');
-	  });
+	echarts.registerLayout(largeLayout);
+	echarts.registerVisual({
+	  seriesType: 'bar',
+	  reset: function (seriesModel) {
+	    // Visual coding for legend
+	    seriesModel.getData().setVisual('legendSymbol', 'roundRect');
+	  }
 	});
 
 /***/ },
-/* 170 */
+/* 172 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var BaseBarSeries = __webpack_require__(171);
+	var BaseBarSeries = __webpack_require__(173);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = BaseBarSeries.extend({
 	  type: 'series.bar',
 	  dependencies: ['grid', 'polar'],
-	  brushSelector: 'rect'
+	  brushSelector: 'rect',
+
+	  /**
+	   * @override
+	   */
+	  getProgressive: function () {
+	    // Do not support progressive in normal mode.
+	    return this.get('large') ? this.get('progressive') : false;
+	  },
+
+	  /**
+	   * @override
+	   */
+	  getProgressiveThreshold: function () {
+	    // Do not support progressive in normal mode.
+	    var progressiveThreshold = this.get('progressiveThreshold');
+	    var largeThreshold = this.get('largeThreshold');
+
+	    if (largeThreshold > progressiveThreshold) {
+	      progressiveThreshold = largeThreshold;
+	    }
+
+	    return progressiveThreshold;
+	  }
 	});
 
 	module.exports = _default;
 
 /***/ },
-/* 171 */
+/* 173 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var SeriesModel = __webpack_require__(103);
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.__base_bar__',
 	  getInitialData: function (option, ecModel) {
@@ -37159,6 +39805,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // 最小角度为0，仅对极坐标系下的柱状图有效
 	    barMinAngle: 0,
 	    // cursor: null,
+	    large: false,
+	    largeThreshold: 400,
+	    progressive: 5e3,
+	    progressiveChunkMode: 'mod',
 	    // barMaxWidth: null,
 	    // 默认自适应
 	    // barWidth: null,
@@ -37177,7 +39827,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 172 */
+/* 174 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
@@ -37190,14 +39840,34 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var _helper = __webpack_require__(173);
+	var _helper = __webpack_require__(175);
 
 	var setLabel = _helper.setLabel;
 
 	var Model = __webpack_require__(45);
 
-	var barItemStyle = __webpack_require__(174);
+	var barItemStyle = __webpack_require__(176);
 
+	var Path = __webpack_require__(53);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var BAR_BORDER_WIDTH_QUERY = ['itemStyle', 'barBorderWidth']; // FIXME
 	// Just for compatible with ec2.
 
@@ -37206,16 +39876,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _default = echarts.extendChartView({
 	  type: 'bar',
 	  render: function (seriesModel, ecModel, api) {
+	    this._updateDrawMode(seriesModel);
+
 	    var coordinateSystemType = seriesModel.get('coordinateSystem');
 
 	    if (coordinateSystemType === 'cartesian2d' || coordinateSystemType === 'polar') {
-	      this._render(seriesModel, ecModel, api);
+	      this._isLargeDraw ? this._renderLarge(seriesModel, ecModel, api) : this._renderNormal(seriesModel, ecModel, api);
 	    } else {}
 
 	    return this.group;
 	  },
-	  dispose: zrUtil.noop,
-	  _render: function (seriesModel, ecModel, api) {
+	  incrementalPrepareRender: function (seriesModel, ecModel, api) {
+	    this._clear();
+
+	    this._updateDrawMode(seriesModel);
+	  },
+	  incrementalRender: function (params, seriesModel, ecModel, api) {
+	    // Do not support progressive in normal mode.
+	    this._incrementalRenderLarge(params, seriesModel);
+	  },
+	  _updateDrawMode: function (seriesModel) {
+	    var isLargeDraw = seriesModel.pipelineContext.large;
+
+	    if (this._isLargeDraw == null || isLargeDraw ^ this._isLargeDraw) {
+	      this._isLargeDraw = isLargeDraw;
+
+	      this._clear();
+	    }
+	  },
+	  _renderNormal: function (seriesModel, ecModel, api) {
 	    var group = this.group;
 	    var data = seriesModel.getData();
 	    var oldData = this._data;
@@ -37275,23 +39964,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }).execute();
 	    this._data = data;
 	  },
-	  remove: function (ecModel, api) {
+	  _renderLarge: function (seriesModel, ecModel, api) {
+	    this._clear();
+
+	    createLarge(seriesModel, this.group);
+	  },
+	  _incrementalRenderLarge: function (params, seriesModel) {
+	    createLarge(seriesModel, this.group, true);
+	  },
+	  dispose: zrUtil.noop,
+	  remove: function (ecModel) {
+	    this._clear(ecModel);
+	  },
+	  _clear: function (ecModel) {
 	    var group = this.group;
 	    var data = this._data;
 
-	    if (ecModel.get('animation')) {
-	      if (data) {
-	        data.eachItemGraphicEl(function (el) {
-	          if (el.type === 'sector') {
-	            removeSector(el.dataIndex, ecModel, el);
-	          } else {
-	            removeRect(el.dataIndex, ecModel, el);
-	          }
-	        });
-	      }
+	    if (ecModel && ecModel.get('animation') && data && !this._isLargeDraw) {
+	      data.eachItemGraphicEl(function (el) {
+	        if (el.type === 'sector') {
+	          removeSector(el.dataIndex, ecModel, el);
+	        } else {
+	          removeRect(el.dataIndex, ecModel, el);
+	        }
+	      });
 	    } else {
 	      group.removeAll();
 	    }
+
+	    this._data = null;
 	  }
 	});
 
@@ -37423,18 +40124,83 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return Math.min(lineWidth, Math.abs(rawLayout.width), Math.abs(rawLayout.height));
 	}
 
+	var LargePath = Path.extend({
+	  type: 'largeBar',
+	  shape: {
+	    points: []
+	  },
+	  buildPath: function (ctx, shape) {
+	    // Drawing lines is more efficient than drawing
+	    // a whole line or drawing rects.
+	    var points = shape.points;
+	    var startPoint = this.__startPoint;
+	    var valueIdx = this.__valueIdx;
+
+	    for (var i = 0; i < points.length; i += 2) {
+	      startPoint[this.__valueIdx] = points[i + valueIdx];
+	      ctx.moveTo(startPoint[0], startPoint[1]);
+	      ctx.lineTo(points[i], points[i + 1]);
+	    }
+	  }
+	});
+
+	function createLarge(seriesModel, group, incremental) {
+	  // TODO support polar
+	  var data = seriesModel.getData();
+	  var startPoint = [];
+	  var valueIdx = data.getLayout('valueAxisHorizontal') ? 1 : 0;
+	  startPoint[1 - valueIdx] = data.getLayout('valueAxisStart');
+	  var el = new LargePath({
+	    shape: {
+	      points: data.getLayout('largePoints')
+	    },
+	    incremental: !!incremental,
+	    __startPoint: startPoint,
+	    __valueIdx: valueIdx
+	  });
+	  group.add(el);
+	  setLargeStyle(el, seriesModel, data);
+	}
+
+	function setLargeStyle(el, seriesModel, data) {
+	  var borderColor = data.getVisual('borderColor') || data.getVisual('color');
+	  var itemStyle = seriesModel.getModel('itemStyle').getItemStyle(['color', 'borderColor']);
+	  el.useStyle(itemStyle);
+	  el.style.fill = null;
+	  el.style.stroke = borderColor;
+	  el.style.lineWidth = data.getLayout('barWidth');
+	}
+
 	module.exports = _default;
 
 /***/ },
-/* 173 */
+/* 175 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var graphic = __webpack_require__(51);
 
-	var _labelHelper = __webpack_require__(147);
+	var _labelHelper = __webpack_require__(149);
 
 	var getDefaultLabel = _labelHelper.getDefaultLabel;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function setLabel(normalStyle, hoverStyle, itemModel, color, seriesModel, dataIndex, labelPositionOutside) {
 	  var labelModel = itemModel.getModel('label');
 	  var hoverLabelModel = itemModel.getModel('emphasis.label');
@@ -37458,11 +40224,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.setLabel = setLabel;
 
 /***/ },
-/* 174 */
+/* 176 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var makeStyleMapper = __webpack_require__(48);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var getBarItemStyle = makeStyleMapper([['fill', 'color'], ['stroke', 'borderColor'], ['lineWidth', 'borderWidth'], // Compatitable with 2
 	['stroke', 'barBorderColor'], ['lineWidth', 'barBorderWidth'], ['opacity'], ['shadowBlur'], ['shadowOffsetX'], ['shadowOffsetY'], ['shadowColor']]);
 	var _default = {
@@ -37480,25 +40264,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 175 */
+/* 177 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
 	var zrUtil = __webpack_require__(6);
 
-	__webpack_require__(176);
+	__webpack_require__(178);
 
-	__webpack_require__(179);
+	__webpack_require__(181);
 
-	var createDataSelectAction = __webpack_require__(180);
+	var createDataSelectAction = __webpack_require__(182);
 
-	var dataColor = __webpack_require__(181);
+	var dataColor = __webpack_require__(183);
 
-	var pieLayout = __webpack_require__(182);
+	var pieLayout = __webpack_require__(184);
 
-	var dataFilter = __webpack_require__(184);
+	var dataFilter = __webpack_require__(186);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	createDataSelectAction('pie', [{
 	  type: 'pieToggleSelect',
 	  event: 'pieselectchanged',
@@ -37517,12 +40319,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	echarts.registerProcessor(dataFilter('pie'));
 
 /***/ },
-/* 176 */
+/* 178 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	var createListSimply = __webpack_require__(177);
+	var createListSimply = __webpack_require__(179);
 
 	var zrUtil = __webpack_require__(6);
 
@@ -37532,11 +40334,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var getPercentWithPrecision = _number.getPercentWithPrecision;
 
-	var dataSelectableMixin = __webpack_require__(178);
+	var dataSelectableMixin = __webpack_require__(180);
 
 	var _dataProvider = __webpack_require__(105);
 
 	var retrieveRawAttr = _dataProvider.retrieveRawAttr;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PieSeries = echarts.extendSeriesModel({
 	  type: 'series.pie',
 	  // Overwrite
@@ -37661,17 +40482,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 177 */
+/* 179 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var createDimensions = __webpack_require__(124);
+	var createDimensions = __webpack_require__(125);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var _util = __webpack_require__(6);
 
 	var extend = _util.extend;
 	var isArray = _util.isArray;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * [Usage]:
@@ -37703,10 +40543,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 178 */
+/* 180 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Data selectable mixin for chart series.
@@ -37793,7 +40652,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 179 */
+/* 181 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
@@ -37801,6 +40660,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var graphic = __webpack_require__(51);
 
 	var ChartView = __webpack_require__(108);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {module:echarts/model/Series} seriesModel
@@ -38111,13 +40989,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 180 */
+/* 182 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(seriesType, actionInfos) {
 	  zrUtil.each(actionInfos, function (actionInfo) {
 	    actionInfo.update = 'updateView';
@@ -38156,13 +41052,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 181 */
+/* 183 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _util = __webpack_require__(6);
 
 	var createHashMap = _util.createHashMap;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Pick color from palette for each data item.
 	// Applicable for charts that require applying color palette
 	// in data level (like pie, funnel, chord).
@@ -38213,7 +41127,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 182 */
+/* 184 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _number = __webpack_require__(88);
@@ -38221,10 +41135,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	var parsePercent = _number.parsePercent;
 	var linearMap = _number.linearMap;
 
-	var labelLayout = __webpack_require__(183);
+	var labelLayout = __webpack_require__(185);
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PI2 = Math.PI * 2;
 	var RADIAN = Math.PI / 180;
 
@@ -38351,11 +41283,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 183 */
+/* 185 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var textContain = __webpack_require__(36);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// FIXME emphasis label position is not same with normal label position
 	function adjustSingleSide(list, cx, cy, r, dir, viewWidth, viewHeight) {
 	  list.sort(function (a, b) {
@@ -38567,9 +41517,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 184 */
+/* 186 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(seriesType) {
 	  return {
 	    seriesType: seriesType,
@@ -38601,21 +41569,39 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 185 */
+/* 187 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	__webpack_require__(186);
+	__webpack_require__(188);
 
-	__webpack_require__(187);
+	__webpack_require__(189);
 
-	var visualSymbol = __webpack_require__(151);
+	var visualSymbol = __webpack_require__(153);
 
-	var layoutPoints = __webpack_require__(152);
+	var layoutPoints = __webpack_require__(154);
 
-	__webpack_require__(154);
+	__webpack_require__(156);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// import * as zrUtil from 'zrender/src/core/util';
 	// In case developer forget to include grid component
 	echarts.registerVisual(visualSymbol('scatter', 'circle'));
@@ -38639,13 +41625,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	// });
 
 /***/ },
-/* 186 */
+/* 188 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
 	var SeriesModel = __webpack_require__(103);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.scatter',
 	  dependencies: ['grid', 'polar', 'geo', 'singleAxis', 'calendar'],
@@ -38704,26 +41708,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // },
 	    itemStyle: {
 	      opacity: 0.8 // color: 各异
+	      // progressive: null
 
-	    },
-	    progressive: null
+	    }
 	  }
 	});
 
 	module.exports = _default;
 
 /***/ },
-/* 187 */
+/* 189 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	var SymbolDraw = __webpack_require__(145);
+	var SymbolDraw = __webpack_require__(147);
 
-	var LargeSymbolDraw = __webpack_require__(188);
+	var LargeSymbolDraw = __webpack_require__(190);
 
-	var pointsLayout = __webpack_require__(152);
+	var pointsLayout = __webpack_require__(154);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.extendChartView({
 	  type: 'scatter',
 	  render: function (seriesModel, ecModel, api) {
@@ -38793,17 +41815,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 188 */
+/* 190 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var graphic = __webpack_require__(51);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
 	var IncrementalDisplayable = __webpack_require__(83);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO Batch by color
 	var BOOST_SIZE_THRESHOLD = 4;
 	var LargeSymbolPath = graphic.extendShape({
@@ -39047,27 +42087,45 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 189 */
+/* 191 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	__webpack_require__(190);
+	__webpack_require__(192);
 
-	__webpack_require__(195);
+	__webpack_require__(197);
 
-	__webpack_require__(196);
+	__webpack_require__(198);
 
-	var dataColor = __webpack_require__(181);
+	var dataColor = __webpack_require__(183);
 
-	var visualSymbol = __webpack_require__(151);
+	var visualSymbol = __webpack_require__(153);
 
-	var radarLayout = __webpack_require__(197);
+	var radarLayout = __webpack_require__(199);
 
-	var dataFilter = __webpack_require__(184);
+	var dataFilter = __webpack_require__(186);
 
-	var backwardCompat = __webpack_require__(198);
+	var backwardCompat = __webpack_require__(200);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Must use radar component
 	echarts.registerVisual(dataColor('radar'));
 	echarts.registerVisual(visualSymbol('radar', 'circle'));
@@ -39076,34 +42134,52 @@ return /******/ (function(modules) { // webpackBootstrap
 	echarts.registerPreprocessor(backwardCompat);
 
 /***/ },
-/* 190 */
+/* 192 */
 /***/ function(module, exports, __webpack_require__) {
-
-	__webpack_require__(191);
 
 	__webpack_require__(193);
 
-	__webpack_require__(194);
+	__webpack_require__(195);
+
+	__webpack_require__(196);
 
 /***/ },
-/* 191 */
+/* 193 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var IndicatorAxis = __webpack_require__(192);
+	var IndicatorAxis = __webpack_require__(194);
 
-	var IntervalScale = __webpack_require__(131);
+	var IntervalScale = __webpack_require__(132);
 
 	var numberUtil = __webpack_require__(88);
 
-	var _axisHelper = __webpack_require__(127);
+	var _axisHelper = __webpack_require__(128);
 
 	var getScaleExtent = _axisHelper.getScaleExtent;
 	var niceScaleExtent = _axisHelper.niceScaleExtent;
 
 	var CoordinateSystem = __webpack_require__(98);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO clockwise
 	function Radar(radarModel, ecModel, api) {
 	  this._model = radarModel;
@@ -39323,13 +42399,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 192 */
+/* 194 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function IndicatorAxis(dim, scale, radiusExtent) {
 	  Axis.call(this, dim, scale, radiusExtent);
 	  /**
@@ -39361,19 +42455,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 193 */
+/* 195 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
 	var zrUtil = __webpack_require__(6);
 
-	var axisDefault = __webpack_require__(162);
+	var axisDefault = __webpack_require__(164);
 
 	var Model = __webpack_require__(45);
 
-	var axisModelCommonMixin = __webpack_require__(136);
+	var axisModelCommonMixin = __webpack_require__(137);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var valueAxisDefault = axisDefault.valueAxis;
 
 	function defaultsShow(opt, show) {
@@ -39485,7 +42597,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 194 */
+/* 196 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
@@ -39496,10 +42608,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
 
 	var graphic = __webpack_require__(51);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var axisBuilderAttrs = ['axisLine', 'axisTickLabel', 'axisName'];
 
 	var _default = echarts.extendComponentView({
@@ -39570,7 +42700,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            shape: {
 	              cx: cx,
 	              cy: cy,
-	              r: ticksRadius[i]
+	              r: ticksRadius[i].coord
 	            }
 	          }));
 	        }
@@ -39581,8 +42711,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	            shape: {
 	              cx: cx,
 	              cy: cy,
-	              r0: ticksRadius[i],
-	              r: ticksRadius[i + 1]
+	              r0: ticksRadius[i].coord,
+	              r: ticksRadius[i + 1].coord
 	            }
 	          }));
 	        }
@@ -39594,7 +42724,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          var ticksCoords = indicatorAxis.getTicksCoords();
 	          realSplitNumber = realSplitNumber == null ? ticksCoords.length - 1 : Math.min(ticksCoords.length - 1, realSplitNumber);
 	          return zrUtil.map(ticksCoords, function (tickCoord) {
-	            return radar.coordToPoint(tickCoord, idx);
+	            return radar.coordToPoint(tickCoord.coord, idx);
 	          });
 	        });
 	        var prevPoints = [];
@@ -39660,18 +42790,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 195 */
+/* 197 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var SeriesModel = __webpack_require__(103);
 
-	var createListSimply = __webpack_require__(177);
+	var createListSimply = __webpack_require__(179);
 
 	var zrUtil = __webpack_require__(6);
 
 	var _format = __webpack_require__(89);
 
 	var encodeHTML = _format.encodeHTML;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var RadarSeries = SeriesModel.extend({
 	  type: 'series.radar',
 	  dependencies: ['radar'],
@@ -39725,7 +42874,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 196 */
+/* 198 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
@@ -39734,8 +42883,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var symbolUtil = __webpack_require__(137);
+	var symbolUtil = __webpack_require__(138);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function normalizeSymbolSize(symbolSize) {
 	  if (!zrUtil.isArray(symbolSize)) {
 	    symbolSize = [+symbolSize, +symbolSize];
@@ -39913,9 +43080,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 197 */
+/* 199 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  ecModel.eachSeriesByType('radar', function (seriesModel) {
 	    var data = seriesModel.getData();
@@ -39933,7 +43118,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var axes = coordSys.getIndicatorAxes();
 
-	    for (var i = 0; i < coordSys.getIndicatorAxes().length; i++) {
+	    for (var i = 0; i < axes.length; i++) {
 	      data.each(data.mapDimension(axes[i].dim), pointsConverter);
 	    }
 
@@ -39948,11 +43133,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 198 */
+/* 200 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Backward compat for radar chart in 2
 	function _default(option) {
 	  var polarOptArr = option.polar;
@@ -39993,29 +43196,47 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 199 */
+/* 201 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	__webpack_require__(200);
+	__webpack_require__(202);
 
-	__webpack_require__(208);
+	__webpack_require__(210);
 
-	__webpack_require__(214);
+	__webpack_require__(216);
 
-	__webpack_require__(201);
+	__webpack_require__(203);
 
-	var mapSymbolLayout = __webpack_require__(216);
+	var mapSymbolLayout = __webpack_require__(218);
 
-	var mapVisual = __webpack_require__(217);
+	var mapVisual = __webpack_require__(219);
 
-	var mapDataStatistic = __webpack_require__(218);
+	var mapDataStatistic = __webpack_require__(220);
 
-	var backwardCompat = __webpack_require__(219);
+	var backwardCompat = __webpack_require__(221);
 
-	var createDataSelectAction = __webpack_require__(180);
+	var createDataSelectAction = __webpack_require__(182);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerLayout(mapSymbolLayout);
 	echarts.registerVisual(mapVisual);
 	echarts.registerProcessor(echarts.PRIORITY.PROCESSOR.STATISTIC, mapDataStatistic);
@@ -40035,12 +43256,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	}]);
 
 /***/ },
-/* 200 */
+/* 202 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var createListSimply = __webpack_require__(177);
+	var createListSimply = __webpack_require__(179);
 
 	var SeriesModel = __webpack_require__(103);
 
@@ -40049,14 +43270,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	var encodeHTML = _format.encodeHTML;
 	var addCommas = _format.addCommas;
 
-	var dataSelectableMixin = __webpack_require__(178);
+	var dataSelectableMixin = __webpack_require__(180);
 
 	var _dataProvider = __webpack_require__(105);
 
 	var retrieveRawAttr = _dataProvider.retrieveRawAttr;
 
-	var geoCreator = __webpack_require__(201);
+	var geoCreator = __webpack_require__(203);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var MapSeries = SeriesModel.extend({
 	  type: 'series.map',
 	  dependencies: ['geo'],
@@ -40253,7 +43492,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 201 */
+/* 203 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _config = __webpack_require__(2);
@@ -40264,11 +43503,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var Geo = __webpack_require__(202);
+	var Geo = __webpack_require__(204);
 
 	var layout = __webpack_require__(87);
 
 	var numberUtil = __webpack_require__(88);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Resize method bound to the geo
@@ -40454,25 +43712,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 202 */
+/* 204 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var BoundingRect = __webpack_require__(24);
 
-	var parseGeoJson = __webpack_require__(138);
+	var parseGeoJson = __webpack_require__(139);
 
-	var View = __webpack_require__(203);
+	var View = __webpack_require__(205);
 
-	var fixNanhai = __webpack_require__(204);
+	var fixNanhai = __webpack_require__(206);
 
-	var fixTextCoord = __webpack_require__(205);
+	var fixTextCoord = __webpack_require__(207);
 
-	var fixGeoCoord = __webpack_require__(206);
+	var fixGeoCoord = __webpack_require__(208);
 
-	var fixDiaoyuIsland = __webpack_require__(207);
+	var fixDiaoyuIsland = __webpack_require__(209);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Geo fix functions
 	var geoFixFuncs = [fixNanhai, fixTextCoord, fixGeoCoord, fixDiaoyuIsland];
 	/**
@@ -40678,7 +43954,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 203 */
+/* 205 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
@@ -40690,6 +43966,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var BoundingRect = __webpack_require__(24);
 
 	var Transformable = __webpack_require__(14);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Simple view coordinate system
@@ -40958,13 +44253,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 204 */
+/* 206 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var Region = __webpack_require__(139);
+	var Region = __webpack_require__(140);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Fix for 南海诸岛
 	var geoCoord = [126, 25];
 	var points = [[[0, 3.5], [7, 11.2], [15, 11.9], [30, 7], [42, 0.7], [52, 0.7], [56, 7.7], [59, 0.7], [64, 0.7], [64, 0], [5, 0], [0, 3.5]], [[13, 16.1], [19, 14.7], [16, 21.7], [11, 23.1], [13, 16.1]], [[12, 32.2], [14, 38.5], [15, 38.5], [13, 32.2], [12, 32.2]], [[16, 47.6], [12, 53.2], [13, 53.2], [18, 47.6], [16, 47.6]], [[6, 64.4], [8, 70], [9, 70], [8, 64.4], [6, 64.4]], [[23, 82.6], [29, 79.8], [30, 79.8], [25, 82.6], [23, 82.6]], [[37, 70.7], [43, 62.3], [44, 62.3], [39, 70.7], [37, 70.7]], [[48, 51.1], [51, 45.5], [53, 45.5], [50, 51.1], [48, 51.1]], [[51, 35], [51, 28.7], [53, 28.7], [53, 35], [51, 35]], [[52, 22.4], [55, 17.5], [56, 17.5], [53, 22.4], [52, 22.4]], [[58, 12.6], [62, 7], [63, 7], [60, 12.6], [58, 12.6]], [[0, 3.5], [0, 93.1], [64, 93.1], [64, 0], [63, 0], [63, 92.4], [1, 92.4], [1, 3.5], [0, 3.5]]];
@@ -40992,11 +44305,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 205 */
+/* 207 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var coordsOffsetMap = {
 	  '南海诸岛': [32, 80],
 	  // 全国
@@ -41022,11 +44353,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 206 */
+/* 208 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var geoCoordMap = {
 	  'Russia': [100, 60],
 	  'United States': [-99, 38],
@@ -41048,9 +44397,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 207 */
+/* 209 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Fix for 钓鱼岛
 	// var Region = require('../Region');
 	// var zrUtil = require('zrender/src/core/util');
@@ -41073,7 +44440,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 208 */
+/* 210 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
@@ -41082,8 +44449,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var MapDraw = __webpack_require__(209);
+	var MapDraw = __webpack_require__(211);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendChartView({
 	  type: 'map',
 	  render: function (mapModel, ecModel, api, payload) {
@@ -41214,21 +44599,39 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 209 */
+/* 211 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
-	var RoamController = __webpack_require__(210);
+	var RoamController = __webpack_require__(212);
 
-	var roamHelper = __webpack_require__(212);
+	var roamHelper = __webpack_require__(214);
 
-	var _cursorHelper = __webpack_require__(213);
+	var _cursorHelper = __webpack_require__(215);
 
 	var onIrrelevantElement = _cursorHelper.onIrrelevantElement;
 
 	var graphic = __webpack_require__(51);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function getFixedItemStyle(model, scale) {
 	  var itemStyle = model.getItemStyle();
 	  var areaColor = model.get('areaColor'); // If user want the color not to be changed when hover,
@@ -41551,7 +44954,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 210 */
+/* 212 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
@@ -41560,7 +44963,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var eventTool = __webpack_require__(40);
 
-	var interactionMutex = __webpack_require__(211);
+	var interactionMutex = __webpack_require__(213);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @alias module:echarts/component/helper/RoamController
@@ -41742,11 +45164,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 211 */
+/* 213 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var ATTR = '\0_ec_interaction_mutex';
 
 	function take(zr, resourceKey, userKey) {
@@ -41789,8 +45229,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.isTaken = isTaken;
 
 /***/ },
-/* 212 */
+/* 214 */
 /***/ function(module, exports) {
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * For geo and graph.
@@ -41843,9 +45302,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.updateViewOnZoom = updateViewOnZoom;
 
 /***/ },
-/* 213 */
+/* 215 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var IRRELEVANT_EXCLUDES = {
 	  'axisPointer': 1,
 	  'tooltip': 1,
@@ -41866,16 +45343,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.onIrrelevantElement = onIrrelevantElement;
 
 /***/ },
-/* 214 */
+/* 216 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
 	var zrUtil = __webpack_require__(6);
 
-	var _roamHelper = __webpack_require__(215);
+	var _roamHelper = __webpack_require__(217);
 
 	var updateCenterAndZoom = _roamHelper.updateCenterAndZoom;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @payload
@@ -41917,8 +45413,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 215 */
+/* 217 */
 /***/ function(module, exports) {
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {module:echarts/coord/View} view
@@ -41969,11 +45484,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.updateCenterAndZoom = updateCenterAndZoom;
 
 /***/ },
-/* 216 */
+/* 218 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  var processedMapType = {};
 	  ecModel.eachSeriesByType('map', function (mapSeries) {
@@ -42024,9 +45557,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 217 */
+/* 219 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  ecModel.eachSeriesByType('map', function (seriesModel) {
 	    var colorList = seriesModel.get('color');
@@ -42043,11 +45594,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 218 */
+/* 220 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// FIXME 公用？
 
 	/**
@@ -42126,11 +45695,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 219 */
+/* 221 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(option) {
 	  // Save geoCoord
 	  var mapSeries = [];
@@ -42147,38 +45734,72 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 220 */
+/* 222 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	__webpack_require__(221);
-
-	__webpack_require__(224);
+	__webpack_require__(223);
 
 	__webpack_require__(226);
 
-	var visualSymbol = __webpack_require__(151);
+	__webpack_require__(228);
 
-	var orthogonalLayout = __webpack_require__(227);
+	var visualSymbol = __webpack_require__(153);
 
-	var radialLayout = __webpack_require__(230);
+	var treeLayout = __webpack_require__(229);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerVisual(visualSymbol('tree', 'circle'));
-	echarts.registerLayout(orthogonalLayout);
-	echarts.registerLayout(radialLayout);
+	echarts.registerLayout(treeLayout);
 
 /***/ },
-/* 221 */
+/* 223 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var SeriesModel = __webpack_require__(103);
 
-	var Tree = __webpack_require__(222);
+	var Tree = __webpack_require__(224);
 
 	var _format = __webpack_require__(89);
 
 	var encodeHTML = _format.encodeHTML;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file Create data struct and define tree view's series model
@@ -42214,10 +45835,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var expandAndCollapse = option.expandAndCollapse;
 	    var expandTreeDepth = expandAndCollapse && option.initialTreeDepth >= 0 ? option.initialTreeDepth : treeDepth;
 	    tree.root.eachNode('preorder', function (node) {
-	      var item = node.hostTree.data.getRawDataItem(node.dataIndex);
+	      var item = node.hostTree.data.getRawDataItem(node.dataIndex); // add item.collapsed != null, because users can collapse node original in the series.data.
+
 	      node.isExpand = item && item.collapsed != null ? !item.collapsed : node.depth <= expandTreeDepth;
 	    });
 	    return tree.data;
+	  },
+
+	  /**
+	   * Make the configuration 'orient' backward compatibly, with 'horizontal = LR', 'vertical = TB'.
+	   * @returns {string} orient
+	   */
+	  getOrient: function () {
+	    var orient = this.get('orient');
+
+	    if (orient === 'horizontal') {
+	      orient = 'LR';
+	    } else if (orient === 'vertical') {
+	      orient = 'TB';
+	    }
+
+	    return orient;
 	  },
 
 	  /**
@@ -42248,8 +45886,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    bottom: '12%',
 	    // the layout of the tree, two value can be selected, 'orthogonal' or 'radial'
 	    layout: 'orthogonal',
-	    // the orient of orthoginal layout, can be setted to 'horizontal' or 'vertical'
-	    orient: 'horizontal',
+	    // The orient of orthoginal layout, can be setted to 'LR', 'TB', 'RL', 'BT'.
+	    // and the backward compatibility configuration 'horizontal = LR', 'vertical = TB'.
+	    orient: 'LR',
 	    symbol: 'emptyCircle',
 	    symbolSize: 7,
 	    expandAndCollapse: true,
@@ -42282,18 +45921,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 222 */
+/* 224 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var Model = __webpack_require__(45);
 
-	var linkList = __webpack_require__(223);
+	var linkList = __webpack_require__(225);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
-	var createDimensions = __webpack_require__(124);
+	var createDimensions = __webpack_require__(125);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Tree data structure
@@ -42817,10 +46475,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 223 */
+/* 225 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Link lists and struct (graph or tree)
@@ -42950,20 +46627,39 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 224 */
+/* 226 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var graphic = __webpack_require__(51);
 
-	var SymbolClz = __webpack_require__(146);
+	var SymbolClz = __webpack_require__(148);
 
-	var _layoutHelper = __webpack_require__(225);
+	var _layoutHelper = __webpack_require__(227);
 
 	var radialCoordinate = _layoutHelper.radialCoordinate;
 
 	var echarts = __webpack_require__(1);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file  This file used to draw tree view
@@ -43007,7 +46703,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var seriesScope = {
 	      expandAndCollapse: seriesModel.get('expandAndCollapse'),
 	      layout: layout,
-	      orient: seriesModel.get('orient'),
+	      orient: seriesModel.getOrient(),
 	      curvature: seriesModel.get('lineStyle.curveness'),
 	      symbolRotate: seriesModel.get('symbolRotate'),
 	      symbolOffset: seriesModel.get('symbolOffset'),
@@ -43024,15 +46720,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var symbolEl = oldData.getItemGraphicEl(oldIdx);
 
 	      if (!symbolNeedsDraw(data, newIdx)) {
-	        symbolEl && removeNode(data, newIdx, symbolEl, group, seriesModel, seriesScope);
+	        symbolEl && removeNode(oldData, oldIdx, symbolEl, group, seriesModel, seriesScope);
 	        return;
 	      } // update  node and edge
 
 
 	      updateNode(data, newIdx, symbolEl, group, seriesModel, seriesScope);
 	    }).remove(function (oldIdx) {
-	      var symbolEl = oldData.getItemGraphicEl(oldIdx);
-	      removeNode(data, oldIdx, symbolEl, group, seriesModel, seriesScope);
+	      var symbolEl = oldData.getItemGraphicEl(oldIdx); // When remove a collapsed node of subtree, since the collapsed
+	      // node haven't been initialized with a symbol element,
+	      // you can't found it's symbol element through index.
+	      // so if we want to remove the symbol element we should insure
+	      // that the symbol element is not null.
+
+	      if (symbolEl) {
+	        removeNode(oldData, oldIdx, symbolEl, group, seriesModel, seriesScope);
+	      }
 	    }).execute();
 
 	    if (seriesScope.expandAndCollapse === true) {
@@ -43256,14 +46959,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var x2 = targetLayout.x;
 	    var y2 = targetLayout.y;
 
-	    if (orient === 'horizontal') {
+	    if (orient === 'LR' || orient === 'RL') {
 	      cpx1 = x1 + (x2 - x1) * seriesScope.curvature;
 	      cpy1 = y1;
 	      cpx2 = x2 + (x1 - x2) * seriesScope.curvature;
 	      cpy2 = y2;
 	    }
 
-	    if (orient === 'vertical') {
+	    if (orient === 'TB' || orient === 'BT') {
 	      cpx1 = x1;
 	      cpy1 = y1 + (y2 - y1) * seriesScope.curvature;
 	      cpx2 = x2;
@@ -43286,10 +46989,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 225 */
+/* 227 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var layout = __webpack_require__(87);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file The layout algorithm of node-link tree diagrams. Here we using Reingold-Tilford algorithm to drawing
@@ -43565,11 +47287,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.getViewRect = getViewRect;
 
 /***/ },
-/* 226 */
+/* 228 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerAction({
 	  type: 'treeExpandAndCollapse',
 	  event: 'treeExpandAndCollapse',
@@ -43588,29 +47328,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 227 */
+/* 229 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var commonLayout = __webpack_require__(228);
-
-	function _default(ecModel, api) {
-	  ecModel.eachSeriesByType('tree', function (seriesModel) {
-	    commonLayout(seriesModel, api);
-	  });
-	}
-
-	module.exports = _default;
-
-/***/ },
-/* 228 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var _traversalHelper = __webpack_require__(229);
+	var _traversalHelper = __webpack_require__(230);
 
 	var eachAfter = _traversalHelper.eachAfter;
 	var eachBefore = _traversalHelper.eachBefore;
 
-	var _layoutHelper = __webpack_require__(225);
+	var _layoutHelper = __webpack_require__(227);
 
 	var init = _layoutHelper.init;
 	var firstWalk = _layoutHelper.firstWalk;
@@ -43619,7 +47345,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	var radialCoordinate = _layoutHelper.radialCoordinate;
 	var getViewRect = _layoutHelper.getViewRect;
 
-	function _default(seriesModel, api) {
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	function _default(ecModel, api) {
+	  ecModel.eachSeriesByType('tree', function (seriesModel) {
+	    commonLayout(seriesModel, api);
+	  });
+	}
+
+	function commonLayout(seriesModel, api) {
 	  var layoutInfo = getViewRect(seriesModel, api);
 	  seriesModel.layoutInfo = layoutInfo;
 	  var layout = seriesModel.get('layout');
@@ -43641,73 +47391,78 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  var virtualRoot = seriesModel.getData().tree.root;
 	  var realRoot = virtualRoot.children[0];
-	  init(virtualRoot);
-	  eachAfter(realRoot, firstWalk, separation);
-	  virtualRoot.hierNode.modifier = -realRoot.hierNode.prelim;
-	  eachBefore(realRoot, secondWalk);
-	  var left = realRoot;
-	  var right = realRoot;
-	  var bottom = realRoot;
-	  eachBefore(realRoot, function (node) {
-	    var x = node.getLayout().x;
 
-	    if (x < left.getLayout().x) {
-	      left = node;
-	    }
-
-	    if (x > right.getLayout().x) {
-	      right = node;
-	    }
-
-	    if (node.depth > bottom.depth) {
-	      bottom = node;
-	    }
-	  });
-	  var delta = left === right ? 1 : separation(left, right) / 2;
-	  var tx = delta - left.getLayout().x;
-	  var kx = 0;
-	  var ky = 0;
-	  var coorX = 0;
-	  var coorY = 0;
-
-	  if (layout === 'radial') {
-	    kx = width / (right.getLayout().x + delta + tx); // here we use (node.depth - 1), bucause the real root's depth is 1
-
-	    ky = height / (bottom.depth - 1 || 1);
+	  if (realRoot) {
+	    init(virtualRoot);
+	    eachAfter(realRoot, firstWalk, separation);
+	    virtualRoot.hierNode.modifier = -realRoot.hierNode.prelim;
+	    eachBefore(realRoot, secondWalk);
+	    var left = realRoot;
+	    var right = realRoot;
+	    var bottom = realRoot;
 	    eachBefore(realRoot, function (node) {
-	      coorX = (node.getLayout().x + tx) * kx;
-	      coorY = (node.depth - 1) * ky;
-	      var finalCoor = radialCoordinate(coorX, coorY);
-	      node.setLayout({
-	        x: finalCoor.x,
-	        y: finalCoor.y,
-	        rawX: coorX,
-	        rawY: coorY
-	      }, true);
+	      var x = node.getLayout().x;
+
+	      if (x < left.getLayout().x) {
+	        left = node;
+	      }
+
+	      if (x > right.getLayout().x) {
+	        right = node;
+	      }
+
+	      if (node.depth > bottom.depth) {
+	        bottom = node;
+	      }
 	    });
-	  } else {
-	    if (seriesModel.get('orient') === 'horizontal') {
-	      ky = height / (right.getLayout().x + delta + tx);
-	      kx = width / (bottom.depth - 1 || 1);
-	      eachBefore(realRoot, function (node) {
-	        coorY = (node.getLayout().x + tx) * ky;
-	        coorX = (node.depth - 1) * kx;
-	        node.setLayout({
-	          x: coorX,
-	          y: coorY
-	        }, true);
-	      });
-	    } else {
-	      kx = width / (right.getLayout().x + delta + tx);
+	    var delta = left === right ? 1 : separation(left, right) / 2;
+	    var tx = delta - left.getLayout().x;
+	    var kx = 0;
+	    var ky = 0;
+	    var coorX = 0;
+	    var coorY = 0;
+
+	    if (layout === 'radial') {
+	      kx = width / (right.getLayout().x + delta + tx); // here we use (node.depth - 1), bucause the real root's depth is 1
+
 	      ky = height / (bottom.depth - 1 || 1);
 	      eachBefore(realRoot, function (node) {
 	        coorX = (node.getLayout().x + tx) * kx;
 	        coorY = (node.depth - 1) * ky;
+	        var finalCoor = radialCoordinate(coorX, coorY);
 	        node.setLayout({
-	          x: coorX,
-	          y: coorY
+	          x: finalCoor.x,
+	          y: finalCoor.y,
+	          rawX: coorX,
+	          rawY: coorY
 	        }, true);
 	      });
+	    } else {
+	      var orient = seriesModel.getOrient();
+
+	      if (orient === 'RL' || orient === 'LR') {
+	        ky = height / (right.getLayout().x + delta + tx);
+	        kx = width / (bottom.depth - 1 || 1);
+	        eachBefore(realRoot, function (node) {
+	          coorY = (node.getLayout().x + tx) * ky;
+	          coorX = orient === 'LR' ? (node.depth - 1) * kx : width - (node.depth - 1) * kx;
+	          node.setLayout({
+	            x: coorX,
+	            y: coorY
+	          }, true);
+	        });
+	      } else if (orient === 'TB' || orient === 'BT') {
+	        kx = width / (right.getLayout().x + delta + tx);
+	        ky = height / (bottom.depth - 1 || 1);
+	        eachBefore(realRoot, function (node) {
+	          coorX = (node.getLayout().x + tx) * kx;
+	          coorY = orient === 'TB' ? (node.depth - 1) * ky : height - (node.depth - 1) * ky;
+	          node.setLayout({
+	            x: coorX,
+	            y: coorY
+	          }, true);
+	        });
+	      }
 	    }
 	  }
 	}
@@ -43715,8 +47470,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 229 */
+/* 230 */
 /***/ function(module, exports) {
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Traverse the tree from bottom to top and do something
@@ -43779,20 +47553,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.eachBefore = eachBefore;
 
 /***/ },
-/* 230 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var commonLayout = __webpack_require__(228);
-
-	function _default(ecModel, api) {
-	  ecModel.eachSeriesByType('tree', function (seriesModel) {
-	    commonLayout(seriesModel, api);
-	  });
-	}
-
-	module.exports = _default;
-
-/***/ },
 /* 231 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -43808,6 +47568,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var treemapLayout = __webpack_require__(240);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerVisual(treemapVisual);
 	echarts.registerLayout(treemapLayout);
 
@@ -43819,7 +47597,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var SeriesModel = __webpack_require__(103);
 
-	var Tree = __webpack_require__(222);
+	var Tree = __webpack_require__(224);
 
 	var Model = __webpack_require__(45);
 
@@ -43832,6 +47610,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var wrapTreePathInfo = _treeHelper.wrapTreePathInfo;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.treemap',
 	  layoutMode: 'box',
@@ -44188,6 +47984,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function retrieveTargetInfo(payload, validPayloadTypes, seriesModel) {
 	  if (payload && zrUtil.indexOf(validPayloadTypes, payload.type) >= 0) {
 	    var root = seriesModel.getData().tree.root;
@@ -44259,13 +48073,13 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var DataDiffer = __webpack_require__(122);
+	var DataDiffer = __webpack_require__(123);
 
 	var helper = __webpack_require__(233);
 
 	var Breadcrumb = __webpack_require__(235);
 
-	var RoamController = __webpack_require__(210);
+	var RoamController = __webpack_require__(212);
 
 	var BoundingRect = __webpack_require__(24);
 
@@ -44275,6 +48089,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeStyleMapper = __webpack_require__(48);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var bind = zrUtil.bind;
 	var Group = graphic.Group;
 	var Rect = graphic.Rect;
@@ -45125,6 +48957,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _treeHelper = __webpack_require__(233);
 
 	var wrapTreePathInfo = _treeHelper.wrapTreePathInfo;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var TEXT_PADDING = 8;
 	var ITEM_GAP = 8;
 	var ARRAY_LENGTH = 5;
@@ -45278,6 +49129,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @param {number} [time=500] Time in ms
 	 * @param {string} [easing='linear']
@@ -45384,6 +49254,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var helper = __webpack_require__(233);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file Treemap action
 	 */
@@ -45434,6 +49323,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var isArray = zrUtil.isArray;
 	var ITEM_STYLE_NORMAL = 'itemStyle';
 	var _default = {
@@ -45620,6 +49527,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _number = __webpack_require__(88);
 
 	var linearMap = _number.linearMap;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var isObject = zrUtil.isObject;
 	var CATEGORY_DEFAULT_VISUAL_INDEX = -1;
@@ -45778,6 +49704,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	  opacity: {
 	    applyVisual: makeApplyVisual('opacity'),
 	    _doMap: makeDoMap([0, 1])
+	  },
+	  liftZ: {
+	    applyVisual: makeApplyVisual('liftZ'),
+	    _doMap: {
+	      linear: doMapFixed,
+	      category: doMapFixed,
+	      piecewise: doMapFixed,
+	      fixed: doMapFixed
+	    }
 	  },
 	  symbol: {
 	    applyVisual: function (value, getter, setter) {
@@ -46195,6 +50130,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var helper = __webpack_require__(233);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var mathMax = Math.max;
 	var mathMin = Math.min;
 	var retrieveValue = zrUtil.retrieve;
@@ -46714,7 +50667,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var categoryFilter = __webpack_require__(251);
 
-	var visualSymbol = __webpack_require__(151);
+	var visualSymbol = __webpack_require__(153);
 
 	var categoryVisual = __webpack_require__(252);
 
@@ -46728,6 +50681,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createView = __webpack_require__(260);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerProcessor(categoryFilter);
 	echarts.registerVisual(visualSymbol('graph', 'circle', null));
 	echarts.registerVisual(categoryVisual);
@@ -46746,7 +50717,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var zrUtil = __webpack_require__(6);
 
@@ -46762,6 +50733,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createGraphFromNodeEdge = __webpack_require__(243);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var GraphSeries = echarts.extendSeriesModel({
 	  type: 'series.graph',
 	  init: function (option) {
@@ -46813,6 +50802,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var fakeSeriesModel = new Model({
 	        label: edgeLabelModel.option
 	      }, edgeLabelModel.parentModel, ecModel);
+	      var emphasisEdgeLabelModel = self.getModel('emphasis.edgeLabel');
+	      var emphasisFakeSeriesModel = new Model({
+	        emphasis: {
+	          label: emphasisEdgeLabelModel.option
+	        }
+	      }, emphasisEdgeLabelModel.parentModel, ecModel);
 	      edgeData.wrapMethod('getItemModel', function (model) {
 	        model.customizeGetParent(edgeGetParent);
 	        return model;
@@ -46820,7 +50815,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	      function edgeGetParent(path) {
 	        path = this.parsePath(path);
-	        return path && path[0] === 'label' ? fakeSeriesModel : this.parentModel;
+	        return path && path[0] === 'label' ? fakeSeriesModel : path && path[0] === 'emphasis' && path[1] === 'label' ? emphasisFakeSeriesModel : this.parentModel;
 	      }
 	    }
 	  },
@@ -46978,18 +50973,36 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var Graph = __webpack_require__(244);
 
-	var linkList = __webpack_require__(223);
+	var linkList = __webpack_require__(225);
 
-	var createDimensions = __webpack_require__(124);
+	var createDimensions = __webpack_require__(125);
 
 	var CoordinateSystem = __webpack_require__(98);
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(nodes, edges, seriesModel, directed, beforeLink) {
 	  // ??? TODO
 	  // support dataset?
@@ -47022,11 +51035,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (coordSys === 'cartesian2d' || coordSys === 'polar') {
 	    nodeData = createListFromArray(nodes, seriesModel);
 	  } else {
-	    // FIXME
-	    var coordSysCtor = CoordinateSystem.get(coordSys); // FIXME
+	    var coordSysCtor = CoordinateSystem.get(coordSys);
+	    var coordDimensions = coordSysCtor && coordSysCtor.type !== 'view' ? coordSysCtor.dimensions || [] : []; // FIXME: Some geo do not need `value` dimenson, whereas `calendar` needs
+	    // `value` dimension, but graph need `value` dimension. It's better to
+	    // uniform this behavior.
+
+	    if (zrUtil.indexOf(coordDimensions, 'value') < 0) {
+	      coordDimensions.concat(['value']);
+	    }
 
 	    var dimensionNames = createDimensions(nodes, {
-	      coordDimensions: (coordSysCtor && coordSysCtor.type !== 'view' ? coordSysCtor.dimensions || [] : []).concat(['value'])
+	      coordDimensions: coordDimensions
 	    });
 	    nodeData = new List(dimensionNames, seriesModel);
 	    nodeData.initData(nodes);
@@ -47068,6 +51087,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _clazz = __webpack_require__(46);
 
 	var enableClassCheck = _clazz.enableClassCheck;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Graph data structure
@@ -47607,15 +51645,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var SymbolDraw = __webpack_require__(145);
+	var SymbolDraw = __webpack_require__(147);
 
 	var LineDraw = __webpack_require__(246);
 
-	var RoamController = __webpack_require__(210);
+	var RoamController = __webpack_require__(212);
 
-	var roamHelper = __webpack_require__(212);
+	var roamHelper = __webpack_require__(214);
 
-	var _cursorHelper = __webpack_require__(213);
+	var _cursorHelper = __webpack_require__(215);
 
 	var onIrrelevantElement = _cursorHelper.onIrrelevantElement;
 
@@ -47623,6 +51661,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var adjustEdge = __webpack_require__(249);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var nodeOpacityPath = ['itemStyle', 'opacity'];
 	var lineOpacityPath = ['lineStyle', 'opacity'];
 
@@ -47967,6 +52023,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var LineGroup = __webpack_require__(247);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @module echarts/chart/helper/LineDraw
 	 */
@@ -48043,7 +52118,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	lineDrawProto.updateLayout = function () {
-	  var lineData = this._lineData;
+	  var lineData = this._lineData; // Do not support update layout in incremental mode.
+
+	  if (!lineData) {
+	    return;
+	  }
+
 	  lineData.eachItemGraphicEl(function (el, idx) {
 	    el.updateLayout(lineData, idx);
 	  }, this);
@@ -48069,6 +52149,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var el = new this._ctor(lineData, idx, this._seriesScope);
 	      el.traverse(updateIncrementalAndHover);
 	      this.group.add(el);
+	      lineData.setItemGraphicEl(idx, el);
 	    }
 	  }
 	};
@@ -48117,7 +52198,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vector = __webpack_require__(8);
 
-	var symbolUtil = __webpack_require__(137);
+	var symbolUtil = __webpack_require__(138);
 
 	var LinePath = __webpack_require__(248);
 
@@ -48126,6 +52207,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _number = __webpack_require__(88);
 
 	var round = _number.round;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @module echarts/chart/helper/Line
@@ -48393,24 +52493,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var hoverShowLabel = hoverLabelModel.getShallow('show');
 	  var label = this.childOfName('label');
 	  var defaultLabelColor;
-	  var normalText;
-	  var emphasisText;
+	  var baseText; // FIXME: the logic below probably should be merged to `graphic.setLabelStyle`.
 
 	  if (showLabel || hoverShowLabel) {
 	    defaultLabelColor = visualColor || '#000';
-	    normalText = seriesModel.getFormattedLabel(idx, 'normal', lineData.dataType);
+	    baseText = seriesModel.getFormattedLabel(idx, 'normal', lineData.dataType);
 
-	    if (normalText == null) {
+	    if (baseText == null) {
 	      var rawVal = seriesModel.getRawValue(idx);
-	      normalText = rawVal == null ? lineData.getName(idx) : isFinite(rawVal) ? round(rawVal) : rawVal;
+	      baseText = rawVal == null ? lineData.getName(idx) : isFinite(rawVal) ? round(rawVal) : rawVal;
 	    }
+	  }
 
-	    emphasisText = zrUtil.retrieve2(seriesModel.getFormattedLabel(idx, 'emphasis', lineData.dataType), normalText);
-	  } // label.afterUpdate = lineAfterUpdate;
+	  var normalText = showLabel ? baseText : null;
+	  var emphasisText = hoverShowLabel ? zrUtil.retrieve2(seriesModel.getFormattedLabel(idx, 'emphasis', lineData.dataType), baseText) : null;
+	  var labelStyle = label.style; // Always set `textStyle` even if `normalStyle.text` is null, because default
+	  // values have to be set on `normalStyle`.
 
-
-	  if (showLabel) {
-	    var labelStyle = graphic.setTextStyle(label.style, labelModel, {
+	  if (normalText != null || emphasisText != null) {
+	    graphic.setTextStyle(label.style, labelModel, {
 	      text: normalText
 	    }, {
 	      autoColor: defaultLabelColor
@@ -48419,11 +52520,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    label.__verticalAlign = labelStyle.textVerticalAlign; // 'start', 'middle', 'end'
 
 	    label.__position = labelModel.get('position') || 'middle';
-	  } else {
-	    label.setStyle('text', null);
 	  }
 
-	  if (hoverShowLabel) {
+	  if (emphasisText != null) {
 	    // Only these properties supported in this emphasis style here.
 	    label.hoverStyle = {
 	      text: emphasisText,
@@ -48475,6 +52574,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vec2 = __webpack_require__(8);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * Line path for bezier and straight line draw
 	 */
@@ -48523,6 +52641,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vec2 = __webpack_require__(8);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var v1 = [];
 	var v2 = [];
 	var v3 = [];
@@ -48687,9 +52823,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
-	var _roamHelper = __webpack_require__(215);
+	var _roamHelper = __webpack_require__(217);
 
 	var updateCenterAndZoom = _roamHelper.updateCenterAndZoom;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var actionInfo = {
 	  type: 'graphRoam',
 	  event: 'graphRoam',
@@ -48746,6 +52901,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 251 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  var legendModels = ecModel.findComponents({
 	    mainType: 'legend'
@@ -48788,6 +52961,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 252 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  var paletteScope = {};
 	  ecModel.eachSeriesByType('graph', function (seriesModel) {
@@ -48828,6 +53019,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 253 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function normalize(a) {
 	  if (!(a instanceof Array)) {
 	    a = [a, a];
@@ -48894,6 +53103,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	var simpleLayout = _simpleLayoutHelper.simpleLayout;
 	var simpleLayoutEdge = _simpleLayoutHelper.simpleLayoutEdge;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel, api) {
 	  ecModel.eachSeriesByType('graph', function (seriesModel) {
 	    var layout = seriesModel.get('layout');
@@ -48943,6 +53170,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vec2 = __webpack_require__(8);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function simpleLayout(seriesModel) {
 	  var coordSys = seriesModel.coordinateSystem;
 
@@ -48984,6 +53229,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var circularLayout = _circularLayoutHelper.circularLayout;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  ecModel.eachSeriesByType('graph', function (seriesModel) {
 	    if (seriesModel.get('layout') === 'circular') {
@@ -49000,6 +53263,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vec2 = __webpack_require__(8);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function circularLayout(seriesModel) {
 	  var coordSys = seriesModel.coordinateSystem;
 
@@ -49069,6 +53350,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  ecModel.eachSeriesByType('graph', function (graphSeries) {
 	    var coordSys = graphSeries.coordinateSystem;
@@ -49210,6 +53509,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var vec2 = __webpack_require__(8);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var scaleAndAdd = vec2.scaleAndAdd; // function adjacentNode(n, e) {
 	//     return e.n1 === n ? e.n2 : e.n1;
 	// }
@@ -49351,7 +53668,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 260 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var View = __webpack_require__(203);
+	var View = __webpack_require__(205);
 
 	var _layout = __webpack_require__(87);
 
@@ -49359,6 +53676,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var bbox = __webpack_require__(56);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// FIXME Where to create the simple view coordinate system
 	function getViewRect(seriesModel, api, aspect) {
 	  var option = seriesModel.getBoxLayoutParams();
@@ -49434,12 +53769,30 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 262 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var createListSimply = __webpack_require__(177);
+	var createListSimply = __webpack_require__(179);
 
 	var SeriesModel = __webpack_require__(103);
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var GaugeSeries = SeriesModel.extend({
 	  type: 'series.gauge',
 	  getInitialData: function (option, ecModel) {
@@ -49565,6 +53918,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	var round = _number.round;
 	var linearMap = _number.linearMap;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function parsePosition(seriesModel, api) {
 	  var center = seriesModel.get('center');
 	  var width = api.getWidth();
@@ -49898,6 +54269,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Path = __webpack_require__(53);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = Path.extend({
 	  type: 'echartsGaugePointer',
 	  shape: {
@@ -49937,12 +54326,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(267);
 
-	var dataColor = __webpack_require__(181);
+	var dataColor = __webpack_require__(183);
 
 	var funnelLayout = __webpack_require__(268);
 
-	var dataFilter = __webpack_require__(184);
+	var dataFilter = __webpack_require__(186);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerVisual(dataColor('funnel'));
 	echarts.registerLayout(funnelLayout);
 	echarts.registerProcessor(dataFilter('funnel'));
@@ -49953,11 +54360,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
-	var createListSimply = __webpack_require__(177);
+	var createListSimply = __webpack_require__(179);
 
 	var _model = __webpack_require__(44);
 
 	var defaultEmphasis = _model.defaultEmphasis;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var FunnelSeries = echarts.extendSeriesModel({
 	  type: 'series.funnel',
 	  init: function (option) {
@@ -50053,6 +54479,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var zrUtil = __webpack_require__(6);
 
 	var ChartView = __webpack_require__(108);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Piece of pie including Sector, Label, LabelLine
@@ -50225,6 +54670,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	var parsePercent = _number.parsePercent;
 	var linearMap = _number.linearMap;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function getViewRect(seriesModel, api) {
 	  return layout.getLayoutRect(seriesModel.getBoxLayoutParams(), {
 	    width: api.getWidth(),
@@ -50413,6 +54876,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var parallelVisual = __webpack_require__(285);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerVisual(parallelVisual);
 
 /***/ },
@@ -50433,6 +54914,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(278);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var CLICK_THRESHOLD = 5; // > 4
 	// Parallel view
 
@@ -50531,6 +55030,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var modelUtil = __webpack_require__(44);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(option) {
 	  createParallelIfNeeded(option);
 	  mergeAxisOptionFromParallel(option);
@@ -50589,6 +55106,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var CoordinateSystem = __webpack_require__(98);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * Parallel coordinate system creater.
 	 */
@@ -50630,7 +55166,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var layoutUtil = __webpack_require__(87);
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
 	var ParallelAxis = __webpack_require__(274);
 
@@ -50639,6 +55175,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var numberUtil = __webpack_require__(88);
 
 	var sliderMove = __webpack_require__(275);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Parallel Coordinates
@@ -50887,8 +55442,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        axisLabelShow: posInfo.axisLabelShow,
 	        nameTruncateMaxWidth: posInfo.nameTruncateMaxWidth,
 	        tickDirection: 1,
-	        labelDirection: 1,
-	        labelInterval: axes.get(dim).getLabelInterval()
+	        labelDirection: 1
 	      };
 	    }, this);
 	  },
@@ -50917,28 +55471,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @param {module:echarts/data/List} data
 	   * @param {Functio} cb param: {string} activeState 'active' or 'inactive' or 'normal'
 	   *                            {number} dataIndex
-	   * @param {Object} context
+	   * @param {number} [start=0] the start dataIndex that travel from.
+	   * @param {number} [end=data.count()] the next dataIndex of the last dataIndex will be travel.
 	   */
-	  eachActiveState: function (data, callback, context) {
-	    var dimensions = this.dimensions;
-	    var dataDimensions = zrUtil.map(dimensions, function (axisDim) {
-	      return data.mapDimension(axisDim);
-	    });
+	  eachActiveState: function (data, callback, start, end) {
+	    start == null && (start = 0);
+	    end == null && (end = data.count());
 	    var axesMap = this._axesMap;
+	    var dimensions = this.dimensions;
+	    var dataDimensions = [];
+	    var axisModels = [];
+	    zrUtil.each(dimensions, function (axisDim) {
+	      dataDimensions.push(data.mapDimension(axisDim));
+	      axisModels.push(axesMap.get(axisDim).model);
+	    });
 	    var hasActiveSet = this.hasAxisBrushed();
 
-	    for (var i = 0, len = data.count(); i < len; i++) {
-	      var values = data.getValues(dataDimensions, i);
+	    for (var dataIndex = start; dataIndex < end; dataIndex++) {
 	      var activeState;
 
 	      if (!hasActiveSet) {
 	        activeState = 'normal';
 	      } else {
 	        activeState = 'active';
+	        var values = data.getValues(dataDimensions, dataIndex);
 
 	        for (var j = 0, lenj = dimensions.length; j < lenj; j++) {
-	          var dimName = dimensions[j];
-	          var state = axesMap.get(dimName).model.getActiveState(values[j], j);
+	          var state = axisModels[j].getActiveState(values[j]);
 
 	          if (state === 'inactive') {
 	            activeState = 'inactive';
@@ -50947,7 +55506,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	      }
 
-	      callback.call(context, activeState, i);
+	      callback(activeState, dataIndex);
 	    }
 	  },
 
@@ -51103,7 +55662,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @constructor module:echarts/coord/parallel/ParallelAxis
@@ -51156,6 +55734,25 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ },
 /* 275 */
 /***/ function(module, exports) {
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Calculate slider move result.
@@ -51249,6 +55846,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(277);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = Component.extend({
 	  type: 'parallel',
 	  dependencies: ['parallelAxis'],
@@ -51365,12 +55980,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeStyleMapper = __webpack_require__(48);
 
-	var axisModelCreator = __webpack_require__(161);
+	var axisModelCreator = __webpack_require__(163);
 
 	var numberUtil = __webpack_require__(88);
 
-	var axisModelCommonMixin = __webpack_require__(136);
+	var axisModelCommonMixin = __webpack_require__(137);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var AxisModel = ComponentModel.extend({
 	  type: 'baseParallelAxis',
 
@@ -51427,13 +56060,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return 'normal';
 	    }
 
-	    if (value == null) {
+	    if (value == null || isNaN(value)) {
 	      return 'inactive';
-	    }
+	    } // Simple optimization
 
-	    for (var i = 0, len = activeIntervals.length; i < len; i++) {
-	      if (activeIntervals[i][0] <= value && value <= activeIntervals[i][1]) {
+
+	    if (activeIntervals.length === 1) {
+	      var interval = activeIntervals[0];
+
+	      if (interval[0] <= value && value <= interval[1]) {
 	        return 'active';
+	      }
+	    } else {
+	      for (var i = 0, len = activeIntervals.length; i < len; i++) {
+	        if (activeIntervals[i][0] <= value && value <= activeIntervals[i][1]) {
+	          return 'active';
+	        }
 	      }
 	    }
 
@@ -51486,6 +56128,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @payload
 	 * @property {string} parallelAxisId
@@ -51525,7 +56186,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
 
 	var BrushController = __webpack_require__(281);
 
@@ -51533,6 +56194,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var elementList = ['axisLine', 'axisTickLabel', 'axisName'];
 	var AxisView = echarts.extendComponentView({
 	  type: 'parallelAxis',
@@ -51693,10 +56372,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var interactionMutex = __webpack_require__(211);
+	var interactionMutex = __webpack_require__(213);
 
-	var DataDiffer = __webpack_require__(122);
+	var DataDiffer = __webpack_require__(123);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var curry = zrUtil.curry;
 	var each = zrUtil.each;
 	var map = zrUtil.map;
@@ -52557,12 +57254,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var BoundingRect = __webpack_require__(24);
 
-	var _cursorHelper = __webpack_require__(213);
+	var _cursorHelper = __webpack_require__(215);
 
 	var onIrrelevantElement = _cursorHelper.onIrrelevantElement;
 
 	var graphicUtil = __webpack_require__(51);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function makeRectPanelClipPath(rect) {
 	  rect = normalizeRect(rect);
 	  return function (localPoints, transform) {
@@ -52607,18 +57322,31 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var SeriesModel = __webpack_require__(103);
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.parallel',
 	  dependencies: ['parallel'],
 	  visualColorAccessPath: 'lineStyle.color',
 	  getInitialData: function (option, ecModel) {
-	    // Anication is forbiden in progressive data mode.
-	    if (this.option.progressive) {
-	      this.option.animation = false;
-	    }
-
 	    var source = this.getSource();
 	    setEncodeAndDimensions(source, this);
 	    return createListFromArray(source, this);
@@ -52664,9 +57392,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        show: false
 	      }
 	    },
-	    progressive: false,
-	    // 100
+	    progressive: 500,
 	    smooth: false,
+	    // true | false | number
 	    animationEasing: 'linear'
 	  }
 	});
@@ -52711,7 +57439,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var ChartView = __webpack_require__(108);
 
-	var SMOOTH = 0.3;
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	var DEFAULT_SMOOTH = 0.3;
 	var ParallelView = ChartView.extend({
 	  type: 'parallel',
 	  init: function () {
@@ -52726,52 +57472,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	     */
 
 	    this._data;
+	    /**
+	     * @type {boolean}
+	     */
+
+	    this._initialized;
 	  },
 
 	  /**
 	   * @override
 	   */
 	  render: function (seriesModel, ecModel, api, payload) {
-	    this._renderForNormal(seriesModel, payload); // this[
-	    //     seriesModel.option.progressive
-	    //         ? '_renderForProgressive'
-	    //         : '_renderForNormal'
-	    // ](seriesModel);
-
-	  },
-	  dispose: function () {},
-
-	  /**
-	   * @private
-	   */
-	  _renderForNormal: function (seriesModel, payload) {
 	    var dataGroup = this._dataGroup;
 	    var data = seriesModel.getData();
 	    var oldData = this._data;
 	    var coordSys = seriesModel.coordinateSystem;
 	    var dimensions = coordSys.dimensions;
-	    var option = seriesModel.option;
-	    var smooth = option.smooth ? SMOOTH : null; // Consider switch between progressive and not.
-	    // oldData && oldData.__plProgressive && dataGroup.removeAll();
-
-	    data.diff(oldData).add(add).update(update).remove(remove).execute(); // Update style
-
-	    updateElCommon(data, smooth); // First create
-
-	    if (!this._data) {
-	      var clipPath = createGridClipShape(coordSys, seriesModel, function () {
-	        // Callback will be invoked immediately if there is no animation
-	        setTimeout(function () {
-	          dataGroup.removeClipPath();
-	        });
-	      });
-	      dataGroup.setClipPath(clipPath);
-	    }
-
-	    this._data = data;
+	    var seriesScope = makeSeriesScope(seriesModel);
+	    data.diff(oldData).add(add).update(update).remove(remove).execute();
 
 	    function add(newDataIndex) {
-	      addEl(data, dataGroup, newDataIndex, dimensions, coordSys, null, smooth);
+	      var line = addEl(data, dataGroup, newDataIndex, dimensions, coordSys);
+	      updateElCommon(line, data, newDataIndex, seriesScope);
 	    }
 
 	    function update(newDataIndex, oldDataIndex) {
@@ -52784,17 +57506,47 @@ return /******/ (function(modules) { // webpackBootstrap
 	          points: points
 	        }
 	      }, animationModel, newDataIndex);
+	      updateElCommon(line, data, newDataIndex, seriesScope);
 	    }
 
 	    function remove(oldDataIndex) {
 	      var line = oldData.getItemGraphicEl(oldDataIndex);
 	      dataGroup.remove(line);
+	    } // First create
+
+
+	    if (!this._initialized) {
+	      this._initialized = true;
+	      var clipPath = createGridClipShape(coordSys, seriesModel, function () {
+	        // Callback will be invoked immediately if there is no animation
+	        setTimeout(function () {
+	          dataGroup.removeClipPath();
+	        });
+	      });
+	      dataGroup.setClipPath(clipPath);
+	    }
+
+	    this._data = data;
+	  },
+	  incrementalPrepareRender: function (seriesModel, ecModel, api) {
+	    this._initialized = true;
+	    this._data = null;
+
+	    this._dataGroup.removeAll();
+	  },
+	  incrementalRender: function (taskParams, seriesModel, ecModel) {
+	    var data = seriesModel.getData();
+	    var coordSys = seriesModel.coordinateSystem;
+	    var dimensions = coordSys.dimensions;
+	    var seriesScope = makeSeriesScope(seriesModel);
+
+	    for (var dataIndex = taskParams.start; dataIndex < taskParams.end; dataIndex++) {
+	      var line = addEl(data, this._dataGroup, dataIndex, dimensions, coordSys);
+	      line.incremental = true;
+	      updateElCommon(line, data, dataIndex, seriesScope);
 	    }
 	  },
-
-	  /**
-	   * @private
-	   */
+	  dispose: function () {},
 	  // _renderForProgressive: function (seriesModel) {
 	  //     var dataGroup = this._dataGroup;
 	  //     var data = seriesModel.getData();
@@ -52878,27 +57630,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 	  dataGroup.add(line);
 	  data.setItemGraphicEl(dataIndex, line);
+	  return line;
 	}
 
-	function updateElCommon(data, smooth) {
-	  var seriesStyleModel = data.hostModel.getModel('lineStyle');
-	  var lineStyle = seriesStyleModel.getLineStyle();
-	  data.eachItemGraphicEl(function (line, dataIndex) {
-	    if (data.hasItemOption) {
-	      var itemModel = data.getItemModel(dataIndex);
-	      var lineStyleModel = itemModel.getModel('lineStyle', seriesStyleModel);
-	      lineStyle = lineStyleModel.getLineStyle(['color', 'stroke']);
-	    }
+	function makeSeriesScope(seriesModel) {
+	  var smooth = seriesModel.get('smooth', true);
+	  smooth === true && (smooth = DEFAULT_SMOOTH);
+	  return {
+	    lineStyle: seriesModel.getModel('lineStyle').getLineStyle(),
+	    smooth: smooth != null ? smooth : DEFAULT_SMOOTH
+	  };
+	}
 
-	    line.useStyle(zrUtil.extend(lineStyle, {
-	      fill: null,
-	      // lineStyle.color have been set to itemVisual in module:echarts/visual/seriesColor.
-	      stroke: data.getItemVisual(dataIndex, 'color'),
-	      // lineStyle.opacity have been set to itemVisual in parallelVisual.
-	      opacity: data.getItemVisual(dataIndex, 'opacity')
-	    }));
-	    line.shape.smooth = smooth;
-	  });
+	function updateElCommon(el, data, dataIndex, seriesScope) {
+	  var lineStyle = seriesScope.lineStyle;
+
+	  if (data.hasItemOption) {
+	    var lineStyleModel = data.getItemModel(dataIndex).getModel('lineStyle');
+	    lineStyle = lineStyleModel.getLineStyle();
+	  }
+
+	  el.useStyle(lineStyle);
+	  var elStyle = el.style;
+	  elStyle.fill = null; // lineStyle.color have been set to itemVisual in module:echarts/visual/seriesColor.
+
+	  elStyle.stroke = data.getItemVisual(dataIndex, 'color'); // lineStyle.opacity have been set to itemVisual in parallelVisual.
+
+	  elStyle.opacity = data.getItemVisual(dataIndex, 'opacity');
+	  seriesScope.smooth && (el.shape.smooth = seriesScope.smooth);
 	} // function simpleDiff(oldData, newData, dimensions) {
 	//     var oldLen;
 	//     if (!oldData
@@ -52932,10 +57691,28 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 285 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var opacityAccessPath = ['lineStyle', 'normal', 'opacity'];
-
-	function _default(ecModel) {
-	  ecModel.eachSeriesByType('parallel', function (seriesModel) {
+	var _default = {
+	  seriesType: 'parallel',
+	  reset: function (seriesModel, ecModel, api) {
 	    var itemStyleModel = seriesModel.getModel('itemStyle');
 	    var lineStyleModel = seriesModel.getModel('lineStyle');
 	    var globalColors = ecModel.get('color');
@@ -52950,21 +57727,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	      active: activeOpacity,
 	      inactive: inactiveOpacity
 	    };
-	    coordSys.eachActiveState(data, function (activeState, dataIndex) {
-	      var itemModel = data.getItemModel(dataIndex);
-	      var opacity = opacityMap[activeState];
-
-	      if (activeState === 'normal') {
-	        var itemOpacity = itemModel.get(opacityAccessPath, true);
-	        itemOpacity != null && (opacity = itemOpacity);
-	      }
-
-	      data.setItemVisual(dataIndex, 'opacity', opacity);
-	    });
 	    data.setVisual('color', color);
-	  });
-	}
 
+	    function progress(params, data) {
+	      coordSys.eachActiveState(data, function (activeState, dataIndex) {
+	        var opacity = opacityMap[activeState];
+
+	        if (activeState === 'normal' && data.hasItemOption) {
+	          var itemOpacity = data.getItemModel(dataIndex).get(opacityAccessPath, true);
+	          itemOpacity != null && (opacity = itemOpacity);
+	        }
+
+	        data.setItemVisual(dataIndex, 'opacity', opacity);
+	      }, params.start, params.end);
+	    }
+
+	    return {
+	      progress: progress
+	    };
+	  }
+	};
 	module.exports = _default;
 
 /***/ },
@@ -52977,10 +57759,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(288);
 
-	var sankeyLayout = __webpack_require__(289);
+	__webpack_require__(289);
 
-	var sankeyVisual = __webpack_require__(291);
+	var sankeyLayout = __webpack_require__(290);
 
+	var sankeyVisual = __webpack_require__(292);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerLayout(sankeyLayout);
 	echarts.registerVisual(sankeyVisual);
 
@@ -52995,6 +57797,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _format = __webpack_require__(89);
 
 	var encodeHTML = _format.encodeHTML;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file Get initial data and define sankey view's series model
@@ -53018,6 +57839,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var graph = createGraphFromNodeEdge(nodes, links, this, true);
 	      return graph.data;
 	    }
+	  },
+	  setNodePosition: function (dataIndex, localPosition) {
+	    var dataItem = this.option.data[dataIndex];
+	    dataItem.localX = localPosition[0];
+	    dataItem.localY = localPosition[1];
 	  },
 
 	  /**
@@ -53071,6 +57897,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    nodeWidth: 20,
 	    // the vertical distance between two nodes
 	    nodeGap: 8,
+	    // control if the node can move or not
+	    draggable: true,
 	    // the number of iterations to change the position of the node
 	    layoutIterations: 32,
 	    label: {
@@ -53111,6 +57939,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file  The file used to draw sankey view
 	 * @author  Deqing Li(annong035@gmail.com)
@@ -53148,7 +57995,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  render: function (seriesModel, ecModel, api) {
 	    var graph = seriesModel.getGraph();
 	    var group = this.group;
-	    var layoutInfo = seriesModel.layoutInfo;
+	    var layoutInfo = seriesModel.layoutInfo; // view width
+
+	    var width = layoutInfo.width; // view height
+
+	    var height = layoutInfo.height;
 	    var nodeData = seriesModel.getData();
 	    var edgeData = seriesModel.getData('edge');
 	    this._model = seriesModel;
@@ -53163,13 +58014,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var lineStyleModel = edge.getModel('lineStyle');
 	      var curvature = lineStyleModel.get('curveness');
 	      var n1Layout = edge.node1.getLayout();
+	      var node1Model = edge.node1.getModel();
+	      var dragX1 = node1Model.get('localX');
+	      var dragY1 = node1Model.get('localY');
 	      var n2Layout = edge.node2.getLayout();
+	      var node2Model = edge.node2.getModel();
+	      var dragX2 = node2Model.get('localX');
+	      var dragY2 = node2Model.get('localY');
 	      var edgeLayout = edge.getLayout();
 	      curve.shape.extent = Math.max(1, edgeLayout.dy);
-	      var x1 = n1Layout.x + n1Layout.dx;
-	      var y1 = n1Layout.y + edgeLayout.sy + edgeLayout.dy / 2;
-	      var x2 = n2Layout.x;
-	      var y2 = n2Layout.y + edgeLayout.ty + edgeLayout.dy / 2;
+	      var x1 = (dragX1 != null ? dragX1 * width : n1Layout.x) + n1Layout.dx;
+	      var y1 = (dragY1 != null ? dragY1 * height : n1Layout.y) + edgeLayout.sy + edgeLayout.dy / 2;
+	      var x2 = dragX2 != null ? dragX2 * width : n2Layout.x;
+	      var y2 = (dragY2 != null ? dragY2 * height : n2Layout.y) + edgeLayout.ty + edgeLayout.dy / 2;
 	      var cpx1 = x1 * (1 - curvature) + x2 * curvature;
 	      var cpy1 = y1;
 	      var cpx2 = x1 * curvature + x2 * (1 - curvature);
@@ -53199,19 +58056,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	      graphic.setHoverStyle(curve, edge.getModel('emphasis.lineStyle').getItemStyle());
 	      group.add(curve);
 	      edgeData.setItemGraphicEl(edge.dataIndex, curve);
-	    }); // generate a rect  for each node
+	    }); // generate a rect for each node
 
 	    graph.eachNode(function (node) {
 	      var layout = node.getLayout();
 	      var itemModel = node.getModel();
+	      var dragX = itemModel.get('localX');
+	      var dragY = itemModel.get('localY');
 	      var labelModel = itemModel.getModel('label');
 	      var labelHoverModel = itemModel.getModel('emphasis.label');
 	      var rect = new graphic.Rect({
 	        shape: {
-	          x: layout.x,
-	          y: layout.y,
-	          width: node.getLayout().dx,
-	          height: node.getLayout().dy
+	          x: dragX != null ? dragX * width : layout.x,
+	          y: dragY != null ? dragY * height : layout.y,
+	          width: layout.dx,
+	          height: layout.dy
 	        },
 	        style: itemModel.getModel('itemStyle').getItemStyle()
 	      });
@@ -53228,6 +58087,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	      nodeData.setItemGraphicEl(node.dataIndex, rect);
 	      rect.dataType = 'node';
 	    });
+	    var draggable = seriesModel.get('draggable');
+
+	    if (draggable) {
+	      nodeData.eachItemGraphicEl(function (el, dataIndex) {
+	        el.drift = function (dx, dy) {
+	          this.shape.x += dx;
+	          this.shape.y += dy;
+	          this.dirty();
+	          api.dispatchAction({
+	            type: 'dragNode',
+	            seriesId: seriesModel.id,
+	            dataIndex: nodeData.getRawIndex(dataIndex),
+	            localX: this.shape.x / width,
+	            localY: this.shape.y / height
+	          });
+	        };
+
+	        el.draggable = true;
+	        el.cursor = 'move';
+	      });
+	    }
 
 	    if (!this._data && seriesModel.get('animation')) {
 	      group.setClipPath(createGridClipShape(group.getBoundingRect(), seriesModel, function () {
@@ -53265,15 +58145,77 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 289 */
 /***/ function(module, exports, __webpack_require__) {
 
+	var echarts = __webpack_require__(1);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	echarts.registerAction({
+	  type: 'dragNode',
+	  event: 'dragNode',
+	  // here can only use 'update' now, other value is not support in echarts.
+	  update: 'update'
+	}, function (payload, ecModel) {
+	  ecModel.eachComponent({
+	    mainType: 'series',
+	    subType: 'sankey',
+	    query: payload
+	  }, function (seriesModel) {
+	    seriesModel.setNodePosition(payload.dataIndex, [payload.localX, payload.localY]);
+	  });
+	});
+
+/***/ },
+/* 290 */
+/***/ function(module, exports, __webpack_require__) {
+
 	var layout = __webpack_require__(87);
 
-	var nest = __webpack_require__(290);
+	var nest = __webpack_require__(291);
 
 	var zrUtil = __webpack_require__(6);
 
+	var _config = __webpack_require__(2);
+
+	var __DEV__ = _config.__DEV__;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file The layout algorithm of sankey view
-	 * @author  Deqing Li(annong035@gmail.com)
+	 * @author Deqing Li(annong035@gmail.com)
 	 */
 	function _default(ecModel, api, payload) {
 	  ecModel.eachSeriesByType('sankey', function (seriesModel) {
@@ -53311,7 +58253,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function layoutSankey(nodes, edges, nodeWidth, nodeGap, width, height, iterations) {
-	  computeNodeBreadths(nodes, nodeWidth, width);
+	  computeNodeBreadths(nodes, edges, nodeWidth, width);
 	  computeNodeDepths(nodes, edges, height, nodeGap, iterations);
 	  computeEdgeDepths(nodes);
 	}
@@ -53333,7 +58275,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 	}
 	/**
-	 * Compute the x-position for each node
+	 * Compute the x-position for each node.
+	 * 
+	 * Here we use Kahn algorithm to detect cycle when we traverse
+	 * the node to computer the initial x position.
 	 *
 	 * @param {module:echarts/data/Graph~Node} nodes  node of sankey view
 	 * @param  {number} nodeWidth  the dx of the node
@@ -53341,32 +58286,55 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 
-	function computeNodeBreadths(nodes, nodeWidth, width) {
-	  var remainNodes = nodes;
-	  var nextNode = null;
+	function computeNodeBreadths(nodes, edges, nodeWidth, width) {
+	  // Used to mark whether the edge is deleted. if it is deleted,
+	  // the value is 0, otherwise it is 1.
+	  var remainEdges = []; // Storage each node's indegree.
+
+	  var indegreeArr = []; //Used to storage the node with indegree is equal to 0.
+
+	  var zeroIndegrees = [];
+	  var nextNode = [];
 	  var x = 0;
 	  var kx = 0;
 
-	  while (remainNodes.length) {
-	    nextNode = [];
+	  for (var i = 0; i < edges.length; i++) {
+	    remainEdges[i] = 1;
+	  }
 
-	    for (var i = 0, len = remainNodes.length; i < len; i++) {
-	      var node = remainNodes[i];
+	  for (var i = 0; i < nodes.length; i++) {
+	    indegreeArr[i] = nodes[i].inEdges.length;
+
+	    if (indegreeArr[i] === 0) {
+	      zeroIndegrees.push(nodes[i]);
+	    }
+	  }
+
+	  while (zeroIndegrees.length) {
+	    zrUtil.each(zeroIndegrees, function (node) {
 	      node.setLayout({
 	        x: x
 	      }, true);
 	      node.setLayout({
 	        dx: nodeWidth
 	      }, true);
+	      zrUtil.each(node.outEdges, function (edge) {
+	        var indexEdge = edges.indexOf(edge);
+	        remainEdges[indexEdge] = 0;
+	        var targetNode = edge.node2;
+	        var nodeIndex = nodes.indexOf(targetNode);
 
-	      for (var j = 0, lenj = node.outEdges.length; j < lenj; j++) {
-	        nextNode.push(node.outEdges[j].node2);
-	      }
-	    }
-
-	    remainNodes = nextNode;
+	        if (--indegreeArr[nodeIndex] === 0) {
+	          nextNode.push(targetNode);
+	        }
+	      });
+	    });
 	    ++x;
+	    zeroIndegrees = nextNode;
+	    nextNode = [];
 	  }
+
+	  for (var i = 0; i < remainEdges.length; i++) {}
 
 	  moveSinksRight(nodes, x);
 	  kx = (width - nodeWidth) / (x - 1);
@@ -53514,7 +58482,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 
 	      y0 = node.getLayout().y + node.getLayout().dy + nodeGap;
-	    } // if the bottommost node goes outside the bounds, push it back up
+	    } // If the bottommost node goes outside the bounds, push it back up
 
 
 	    dy = y0 - nodeGap - height;
@@ -53657,7 +58625,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function ascending(a, b) {
-	  return a < b ? -1 : a > b ? 1 : a === b ? 0 : NaN;
+	  return a - b;
 	}
 
 	function getEdgeValue(edge) {
@@ -53667,10 +58635,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 290 */
+/* 291 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * nest helper used to group by the array.
@@ -53775,12 +58762,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = nest;
 
 /***/ },
-/* 291 */
+/* 292 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var VisualMapping = __webpack_require__(239);
 
 	var zrUtil = __webpack_require__(6);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file Visual encoding for sankey view
@@ -53790,40 +58796,51 @@ return /******/ (function(modules) { // webpackBootstrap
 	  ecModel.eachSeriesByType('sankey', function (seriesModel) {
 	    var graph = seriesModel.getGraph();
 	    var nodes = graph.nodes;
-	    nodes.sort(function (a, b) {
-	      return a.getLayout().value - b.getLayout().value;
-	    });
-	    var minValue = nodes[0].getLayout().value;
-	    var maxValue = nodes[nodes.length - 1].getLayout().value;
-	    zrUtil.each(nodes, function (node) {
-	      var mapping = new VisualMapping({
-	        type: 'color',
-	        mappingMethod: 'linear',
-	        dataExtent: [minValue, maxValue],
-	        visual: seriesModel.get('color')
+
+	    if (nodes.length) {
+	      var minValue = Infinity;
+	      var maxValue = -Infinity;
+	      zrUtil.each(nodes, function (node) {
+	        var nodeValue = node.getLayout().value;
+
+	        if (nodeValue < minValue) {
+	          minValue = nodeValue;
+	        }
+
+	        if (nodeValue > maxValue) {
+	          maxValue = nodeValue;
+	        }
 	      });
-	      var mapValueToColor = mapping.mapValueToVisual(node.getLayout().value);
-	      node.setVisual('color', mapValueToColor); // If set itemStyle.normal.color
+	      zrUtil.each(nodes, function (node) {
+	        var mapping = new VisualMapping({
+	          type: 'color',
+	          mappingMethod: 'linear',
+	          dataExtent: [minValue, maxValue],
+	          visual: seriesModel.get('color')
+	        });
+	        var mapValueToColor = mapping.mapValueToVisual(node.getLayout().value);
+	        node.setVisual('color', mapValueToColor); // If set itemStyle.normal.color
 
-	      var itemModel = node.getModel();
-	      var customColor = itemModel.get('itemStyle.color');
+	        var itemModel = node.getModel();
+	        var customColor = itemModel.get('itemStyle.color');
 
-	      if (customColor != null) {
-	        node.setVisual('color', customColor);
-	      }
-	    });
+	        if (customColor != null) {
+	          node.setVisual('color', customColor);
+	        }
+	      });
+	    }
 	  });
 	}
 
 	module.exports = _default;
 
 /***/ },
-/* 292 */
+/* 293 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var echarts = __webpack_require__(1);
 
-	__webpack_require__(293);
+	__webpack_require__(294);
 
 	__webpack_require__(296);
 
@@ -53831,20 +58848,57 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var boxplotLayout = __webpack_require__(298);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerVisual(boxplotVisual);
 	echarts.registerLayout(boxplotLayout);
 
 /***/ },
-/* 293 */
+/* 294 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var zrUtil = __webpack_require__(6);
 
 	var SeriesModel = __webpack_require__(103);
 
-	var _whiskerBoxCommon = __webpack_require__(294);
+	var _whiskerBoxCommon = __webpack_require__(295);
 
 	var seriesModelMixin = _whiskerBoxCommon.seriesModelMixin;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var BoxplotSeries = SeriesModel.extend({
 	  type: 'series.boxplot',
 	  dependencies: ['xAxis', 'yAxis', 'grid'],
@@ -53857,7 +58911,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * and echarts do not need to know it.
 	   * @readOnly
 	   */
-	  defaultValueDimensions: ['min', 'Q1', 'median', 'Q3', 'max'],
+	  defaultValueDimensions: [{
+	    name: 'min',
+	    defaultTooltip: true
+	  }, {
+	    name: 'Q1',
+	    defaultTooltip: true
+	  }, {
+	    name: 'median',
+	    defaultTooltip: true
+	  }, {
+	    name: 'Q3',
+	    defaultTooltip: true
+	  }, {
+	    name: 'max',
+	    defaultTooltip: true
+	  }],
 
 	  /**
 	   * @type {Array.<string>}
@@ -53904,18 +58973,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = _default;
 
 /***/ },
-/* 294 */
+/* 295 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var createListSimply = __webpack_require__(177);
-
-	var WhiskerBoxDraw = __webpack_require__(295);
+	var createListSimply = __webpack_require__(179);
 
 	var zrUtil = __webpack_require__(6);
 
-	var _dimensionHelper = __webpack_require__(123);
+	var _dimensionHelper = __webpack_require__(124);
 
 	var getDimensionTypeByAxis = _dimensionHelper.getDimensionTypeByAxis;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var seriesModelMixin = {
 	  /**
 	   * @private
@@ -54009,258 +59095,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return this.ecModel.getComponent(dim + 'Axis', this.get(dim + 'AxisIndex')).axis;
 	  }
 	};
-	var viewMixin = {
-	  init: function () {
-	    /**
-	     * Old data.
-	     * @private
-	     * @type {module:echarts/chart/helper/WhiskerBoxDraw}
-	     */
-	    var whiskerBoxDraw = this._whiskerBoxDraw = new WhiskerBoxDraw(this.getStyleUpdater());
-	    this.group.add(whiskerBoxDraw.group);
-	  },
-	  render: function (seriesModel, ecModel, api) {
-	    this._whiskerBoxDraw.updateData(seriesModel.getData());
-	  },
-	  incrementalPrepareRender: function (seriesModel, ecModel, api) {
-	    this._whiskerBoxDraw.incrementalPrepareUpdate(seriesModel, ecModel, api);
-	  },
-	  incrementalRender: function (params, seriesModel, ecModel, api) {
-	    this._whiskerBoxDraw.incrementalUpdate(params, seriesModel, ecModel, api);
-	  },
-	  remove: function (ecModel) {
-	    this._whiskerBoxDraw.remove();
-	  }
-	};
 	exports.seriesModelMixin = seriesModelMixin;
-	exports.viewMixin = viewMixin;
-
-/***/ },
-/* 295 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var zrUtil = __webpack_require__(6);
-
-	var graphic = __webpack_require__(51);
-
-	var Path = __webpack_require__(53);
-
-	/**
-	 * @module echarts/chart/helper/Symbol
-	 */
-	var WhiskerPath = Path.extend({
-	  type: 'whiskerInBox',
-	  shape: {},
-	  buildPath: function (ctx, shape) {
-	    for (var i in shape) {
-	      if (shape.hasOwnProperty(i) && i.indexOf('ends') === 0) {
-	        var pts = shape[i];
-	        ctx.moveTo(pts[0][0], pts[0][1]);
-	        ctx.lineTo(pts[1][0], pts[1][1]);
-	      }
-	    }
-	  }
-	});
-	/**
-	 * @constructor
-	 * @alias {module:echarts/chart/helper/WhiskerBox}
-	 * @param {module:echarts/data/List} data
-	 * @param {number} idx
-	 * @param {Function} styleUpdater
-	 * @param {boolean} isInit
-	 * @extends {module:zrender/graphic/Group}
-	 */
-
-	function WhiskerBox(data, idx, styleUpdater, isInit) {
-	  graphic.Group.call(this);
-	  /**
-	   * @type {number}
-	   * @readOnly
-	   */
-
-	  this.bodyIndex;
-	  /**
-	   * @type {number}
-	   * @readOnly
-	   */
-
-	  this.whiskerIndex;
-	  /**
-	   * @type {Function}
-	   */
-
-	  this.styleUpdater = styleUpdater;
-
-	  this._createContent(data, idx, isInit);
-
-	  this.updateData(data, idx, isInit);
-	  /**
-	   * Last series model.
-	   * @type {module:echarts/model/Series}
-	   */
-
-	  this._seriesModel;
-	}
-
-	var whiskerBoxProto = WhiskerBox.prototype;
-
-	whiskerBoxProto._createContent = function (data, idx, isInit) {
-	  var itemLayout = data.getItemLayout(idx);
-	  var constDim = itemLayout.chartLayout === 'horizontal' ? 1 : 0;
-	  var count = 0; // Whisker element.
-
-	  this.add(new graphic.Polygon({
-	    shape: {
-	      points: isInit ? transInit(itemLayout.bodyEnds, constDim, itemLayout) : itemLayout.bodyEnds
-	    },
-	    style: {
-	      strokeNoScale: true
-	    },
-	    z2: 100
-	  }));
-	  this.bodyIndex = count++; // Box element.
-
-	  var whiskerEnds = zrUtil.map(itemLayout.whiskerEnds, function (ends) {
-	    return isInit ? transInit(ends, constDim, itemLayout) : ends;
-	  });
-	  this.add(new WhiskerPath({
-	    shape: makeWhiskerEndsShape(whiskerEnds),
-	    style: {
-	      strokeNoScale: true
-	    },
-	    z2: 100
-	  }));
-	  this.whiskerIndex = count++;
-	};
-
-	function transInit(points, dim, itemLayout) {
-	  return zrUtil.map(points, function (point) {
-	    point = point.slice();
-	    point[dim] = itemLayout.initBaseline;
-	    return point;
-	  });
-	}
-
-	function makeWhiskerEndsShape(whiskerEnds) {
-	  // zr animation only support 2-dim array.
-	  var shape = {};
-	  zrUtil.each(whiskerEnds, function (ends, i) {
-	    shape['ends' + i] = ends;
-	  });
-	  return shape;
-	}
-	/**
-	 * Update symbol properties
-	 * @param  {module:echarts/data/List} data
-	 * @param  {number} idx
-	 */
-
-
-	whiskerBoxProto.updateData = function (data, idx, isInit) {
-	  var seriesModel = this._seriesModel = data.hostModel;
-	  var itemLayout = data.getItemLayout(idx);
-	  var updateMethod = graphic[isInit ? 'initProps' : 'updateProps']; // this.childAt(this.bodyIndex).stopAnimation(true);
-	  // this.childAt(this.whiskerIndex).stopAnimation(true);
-
-	  updateMethod(this.childAt(this.bodyIndex), {
-	    shape: {
-	      points: itemLayout.bodyEnds
-	    }
-	  }, seriesModel, idx);
-	  updateMethod(this.childAt(this.whiskerIndex), {
-	    shape: makeWhiskerEndsShape(itemLayout.whiskerEnds)
-	  }, seriesModel, idx);
-	  this.styleUpdater.call(null, this, data, idx);
-	};
-
-	zrUtil.inherits(WhiskerBox, graphic.Group);
-	/**
-	 * @constructor
-	 * @alias module:echarts/chart/helper/WhiskerBoxDraw
-	 */
-
-	function WhiskerBoxDraw(styleUpdater) {
-	  this.group = new graphic.Group();
-	  this.styleUpdater = styleUpdater;
-	}
-
-	var whiskerBoxDrawProto = WhiskerBoxDraw.prototype;
-	/**
-	 * Update symbols draw by new data
-	 * @param {module:echarts/data/List} data
-	 */
-
-	whiskerBoxDrawProto.updateData = function (data) {
-	  var group = this.group;
-	  var oldData = this._data;
-	  var styleUpdater = this.styleUpdater; // There is no old data only when first rendering or switching from
-	  // stream mode to normal mode, where previous elements should be removed.
-
-	  if (!this._data) {
-	    group.removeAll();
-	  }
-
-	  data.diff(oldData).add(function (newIdx) {
-	    if (data.hasValue(newIdx)) {
-	      var symbolEl = new WhiskerBox(data, newIdx, styleUpdater, true);
-	      data.setItemGraphicEl(newIdx, symbolEl);
-	      group.add(symbolEl);
-	    }
-	  }).update(function (newIdx, oldIdx) {
-	    var symbolEl = oldData.getItemGraphicEl(oldIdx); // Empty data
-
-	    if (!data.hasValue(newIdx)) {
-	      group.remove(symbolEl);
-	      return;
-	    }
-
-	    if (!symbolEl) {
-	      symbolEl = new WhiskerBox(data, newIdx, styleUpdater);
-	    } else {
-	      symbolEl.updateData(data, newIdx);
-	    } // Add back
-
-
-	    group.add(symbolEl);
-	    data.setItemGraphicEl(newIdx, symbolEl);
-	  }).remove(function (oldIdx) {
-	    var el = oldData.getItemGraphicEl(oldIdx);
-	    el && group.remove(el);
-	  }).execute();
-	  this._data = data;
-	};
-
-	whiskerBoxDrawProto.incrementalPrepareUpdate = function (seriesModel, ecModel, api) {
-	  this.group.removeAll();
-	  this._data = null;
-	};
-
-	whiskerBoxDrawProto.incrementalUpdate = function (params, seriesModel, ecModel, api) {
-	  var data = seriesModel.getData();
-
-	  for (var idx = params.start; idx < params.end; idx++) {
-	    var symbolEl = new WhiskerBox(data, idx, this.styleUpdater, true);
-	    symbolEl.incremental = true;
-	    this.group.add(symbolEl);
-	  }
-	};
-	/**
-	 * Remove symbols.
-	 * @param {module:echarts/data/List} data
-	 */
-
-
-	whiskerBoxDrawProto.remove = function () {
-	  var group = this.group;
-	  var data = this._data;
-	  this._data = null;
-	  data && data.eachItemGraphicEl(function (el) {
-	    el && group.remove(el);
-	  });
-	};
-
-	var _default = WhiskerBoxDraw;
-	module.exports = _default;
 
 /***/ },
 /* 296 */
@@ -54272,37 +59107,144 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var _whiskerBoxCommon = __webpack_require__(294);
+	var Path = __webpack_require__(53);
 
-	var viewMixin = _whiskerBoxCommon.viewMixin;
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	// Update common properties
+	var NORMAL_ITEM_STYLE_PATH = ['itemStyle'];
+	var EMPHASIS_ITEM_STYLE_PATH = ['emphasis', 'itemStyle'];
 	var BoxplotView = ChartView.extend({
 	  type: 'boxplot',
-	  getStyleUpdater: function () {
-	    return updateStyle;
+	  render: function (seriesModel, ecModel, api) {
+	    var data = seriesModel.getData();
+	    var group = this.group;
+	    var oldData = this._data; // There is no old data only when first rendering or switching from
+	    // stream mode to normal mode, where previous elements should be removed.
+
+	    if (!this._data) {
+	      group.removeAll();
+	    }
+
+	    var constDim = seriesModel.get('layout') === 'horizontal' ? 1 : 0;
+	    data.diff(oldData).add(function (newIdx) {
+	      if (data.hasValue(newIdx)) {
+	        var itemLayout = data.getItemLayout(newIdx);
+	        var symbolEl = createNormalBox(itemLayout, data, newIdx, constDim, true);
+	        data.setItemGraphicEl(newIdx, symbolEl);
+	        group.add(symbolEl);
+	      }
+	    }).update(function (newIdx, oldIdx) {
+	      var symbolEl = oldData.getItemGraphicEl(oldIdx); // Empty data
+
+	      if (!data.hasValue(newIdx)) {
+	        group.remove(symbolEl);
+	        return;
+	      }
+
+	      var itemLayout = data.getItemLayout(newIdx);
+
+	      if (!symbolEl) {
+	        symbolEl = createNormalBox(itemLayout, data, newIdx, constDim);
+	      } else {
+	        updateNormalBoxData(itemLayout, symbolEl, data, newIdx);
+	      }
+
+	      group.add(symbolEl);
+	      data.setItemGraphicEl(newIdx, symbolEl);
+	    }).remove(function (oldIdx) {
+	      var el = oldData.getItemGraphicEl(oldIdx);
+	      el && group.remove(el);
+	    }).execute();
+	    this._data = data;
+	  },
+	  remove: function (ecModel) {
+	    var group = this.group;
+	    var data = this._data;
+	    this._data = null;
+	    data && data.eachItemGraphicEl(function (el) {
+	      el && group.remove(el);
+	    });
 	  },
 	  dispose: zrUtil.noop
 	});
-	zrUtil.mixin(BoxplotView, viewMixin, true); // Update common properties
+	var BoxPath = Path.extend({
+	  type: 'boxplotBoxPath',
+	  shape: {},
+	  buildPath: function (ctx, shape) {
+	    var ends = shape.points;
+	    var i = 0;
+	    ctx.moveTo(ends[i][0], ends[i][1]);
+	    i++;
 
-	var normalStyleAccessPath = ['itemStyle'];
-	var emphasisStyleAccessPath = ['emphasis', 'itemStyle'];
+	    for (; i < 4; i++) {
+	      ctx.lineTo(ends[i][0], ends[i][1]);
+	    }
 
-	function updateStyle(itemGroup, data, idx) {
-	  var itemModel = data.getItemModel(idx);
-	  var normalItemStyleModel = itemModel.getModel(normalStyleAccessPath);
-	  var borderColor = data.getItemVisual(idx, 'color'); // Exclude borderColor.
+	    ctx.closePath();
+
+	    for (; i < ends.length; i++) {
+	      ctx.moveTo(ends[i][0], ends[i][1]);
+	      i++;
+	      ctx.lineTo(ends[i][0], ends[i][1]);
+	    }
+	  }
+	});
+
+	function createNormalBox(itemLayout, data, dataIndex, constDim, isInit) {
+	  var ends = itemLayout.ends;
+	  var el = new BoxPath({
+	    shape: {
+	      points: isInit ? transInit(ends, constDim, itemLayout) : ends
+	    }
+	  });
+	  updateNormalBoxData(itemLayout, el, data, dataIndex, isInit);
+	  return el;
+	}
+
+	function updateNormalBoxData(itemLayout, el, data, dataIndex, isInit) {
+	  var seriesModel = data.hostModel;
+	  var updateMethod = graphic[isInit ? 'initProps' : 'updateProps'];
+	  updateMethod(el, {
+	    shape: {
+	      points: itemLayout.ends
+	    }
+	  }, seriesModel, dataIndex);
+	  var itemModel = data.getItemModel(dataIndex);
+	  var normalItemStyleModel = itemModel.getModel(NORMAL_ITEM_STYLE_PATH);
+	  var borderColor = data.getItemVisual(dataIndex, 'color'); // Exclude borderColor.
 
 	  var itemStyle = normalItemStyleModel.getItemStyle(['borderColor']);
-	  var whiskerEl = itemGroup.childAt(itemGroup.whiskerIndex);
-	  whiskerEl.style.set(itemStyle);
-	  whiskerEl.style.stroke = borderColor;
-	  whiskerEl.dirty();
-	  var bodyEl = itemGroup.childAt(itemGroup.bodyIndex);
-	  bodyEl.style.set(itemStyle);
-	  bodyEl.style.stroke = borderColor;
-	  bodyEl.dirty();
-	  var hoverStyle = itemModel.getModel(emphasisStyleAccessPath).getItemStyle();
-	  graphic.setHoverStyle(itemGroup, hoverStyle);
+	  itemStyle.stroke = borderColor;
+	  itemStyle.strokeNoScale = true;
+	  el.useStyle(itemStyle);
+	  el.z2 = 100;
+	  var hoverStyle = itemModel.getModel(EMPHASIS_ITEM_STYLE_PATH).getItemStyle();
+	  graphic.setHoverStyle(el, hoverStyle);
+	}
+
+	function transInit(points, dim, itemLayout) {
+	  return zrUtil.map(points, function (point) {
+	    point = point.slice();
+	    point[dim] = itemLayout.initBaseline;
+	    return point;
+	  });
 	}
 
 	var _default = BoxplotView;
@@ -54312,6 +59254,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 297 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var borderColorQuery = ['itemStyle', 'borderColor'];
 
 	function _default(ecModel, api) {
@@ -54348,6 +59308,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _number = __webpack_require__(88);
 
 	var parsePercent = _number.parsePercent;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 
 	function _default(ecModel) {
@@ -54443,80 +59422,68 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var coordSys = seriesModel.coordinateSystem;
 	  var data = seriesModel.getData();
 	  var halfWidth = boxWidth / 2;
-	  var chartLayout = seriesModel.get('layout');
-	  var variableDim = chartLayout === 'horizontal' ? 0 : 1;
-	  var constDim = 1 - variableDim;
+	  var cDimIdx = seriesModel.get('layout') === 'horizontal' ? 0 : 1;
+	  var vDimIdx = 1 - cDimIdx;
 	  var coordDims = ['x', 'y'];
-	  var vDims = [];
-	  var cDim;
-	  zrUtil.each(data.dimensions, function (dimName) {
-	    var dimInfo = data.getDimensionInfo(dimName);
-	    var coordDim = dimInfo.coordDim;
-
-	    if (coordDim === coordDims[constDim]) {
-	      vDims.push(dimName);
-	    } else if (coordDim === coordDims[variableDim]) {
-	      cDim = dimName;
-	    }
-	  });
+	  var cDim = data.mapDimension(coordDims[cDimIdx]);
+	  var vDims = data.mapDimension(coordDims[vDimIdx], true);
 
 	  if (cDim == null || vDims.length < 5) {
 	    return;
 	  }
 
-	  data.each([cDim].concat(vDims), function () {
-	    var args = arguments;
-	    var axisDimVal = args[0];
-	    var idx = args[vDims.length + 1];
-	    var median = getPoint(args[3]);
-	    var end1 = getPoint(args[1]);
-	    var end5 = getPoint(args[5]);
-	    var whiskerEnds = [[end1, getPoint(args[2])], [end5, getPoint(args[4])]];
-	    layEndLine(end1);
-	    layEndLine(end5);
-	    layEndLine(median);
-	    var bodyEnds = [];
-	    addBodyEnd(whiskerEnds[0][1], 0);
-	    addBodyEnd(whiskerEnds[1][1], 1);
-	    data.setItemLayout(idx, {
-	      chartLayout: chartLayout,
-	      initBaseline: median[constDim],
-	      median: median,
-	      bodyEnds: bodyEnds,
-	      whiskerEnds: whiskerEnds
+	  for (var dataIndex = 0; dataIndex < data.count(); dataIndex++) {
+	    var axisDimVal = data.get(cDim, dataIndex);
+	    var median = getPoint(axisDimVal, vDims[2], dataIndex);
+	    var end1 = getPoint(axisDimVal, vDims[0], dataIndex);
+	    var end2 = getPoint(axisDimVal, vDims[1], dataIndex);
+	    var end4 = getPoint(axisDimVal, vDims[3], dataIndex);
+	    var end5 = getPoint(axisDimVal, vDims[4], dataIndex);
+	    var ends = [];
+	    addBodyEnd(ends, end2, 0);
+	    addBodyEnd(ends, end4, 1);
+	    ends.push(end1, end2, end5, end4);
+	    layEndLine(ends, end1);
+	    layEndLine(ends, end5);
+	    layEndLine(ends, median);
+	    data.setItemLayout(dataIndex, {
+	      initBaseline: median[vDimIdx],
+	      ends: ends
 	    });
+	  }
 
-	    function getPoint(val) {
-	      var p = [];
-	      p[variableDim] = axisDimVal;
-	      p[constDim] = val;
-	      var point;
+	  function getPoint(axisDimVal, dimIdx, dataIndex) {
+	    var val = data.get(dimIdx, dataIndex);
+	    var p = [];
+	    p[cDimIdx] = axisDimVal;
+	    p[vDimIdx] = val;
+	    var point;
 
-	      if (isNaN(axisDimVal) || isNaN(val)) {
-	        point = [NaN, NaN];
-	      } else {
-	        point = coordSys.dataToPoint(p);
-	        point[variableDim] += offset;
-	      }
-
-	      return point;
+	    if (isNaN(axisDimVal) || isNaN(val)) {
+	      point = [NaN, NaN];
+	    } else {
+	      point = coordSys.dataToPoint(p);
+	      point[cDimIdx] += offset;
 	    }
 
-	    function addBodyEnd(point, start) {
-	      var point1 = point.slice();
-	      var point2 = point.slice();
-	      point1[variableDim] += halfWidth;
-	      point2[variableDim] -= halfWidth;
-	      start ? bodyEnds.push(point1, point2) : bodyEnds.push(point2, point1);
-	    }
+	    return point;
+	  }
 
-	    function layEndLine(endCenter) {
-	      var line = [endCenter.slice(), endCenter.slice()];
-	      line[0][variableDim] -= halfWidth;
-	      line[1][variableDim] += halfWidth;
-	      whiskerEnds.push(line);
-	    }
-	  });
+	  function addBodyEnd(ends, point, start) {
+	    var point1 = point.slice();
+	    var point2 = point.slice();
+	    point1[cDimIdx] += halfWidth;
+	    point2[cDimIdx] -= halfWidth;
+	    start ? ends.push(point1, point2) : ends.push(point2, point1);
+	  }
+
+	  function layEndLine(ends, endCenter) {
+	    var from = endCenter.slice();
+	    var to = endCenter.slice();
+	    from[cDimIdx] -= halfWidth;
+	    to[cDimIdx] += halfWidth;
+	    ends.push(from, to);
+	  }
 	}
 
 	module.exports = _default;
@@ -54537,6 +59504,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var candlestickLayout = __webpack_require__(304);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerPreprocessor(preprocessor);
 	echarts.registerVisual(candlestickVisual);
 	echarts.registerLayout(candlestickLayout);
@@ -54549,9 +59534,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var SeriesModel = __webpack_require__(103);
 
-	var _whiskerBoxCommon = __webpack_require__(294);
+	var _whiskerBoxCommon = __webpack_require__(295);
 
 	var seriesModelMixin = _whiskerBoxCommon.seriesModelMixin;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var CandlestickSeries = SeriesModel.extend({
 	  type: 'series.candlestick',
 	  dependencies: ['xAxis', 'yAxis', 'grid'],
@@ -54559,7 +59563,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	  /**
 	   * @readOnly
 	   */
-	  defaultValueDimensions: ['open', 'close', 'lowest', 'highest'],
+	  defaultValueDimensions: [{
+	    name: 'open',
+	    defaultTooltip: true
+	  }, {
+	    name: 'close',
+	    defaultTooltip: true
+	  }, {
+	    name: 'lowest',
+	    defaultTooltip: true
+	  }, {
+	    name: 'highest',
+	    defaultTooltip: true
+	  }],
 
 	  /**
 	   * @type {Array.<string>}
@@ -54572,9 +59588,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  defaultOption: {
 	    zlevel: 0,
-	    // 一级层叠
 	    z: 2,
-	    // 二级层叠
 	    coordinateSystem: 'cartesian2d',
 	    legendHoverLink: true,
 	    hoverAnimation: true,
@@ -54601,6 +59615,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    barMaxWidth: null,
 	    barMinWidth: null,
 	    barWidth: null,
+	    large: true,
+	    largeThreshold: 600,
+	    progressive: 5e3,
+	    progressiveThreshold: 1e4,
+	    progressiveChunkMode: 'mod',
 	    animationUpdate: false,
 	    animationEasing: 'linear',
 	    animationDuration: 300
@@ -54615,7 +59634,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 	  brushSelector: function (dataIndex, data, selectors) {
 	    var itemLayout = data.getItemLayout(dataIndex);
-	    return selectors.rect(itemLayout.brushRect);
+	    return itemLayout && selectors.rect(itemLayout.brushRect);
 	  }
 	});
 	zrUtil.mixin(CandlestickSeries, seriesModelMixin, true);
@@ -54632,38 +59651,252 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var _whiskerBoxCommon = __webpack_require__(294);
+	var Path = __webpack_require__(53);
 
-	var viewMixin = _whiskerBoxCommon.viewMixin;
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	var NORMAL_ITEM_STYLE_PATH = ['itemStyle'];
+	var EMPHASIS_ITEM_STYLE_PATH = ['emphasis', 'itemStyle'];
+	var SKIP_PROPS = ['color', 'color0', 'borderColor', 'borderColor0'];
 	var CandlestickView = ChartView.extend({
 	  type: 'candlestick',
-	  getStyleUpdater: function () {
-	    return updateStyle;
+	  render: function (seriesModel, ecModel, api) {
+	    this._updateDrawMode(seriesModel);
+
+	    this._isLargeDraw ? this._renderLarge(seriesModel) : this._renderNormal(seriesModel);
+	  },
+	  incrementalPrepareRender: function (seriesModel, ecModel, api) {
+	    this._clear();
+
+	    this._updateDrawMode(seriesModel);
+	  },
+	  incrementalRender: function (params, seriesModel, ecModel, api) {
+	    this._isLargeDraw ? this._incrementalRenderLarge(params, seriesModel) : this._incrementalRenderNormal(params, seriesModel);
+	  },
+	  _updateDrawMode: function (seriesModel) {
+	    var isLargeDraw = seriesModel.pipelineContext.large;
+
+	    if (this._isLargeDraw == null || isLargeDraw ^ this._isLargeDraw) {
+	      this._isLargeDraw = isLargeDraw;
+
+	      this._clear();
+	    }
+	  },
+	  _renderNormal: function (seriesModel) {
+	    var data = seriesModel.getData();
+	    var oldData = this._data;
+	    var group = this.group;
+	    var isSimpleBox = data.getLayout('isSimpleBox'); // There is no old data only when first rendering or switching from
+	    // stream mode to normal mode, where previous elements should be removed.
+
+	    if (!this._data) {
+	      group.removeAll();
+	    }
+
+	    data.diff(oldData).add(function (newIdx) {
+	      if (data.hasValue(newIdx)) {
+	        var el;
+	        var itemLayout = data.getItemLayout(newIdx);
+	        el = createNormalBox(itemLayout, newIdx, true);
+	        graphic.initProps(el, {
+	          shape: {
+	            points: itemLayout.ends
+	          }
+	        }, seriesModel, newIdx);
+	        setBoxCommon(el, data, newIdx, isSimpleBox);
+	        group.add(el);
+	        data.setItemGraphicEl(newIdx, el);
+	      }
+	    }).update(function (newIdx, oldIdx) {
+	      var el = oldData.getItemGraphicEl(oldIdx); // Empty data
+
+	      if (!data.hasValue(newIdx)) {
+	        group.remove(el);
+	        return;
+	      }
+
+	      var itemLayout = data.getItemLayout(newIdx);
+
+	      if (!el) {
+	        el = createNormalBox(itemLayout, newIdx);
+	      } else {
+	        graphic.updateProps(el, {
+	          shape: {
+	            points: itemLayout.ends
+	          }
+	        }, seriesModel, newIdx);
+	      }
+
+	      setBoxCommon(el, data, newIdx, isSimpleBox);
+	      group.add(el);
+	      data.setItemGraphicEl(newIdx, el);
+	    }).remove(function (oldIdx) {
+	      var el = oldData.getItemGraphicEl(oldIdx);
+	      el && group.remove(el);
+	    }).execute();
+	    this._data = data;
+	  },
+	  _renderLarge: function (seriesModel) {
+	    this._clear();
+
+	    createLarge(seriesModel, this.group);
+	  },
+	  _incrementalRenderNormal: function (params, seriesModel) {
+	    var data = seriesModel.getData();
+	    var isSimpleBox = data.getLayout('isSimpleBox');
+	    var dataIndex;
+
+	    while ((dataIndex = params.next()) != null) {
+	      var el;
+	      var itemLayout = data.getItemLayout(dataIndex);
+	      el = createNormalBox(itemLayout, dataIndex);
+	      setBoxCommon(el, data, dataIndex, isSimpleBox);
+	      el.incremental = true;
+	      this.group.add(el);
+	    }
+	  },
+	  _incrementalRenderLarge: function (params, seriesModel) {
+	    createLarge(seriesModel, this.group, true);
+	  },
+	  remove: function (ecModel) {
+	    this._clear();
+	  },
+	  _clear: function () {
+	    this.group.removeAll();
+	    this._data = null;
 	  },
 	  dispose: zrUtil.noop
 	});
-	zrUtil.mixin(CandlestickView, viewMixin, true); // Update common properties
+	var NormalBoxPath = Path.extend({
+	  type: 'normalCandlestickBox',
+	  shape: {},
+	  buildPath: function (ctx, shape) {
+	    var ends = shape.points;
 
-	var normalStyleAccessPath = ['itemStyle'];
-	var emphasisStyleAccessPath = ['emphasis', 'itemStyle'];
+	    if (this.__simpleBox) {
+	      ctx.moveTo(ends[4][0], ends[4][1]);
+	      ctx.lineTo(ends[6][0], ends[6][1]);
+	    } else {
+	      ctx.moveTo(ends[0][0], ends[0][1]);
+	      ctx.lineTo(ends[1][0], ends[1][1]);
+	      ctx.lineTo(ends[2][0], ends[2][1]);
+	      ctx.lineTo(ends[3][0], ends[3][1]);
+	      ctx.closePath();
+	      ctx.moveTo(ends[4][0], ends[4][1]);
+	      ctx.lineTo(ends[5][0], ends[5][1]);
+	      ctx.moveTo(ends[6][0], ends[6][1]);
+	      ctx.lineTo(ends[7][0], ends[7][1]);
+	    }
+	  }
+	});
 
-	function updateStyle(itemGroup, data, idx) {
-	  var itemModel = data.getItemModel(idx);
-	  var normalItemStyleModel = itemModel.getModel(normalStyleAccessPath);
-	  var color = data.getItemVisual(idx, 'color');
-	  var borderColor = data.getItemVisual(idx, 'borderColor') || color; // Color must be excluded.
+	function createNormalBox(itemLayout, dataIndex, isInit) {
+	  var ends = itemLayout.ends;
+	  return new NormalBoxPath({
+	    shape: {
+	      points: isInit ? transInit(ends, itemLayout) : ends
+	    },
+	    z2: 100
+	  });
+	}
+
+	function setBoxCommon(el, data, dataIndex, isSimpleBox) {
+	  var itemModel = data.getItemModel(dataIndex);
+	  var normalItemStyleModel = itemModel.getModel(NORMAL_ITEM_STYLE_PATH);
+	  var color = data.getItemVisual(dataIndex, 'color');
+	  var borderColor = data.getItemVisual(dataIndex, 'borderColor') || color; // Color must be excluded.
 	  // Because symbol provide setColor individually to set fill and stroke
 
-	  var itemStyle = normalItemStyleModel.getItemStyle(['color', 'color0', 'borderColor', 'borderColor0']);
-	  var whiskerEl = itemGroup.childAt(itemGroup.whiskerIndex);
-	  whiskerEl.useStyle(itemStyle);
-	  whiskerEl.style.stroke = borderColor;
-	  var bodyEl = itemGroup.childAt(itemGroup.bodyIndex);
-	  bodyEl.useStyle(itemStyle);
-	  bodyEl.style.fill = color;
-	  bodyEl.style.stroke = borderColor;
-	  var hoverStyle = itemModel.getModel(emphasisStyleAccessPath).getItemStyle();
-	  graphic.setHoverStyle(itemGroup, hoverStyle);
+	  var itemStyle = normalItemStyleModel.getItemStyle(SKIP_PROPS);
+	  el.useStyle(itemStyle);
+	  el.style.strokeNoScale = true;
+	  el.style.fill = color;
+	  el.style.stroke = borderColor;
+	  el.__simpleBox = isSimpleBox;
+	  var hoverStyle = itemModel.getModel(EMPHASIS_ITEM_STYLE_PATH).getItemStyle();
+	  graphic.setHoverStyle(el, hoverStyle);
+	}
+
+	function transInit(points, itemLayout) {
+	  return zrUtil.map(points, function (point) {
+	    point = point.slice();
+	    point[1] = itemLayout.initBaseline;
+	    return point;
+	  });
+	}
+
+	var LargeBoxPath = Path.extend({
+	  type: 'largeCandlestickBox',
+	  shape: {},
+	  buildPath: function (ctx, shape) {
+	    // Drawing lines is more efficient than drawing
+	    // a whole line or drawing rects.
+	    var points = shape.points;
+
+	    for (var i = 0; i < points.length;) {
+	      if (this.__sign === points[i++]) {
+	        var x = points[i++];
+	        ctx.moveTo(x, points[i++]);
+	        ctx.lineTo(x, points[i++]);
+	      } else {
+	        i += 3;
+	      }
+	    }
+	  }
+	});
+
+	function createLarge(seriesModel, group, incremental) {
+	  var data = seriesModel.getData();
+	  var largePoints = data.getLayout('largePoints');
+	  var elP = new LargeBoxPath({
+	    shape: {
+	      points: largePoints
+	    },
+	    __sign: 1
+	  });
+	  group.add(elP);
+	  var elN = new LargeBoxPath({
+	    shape: {
+	      points: largePoints
+	    },
+	    __sign: -1
+	  });
+	  group.add(elN);
+	  setLargeStyle(1, elP, seriesModel, data);
+	  setLargeStyle(-1, elN, seriesModel, data);
+
+	  if (incremental) {
+	    elP.incremental = true;
+	    elN.incremental = true;
+	  }
+	}
+
+	function setLargeStyle(sign, el, seriesModel, data) {
+	  var suffix = sign > 0 ? 'P' : 'N';
+	  var borderColor = data.getVisual('borderColor' + suffix) || data.getVisual('color' + suffix); // Color must be excluded.
+	  // Because symbol provide setColor individually to set fill and stroke
+
+	  var itemStyle = seriesModel.getModel(NORMAL_ITEM_STYLE_PATH).getItemStyle(SKIP_PROPS);
+	  el.useStyle(itemStyle);
+	  el.style.fill = null;
+	  el.style.stroke = borderColor; // No different
+	  // el.style.lineWidth = .5;
 	}
 
 	var _default = CandlestickView;
@@ -54675,6 +59908,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(option) {
 	  if (!option || !zrUtil.isArray(option.series)) {
 	    return;
@@ -54692,156 +59943,261 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 303 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
+	var createRenderPlanner = __webpack_require__(109);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var positiveBorderColorQuery = ['itemStyle', 'borderColor'];
 	var negativeBorderColorQuery = ['itemStyle', 'borderColor0'];
 	var positiveColorQuery = ['itemStyle', 'color'];
 	var negativeColorQuery = ['itemStyle', 'color0'];
-
-	function _default(ecModel, api) {
-	  ecModel.eachRawSeriesByType('candlestick', function (seriesModel) {
+	var _default = {
+	  seriesType: 'candlestick',
+	  plan: createRenderPlanner(),
+	  // For legend.
+	  performRawSeries: true,
+	  reset: function (seriesModel, ecModel) {
 	    var data = seriesModel.getData();
+	    var isLargeRender = seriesModel.pipelineContext.large;
 	    data.setVisual({
-	      legendSymbol: 'roundRect'
+	      legendSymbol: 'roundRect',
+	      colorP: getColor(1, seriesModel),
+	      colorN: getColor(-1, seriesModel),
+	      borderColorP: getBorderColor(1, seriesModel),
+	      borderColorN: getBorderColor(-1, seriesModel)
 	    }); // Only visible series has each data be visual encoded
 
-	    if (!ecModel.isSeriesFiltered(seriesModel)) {
-	      data.each(function (idx) {
-	        var itemModel = data.getItemModel(idx);
-	        var sign = data.getItemLayout(idx).sign;
-	        data.setItemVisual(idx, {
-	          color: itemModel.get(sign > 0 ? positiveColorQuery : negativeColorQuery),
-	          borderColor: itemModel.get(sign > 0 ? positiveBorderColorQuery : negativeBorderColorQuery)
-	        });
-	      });
+	    if (ecModel.isSeriesFiltered(seriesModel)) {
+	      return;
 	    }
-	  });
-	}
 
+	    return !isLargeRender && {
+	      progress: progress
+	    };
+
+	    function progress(params, data) {
+	      var dataIndex;
+
+	      while ((dataIndex = params.next()) != null) {
+	        var itemModel = data.getItemModel(dataIndex);
+	        var sign = data.getItemLayout(dataIndex).sign;
+	        data.setItemVisual(dataIndex, {
+	          color: getColor(sign, itemModel),
+	          borderColor: getBorderColor(sign, itemModel)
+	        });
+	      }
+	    }
+
+	    function getColor(sign, model) {
+	      return model.get(sign > 0 ? positiveColorQuery : negativeColorQuery);
+	    }
+
+	    function getBorderColor(sign, model) {
+	      return model.get(sign > 0 ? positiveBorderColorQuery : negativeBorderColorQuery);
+	    }
+	  }
+	};
 	module.exports = _default;
 
 /***/ },
 /* 304 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var zrUtil = __webpack_require__(6);
+	var _graphic = __webpack_require__(51);
+
+	var subPixelOptimize = _graphic.subPixelOptimize;
+
+	var createRenderPlanner = __webpack_require__(109);
 
 	var _number = __webpack_require__(88);
 
 	var parsePercent = _number.parsePercent;
 
-	var _graphic = __webpack_require__(51);
+	var _util = __webpack_require__(6);
 
-	var subPixelOptimize = _graphic.subPixelOptimize;
-	var retrieve2 = zrUtil.retrieve2;
+	var retrieve2 = _util.retrieve2;
 
-	function _default(ecModel) {
-	  ecModel.eachSeriesByType('candlestick', function (seriesModel) {
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	var LargeArr = typeof Float32Array !== 'undefined' ? Float32Array : Array;
+	var _default = {
+	  seriesType: 'candlestick',
+	  plan: createRenderPlanner(),
+	  reset: function (seriesModel) {
 	    var coordSys = seriesModel.coordinateSystem;
 	    var data = seriesModel.getData();
 	    var candleWidth = calculateCandleWidth(seriesModel, data);
-	    var chartLayout = seriesModel.get('layout');
-	    var variableDim = chartLayout === 'horizontal' ? 0 : 1;
-	    var constDim = 1 - variableDim;
+	    var cDimIdx = 0;
+	    var vDimIdx = 1;
 	    var coordDims = ['x', 'y'];
-	    var vDims = [];
-	    var cDim;
-	    zrUtil.each(data.dimensions, function (dimName) {
-	      var dimInfo = data.getDimensionInfo(dimName);
-	      var coordDim = dimInfo.coordDim;
-
-	      if (coordDim === coordDims[constDim]) {
-	        vDims.push(dimName);
-	      } else if (coordDim === coordDims[variableDim]) {
-	        cDim = dimName;
-	      }
+	    var cDim = data.mapDimension(coordDims[cDimIdx]);
+	    var vDims = data.mapDimension(coordDims[vDimIdx], true);
+	    var openDim = vDims[0];
+	    var closeDim = vDims[1];
+	    var lowestDim = vDims[2];
+	    var highestDim = vDims[3];
+	    data.setLayout({
+	      candleWidth: candleWidth,
+	      // The value is experimented visually.
+	      isSimpleBox: candleWidth <= 1.3
 	    });
 
 	    if (cDim == null || vDims.length < 4) {
 	      return;
 	    }
 
-	    var dataIndex = 0;
-	    data.each([cDim].concat(vDims), function () {
-	      var args = arguments;
-	      var axisDimVal = args[0];
-	      var idx = args[vDims.length + 1];
-	      var openVal = args[1];
-	      var closeVal = args[2];
-	      var lowestVal = args[3];
-	      var highestVal = args[4];
-	      var ocLow = Math.min(openVal, closeVal);
-	      var ocHigh = Math.max(openVal, closeVal);
-	      var ocLowPoint = getPoint(ocLow);
-	      var ocHighPoint = getPoint(ocHigh);
-	      var lowestPoint = getPoint(lowestVal);
-	      var highestPoint = getPoint(highestVal);
-	      var whiskerEnds = [[subPixelOptimizePoint(highestPoint), subPixelOptimizePoint(ocHighPoint)], [subPixelOptimizePoint(lowestPoint), subPixelOptimizePoint(ocLowPoint)]];
-	      var bodyEnds = [];
-	      addBodyEnd(ocHighPoint, 0);
-	      addBodyEnd(ocLowPoint, 1);
-	      var sign;
+	    return {
+	      progress: seriesModel.pipelineContext.large ? largeProgress : normalProgress
+	    };
 
-	      if (openVal > closeVal) {
-	        sign = -1;
-	      } else if (openVal < closeVal) {
-	        sign = 1;
-	      } else {
-	        // If close === open, compare with close of last record
-	        if (dataIndex > 0) {
-	          sign = data.getItemModel(dataIndex - 1).get()[2] <= closeVal ? 1 : -1;
-	        } else {
-	          // No record of previous, set to be positive
-	          sign = 1;
-	        }
+	    function normalProgress(params, data) {
+	      var dataIndex;
+
+	      while ((dataIndex = params.next()) != null) {
+	        var axisDimVal = data.get(cDim, dataIndex);
+	        var openVal = data.get(openDim, dataIndex);
+	        var closeVal = data.get(closeDim, dataIndex);
+	        var lowestVal = data.get(lowestDim, dataIndex);
+	        var highestVal = data.get(highestDim, dataIndex);
+	        var ocLow = Math.min(openVal, closeVal);
+	        var ocHigh = Math.max(openVal, closeVal);
+	        var ocLowPoint = getPoint(ocLow, axisDimVal);
+	        var ocHighPoint = getPoint(ocHigh, axisDimVal);
+	        var lowestPoint = getPoint(lowestVal, axisDimVal);
+	        var highestPoint = getPoint(highestVal, axisDimVal);
+	        var ends = [];
+	        addBodyEnd(ends, ocHighPoint, 0);
+	        addBodyEnd(ends, ocLowPoint, 1);
+	        ends.push(subPixelOptimizePoint(highestPoint), subPixelOptimizePoint(ocHighPoint), subPixelOptimizePoint(lowestPoint), subPixelOptimizePoint(ocLowPoint));
+	        data.setItemLayout(dataIndex, {
+	          sign: getSign(data, dataIndex, openVal, closeVal, closeDim),
+	          initBaseline: openVal > closeVal ? ocHighPoint[vDimIdx] : ocLowPoint[vDimIdx],
+	          // open point.
+	          ends: ends,
+	          brushRect: makeBrushRect(lowestVal, highestVal, axisDimVal)
+	        });
 	      }
 
-	      data.setItemLayout(idx, {
-	        chartLayout: chartLayout,
-	        sign: sign,
-	        initBaseline: openVal > closeVal ? ocHighPoint[constDim] : ocLowPoint[constDim],
-	        // open point.
-	        bodyEnds: bodyEnds,
-	        whiskerEnds: whiskerEnds,
-	        brushRect: makeBrushRect()
-	      });
-	      ++dataIndex;
-
-	      function getPoint(val) {
+	      function getPoint(val, axisDimVal) {
 	        var p = [];
-	        p[variableDim] = axisDimVal;
-	        p[constDim] = val;
+	        p[cDimIdx] = axisDimVal;
+	        p[vDimIdx] = val;
 	        return isNaN(axisDimVal) || isNaN(val) ? [NaN, NaN] : coordSys.dataToPoint(p);
 	      }
 
-	      function addBodyEnd(point, start) {
+	      function addBodyEnd(ends, point, start) {
 	        var point1 = point.slice();
 	        var point2 = point.slice();
-	        point1[variableDim] = subPixelOptimize(point1[variableDim] + candleWidth / 2, 1, false);
-	        point2[variableDim] = subPixelOptimize(point2[variableDim] - candleWidth / 2, 1, true);
-	        start ? bodyEnds.push(point1, point2) : bodyEnds.push(point2, point1);
+	        point1[cDimIdx] = subPixelOptimize(point1[cDimIdx] + candleWidth / 2, 1, false);
+	        point2[cDimIdx] = subPixelOptimize(point2[cDimIdx] - candleWidth / 2, 1, true);
+	        start ? ends.push(point1, point2) : ends.push(point2, point1);
 	      }
 
-	      function makeBrushRect() {
-	        var pmin = getPoint(Math.min(openVal, closeVal, lowestVal, highestVal));
-	        var pmax = getPoint(Math.max(openVal, closeVal, lowestVal, highestVal));
-	        pmin[variableDim] -= candleWidth / 2;
-	        pmax[variableDim] -= candleWidth / 2;
+	      function makeBrushRect(lowestVal, highestVal, axisDimVal) {
+	        var pmin = getPoint(lowestVal, axisDimVal);
+	        var pmax = getPoint(highestVal, axisDimVal);
+	        pmin[cDimIdx] -= candleWidth / 2;
+	        pmax[cDimIdx] -= candleWidth / 2;
 	        return {
 	          x: pmin[0],
 	          y: pmin[1],
-	          width: constDim ? candleWidth : pmax[0] - pmin[0],
-	          height: constDim ? pmax[1] - pmin[1] : candleWidth
+	          width: vDimIdx ? candleWidth : pmax[0] - pmin[0],
+	          height: vDimIdx ? pmax[1] - pmin[1] : candleWidth
 	        };
 	      }
 
 	      function subPixelOptimizePoint(point) {
-	        point[variableDim] = subPixelOptimize(point[variableDim], 1);
+	        point[cDimIdx] = subPixelOptimize(point[cDimIdx], 1);
 	        return point;
 	      }
-	    });
-	  });
+	    }
+
+	    function largeProgress(params, data) {
+	      // Structure: [sign, x, yhigh, ylow, sign, x, yhigh, ylow, ...]
+	      var points = new LargeArr(params.count * 5);
+	      var offset = 0;
+	      var point;
+	      var tmpIn = [];
+	      var tmpOut = [];
+	      var dataIndex;
+
+	      while ((dataIndex = params.next()) != null) {
+	        var axisDimVal = data.get(cDim, dataIndex);
+	        var openVal = data.get(openDim, dataIndex);
+	        var closeVal = data.get(closeDim, dataIndex);
+	        var lowestVal = data.get(lowestDim, dataIndex);
+	        var highestVal = data.get(highestDim, dataIndex);
+
+	        if (isNaN(axisDimVal) || isNaN(lowestVal) || isNaN(highestVal)) {
+	          points[offset++] = NaN;
+	          offset += 4;
+	          continue;
+	        }
+
+	        points[offset++] = getSign(data, dataIndex, openVal, closeVal, closeDim);
+	        tmpIn[cDimIdx] = axisDimVal;
+	        tmpIn[vDimIdx] = lowestVal;
+	        point = coordSys.dataToPoint(tmpIn, null, tmpOut);
+	        points[offset++] = point ? point[0] : NaN;
+	        points[offset++] = point ? point[1] : NaN;
+	        tmpIn[vDimIdx] = highestVal;
+	        point = coordSys.dataToPoint(tmpIn, null, tmpOut);
+	        points[offset++] = point ? point[1] : NaN;
+	      }
+
+	      data.setLayout('largePoints', points);
+	    }
+	  }
+	};
+
+	function getSign(data, dataIndex, openVal, closeVal, closeDim) {
+	  var sign;
+
+	  if (openVal > closeVal) {
+	    sign = -1;
+	  } else if (openVal < closeVal) {
+	    sign = 1;
+	  } else {
+	    sign = dataIndex > 0 // If close === open, compare with close of last record
+	    ? data.get(closeDim, dataIndex - 1) <= closeVal ? 1 : -1 : // No record of previous, set to be positive
+	    1;
+	  }
+
+	  return sign;
 	}
 
 	function calculateCandleWidth(seriesModel, data) {
@@ -54867,10 +60223,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(307);
 
-	var visualSymbol = __webpack_require__(151);
+	var visualSymbol = __webpack_require__(153);
 
-	var layoutPoints = __webpack_require__(152);
+	var layoutPoints = __webpack_require__(154);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerVisual(visualSymbol('effectScatter', 'circle'));
 	echarts.registerLayout(layoutPoints('effectScatter'));
 
@@ -54878,10 +60252,28 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 306 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
 	var SeriesModel = __webpack_require__(103);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.effectScatter',
 	  dependencies: ['grid', 'polar'],
@@ -54934,14 +60326,32 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
-	var SymbolDraw = __webpack_require__(145);
+	var SymbolDraw = __webpack_require__(147);
 
 	var EffectSymbol = __webpack_require__(308);
 
 	var matrix = __webpack_require__(15);
 
-	var pointsLayout = __webpack_require__(152);
+	var pointsLayout = __webpack_require__(154);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendChartView({
 	  type: 'effectScatter',
 	  init: function () {
@@ -54989,7 +60399,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
@@ -55001,7 +60411,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var parsePercent = _number.parsePercent;
 
-	var SymbolClz = __webpack_require__(146);
+	var SymbolClz = __webpack_require__(148);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Symbol with ripple effect
@@ -55226,6 +60655,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var linesVisual = __webpack_require__(317);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerLayout(linesLayout);
 	echarts.registerVisual(linesVisual);
 
@@ -55233,13 +60680,13 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 310 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(global) {var _config = __webpack_require__(2);
+	var _config = __webpack_require__(2);
 
 	var __DEV__ = _config.__DEV__;
 
 	var SeriesModel = __webpack_require__(103);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var _util = __webpack_require__(6);
 
@@ -55253,9 +60700,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var CoordinateSystem = __webpack_require__(98);
 
-	var globalObj = typeof window === 'undefined' ? global : window;
-	var Uint32Arr = globalObj.Uint32Array || Array;
-	var Float64Arr = globalObj.Float64Array || Array;
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+	var Uint32Arr = typeof Uint32Array === 'undefined' ? Array : Uint32Array;
+	var Float64Arr = typeof Float64Array === 'undefined' ? Array : Float64Array;
 
 	function compatEc2(seriesOpt) {
 	  var data = seriesOpt.data;
@@ -55285,7 +60749,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  dependencies: ['grid', 'polar'],
 	  visualColorAccessPath: 'lineStyle.color',
 	  init: function (option) {
-	    // Not using preprocessor because mergeOption may not have series.type
+	    // The input data may be null/undefined.
+	    option.data = option.data || []; // Not using preprocessor because mergeOption may not have series.type
+
 	    compatEc2(option);
 
 	    var result = this._processFlatCoordsArray(option.data);
@@ -55300,6 +60766,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    LinesSeries.superApply(this, 'init', arguments);
 	  },
 	  mergeOption: function (option) {
+	    // The input data may be null/undefined.
+	    option.data = option.data || [];
 	    compatEc2(option);
 
 	    if (option.data) {
@@ -55521,7 +60989,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 	var _default = LinesSeries;
 	module.exports = _default;
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
 /* 311 */
@@ -55547,6 +61014,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var linesLayout = __webpack_require__(316);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendChartView({
 	  type: 'lines',
 	  init: function () {},
@@ -55605,8 +61090,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 	  updateTransform: function (seriesModel, ecModel, api) {
 	    var data = seriesModel.getData();
+	    var pipelineContext = seriesModel.pipelineContext;
 
-	    if (!this._finished || seriesModel.pipelineContext.large) {
+	    if (!this._finished || pipelineContext.large || pipelineContext.progressiveRender) {
 	      // TODO Don't have to do update in large mode. Only do it when there are millions of data.
 	      return {
 	        update: true
@@ -55685,13 +61171,32 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
 	var vec2 = __webpack_require__(8);
 
 	var curveUtil = __webpack_require__(55);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Provide effect for line
@@ -55863,6 +61368,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @module echarts/chart/helper/Line
 	 */
@@ -55947,6 +61471,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var EffectLine = __webpack_require__(312);
 
 	var vec2 = __webpack_require__(8);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Provide effect for line
@@ -56063,6 +61606,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var quadraticContain = __webpack_require__(60);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO Batch by color
 	var LargeLineShape = graphic.extendShape({
 	  shape: {
@@ -56297,6 +61858,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createRenderPlanner = __webpack_require__(109);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = {
 	  seriesType: 'lines',
 	  plan: createRenderPlanner(),
@@ -56321,7 +61900,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	          points = new Float32Array(segCount + totalCoordsCount * 2);
 	        } else {
-	          points = new Float32Array(segCount * 2);
+	          points = new Float32Array(segCount * 4);
 	        }
 
 	        var offset = 0;
@@ -56378,6 +61957,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 317 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function normalize(a) {
 	  if (!(a instanceof Array)) {
 	    a = [a, a];
@@ -56432,10 +62029,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var SeriesModel = __webpack_require__(103);
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
 	var CoordinateSystem = __webpack_require__(98);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = SeriesModel.extend({
 	  type: 'series.heatmap',
 	  getInitialData: function (option, ecModel) {
@@ -56485,6 +62100,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function getIsInPiecewiseRange(dataExtent, pieceList, selected) {
 	  var dataSpan = dataExtent[1] - dataExtent[0];
 	  pieceList = zrUtil.map(pieceList, function (piece) {
@@ -56723,6 +62356,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file defines echarts Heatmap Chart
 	 * @author Ovilia (me@zhangwenli.com)
@@ -56878,20 +62530,38 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	__webpack_require__(155);
+	__webpack_require__(157);
 
 	__webpack_require__(323);
 
 	__webpack_require__(324);
 
-	var _barGrid = __webpack_require__(133);
+	var _barGrid = __webpack_require__(134);
 
 	var layout = _barGrid.layout;
 
-	var visualSymbol = __webpack_require__(151);
+	var visualSymbol = __webpack_require__(153);
 
-	__webpack_require__(154);
+	__webpack_require__(156);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// In case developer forget to include grid component
 	echarts.registerLayout(zrUtil.curry(layout, 'pictorialBar'));
 	echarts.registerVisual(visualSymbol('pictorialBar', 'roundRect'));
@@ -56900,8 +62570,26 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 323 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var BaseBarSeries = __webpack_require__(171);
+	var BaseBarSeries = __webpack_require__(173);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PictorialBarSeries = BaseBarSeries.extend({
 	  type: 'series.pictorialBar',
 	  dependencies: ['grid'],
@@ -56956,7 +62644,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
@@ -56965,9 +62653,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	var parsePercent = _number.parsePercent;
 	var isNumeric = _number.isNumeric;
 
-	var _helper = __webpack_require__(173);
+	var _helper = __webpack_require__(175);
 
 	var setLabel = _helper.setLabel;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var BAR_BORDER_WIDTH_QUERY = ['itemStyle', 'borderWidth']; // index: +isHorizontal
 
 	var LAYOUT_ATTRS = [{
@@ -57605,8 +63312,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var themeRiverVisual = __webpack_require__(347);
 
-	var dataFilter = __webpack_require__(184);
+	var dataFilter = __webpack_require__(186);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerLayout(themeRiverLayout);
 	echarts.registerVisual(themeRiverVisual);
 	echarts.registerProcessor(dataFilter('themeRiver'));
@@ -57627,6 +63352,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(342);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.extendComponentView({
 	  type: 'single'
 	});
@@ -57638,6 +63381,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Single = __webpack_require__(328);
 
 	var CoordinateSystem = __webpack_require__(98);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Single coordinate system creator.
@@ -57683,7 +63445,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var SingleAxis = __webpack_require__(329);
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
 	var _layout = __webpack_require__(87);
 
@@ -57692,6 +63454,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _util = __webpack_require__(6);
 
 	var each = _util.each;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Single coordinates system.
@@ -57937,7 +63718,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @constructor  module:echarts/coord/single/SingleAxis
@@ -57978,11 +63778,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 
 	  this.orient = null;
-	  /**
-	   * @type {number}
-	   */
-
-	  this._labelInterval = null;
 	};
 
 	SingleAxis.prototype = {
@@ -58035,16 +63830,32 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
 
 	var graphic = __webpack_require__(51);
 
 	var singleAxisHelper = __webpack_require__(331);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
-	var getInterval = AxisBuilder.getInterval;
-	var ifIgnoreOnTick = AxisBuilder.ifIgnoreOnTick;
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var axisBuilderAttrs = ['axisLine', 'axisTickLabel', 'axisName'];
 	var selfBuilderAttr = 'splitLine';
 	var SingleAxisView = AxisView.extend({
@@ -58059,12 +63870,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    group.add(axisBuilder.getGroup());
 
 	    if (axisModel.get(selfBuilderAttr + '.show')) {
-	      this['_' + selfBuilderAttr](axisModel, layout.labelInterval);
+	      this['_' + selfBuilderAttr](axisModel);
 	    }
 
 	    SingleAxisView.superCall(this, 'render', axisModel, ecModel, api, payload);
 	  },
-	  _splitLine: function (axisModel, labelInterval) {
+	  _splitLine: function (axisModel) {
 	    var axis = axisModel.axis;
 
 	    if (axis.scale.isBlank()) {
@@ -58075,24 +63886,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var lineStyleModel = splitLineModel.getModel('lineStyle');
 	    var lineWidth = lineStyleModel.get('width');
 	    var lineColors = lineStyleModel.get('color');
-	    var lineInterval = getInterval(splitLineModel, labelInterval);
 	    lineColors = lineColors instanceof Array ? lineColors : [lineColors];
 	    var gridRect = axisModel.coordinateSystem.getRect();
 	    var isHorizontal = axis.isHorizontal();
 	    var splitLines = [];
 	    var lineCount = 0;
-	    var ticksCoords = axis.getTicksCoords();
+	    var ticksCoords = axis.getTicksCoords({
+	      tickModel: splitLineModel
+	    });
 	    var p1 = [];
 	    var p2 = [];
-	    var showMinLabel = axisModel.get('axisLabel.showMinLabel');
-	    var showMaxLabel = axisModel.get('axisLabel.showMaxLabel');
 
 	    for (var i = 0; i < ticksCoords.length; ++i) {
-	      if (ifIgnoreOnTick(axis, i, lineInterval, ticksCoords.length, showMinLabel, showMaxLabel)) {
-	        continue;
-	      }
-
-	      var tickCoord = axis.toGlobalCoord(ticksCoords[i]);
+	      var tickCoord = axis.toGlobalCoord(ticksCoords[i].coord);
 
 	      if (isHorizontal) {
 	        p1[0] = tickCoord;
@@ -58143,11 +63949,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @param {Object} opt {labelInside}
 	 * @return {Object} {
 	 *  position, rotation, labelDirection, labelOffset,
-	 *  tickDirection, labelRotate, labelInterval, z2
+	 *  tickDirection, labelRotate, z2
 	 * }
 	 */
 	function layout(axisModel, opt) {
@@ -58194,7 +64019,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var labelRotation = opt.rotate;
 	  labelRotation == null && (labelRotation = axisModel.get('axisLabel.rotate'));
 	  layout.labelRotation = axisPosition === 'top' ? -labelRotation : labelRotation;
-	  layout.labelInterval = axis.getLabelInterval();
 	  layout.z2 = 1;
 	  return layout;
 	}
@@ -58209,10 +64033,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var ComponentModel = __webpack_require__(85);
 
-	var axisModelCreator = __webpack_require__(161);
+	var axisModelCreator = __webpack_require__(163);
 
-	var axisModelCommonMixin = __webpack_require__(136);
+	var axisModelCommonMixin = __webpack_require__(137);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var AxisModel = ComponentModel.extend({
 	  type: 'singleAxis',
 	  layoutMode: 'box',
@@ -58292,7 +64134,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var axisPointerModelHelper = __webpack_require__(167);
+	var axisPointerModelHelper = __webpack_require__(169);
 
 	var axisTrigger = __webpack_require__(334);
 
@@ -58302,6 +64144,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(339);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// CartesianAxisPointer is not supposed to be required here. But consider
 	// echarts.simple.js and online build tooltip, which only require gridSimple,
 	// CartesianAxisPointer should be able to required somewhere.
@@ -58342,10 +64202,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var makeInner = _model.makeInner;
 
-	var modelHelper = __webpack_require__(167);
+	var modelHelper = __webpack_require__(169);
 
 	var findPointFromSeries = __webpack_require__(335);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var curry = zrUtil.curry;
 	var inner = makeInner();
@@ -58738,6 +64616,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var modelUtil = __webpack_require__(44);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @param {Object} finder contains {seriesIndex, dataIndex, dataIndexInside}
 	 * @param {module:echarts/model/Global} ecModel
@@ -58793,6 +64690,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var AxisPointerModel = echarts.extendComponentModel({
 	  type: 'axisPointer',
 	  coordSysAxesInfo: null,
@@ -58886,6 +64801,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var globalListener = __webpack_require__(338);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var AxisPointerView = echarts.extendComponentView({
 	  type: 'axisPointer',
 	  render: function (globalAxisPointerModel, ecModel, api) {
@@ -58936,6 +64869,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _model = __webpack_require__(44);
 
 	var makeInner = _model.makeInner;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var inner = makeInner();
 	var each = zrUtil.each;
 	/**
@@ -59063,10 +65015,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var viewHelper = __webpack_require__(341);
 
-	var cartesianAxisHelper = __webpack_require__(168);
+	var cartesianAxisHelper = __webpack_require__(170);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var CartesianAxisPointer = BaseAxisPointer.extend({
 	  /**
 	   * @override
@@ -59154,7 +65124,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	  },
 	  shadow: function (axis, pixelValue, otherExtent, elStyle) {
-	    var bandWidth = axis.getBandWidth();
+	    var bandWidth = Math.max(1, axis.getBandWidth());
 	    var span = otherExtent[1] - otherExtent[0];
 	    return {
 	      type: 'Rect',
@@ -59181,7 +65151,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var axisPointerModelHelper = __webpack_require__(167);
+	var axisPointerModelHelper = __webpack_require__(169);
 
 	var eventTool = __webpack_require__(40);
 
@@ -59190,6 +65160,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _model = __webpack_require__(44);
 
 	var makeInner = _model.makeInner;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var inner = makeInner();
 	var clone = zrUtil.clone;
 	var bind = zrUtil.bind;
@@ -59678,9 +65667,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var matrix = __webpack_require__(15);
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @param {module:echarts/model/Model} axisPointerModel
@@ -59782,6 +65790,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	function getValueLabel(value, axis, ecModel, seriesDataIndices, opt) {
+	  value = axis.scale.parse(value);
 	  var text = axis.scale.getLabel( // If `precision` is set, width can be fixed (like '12.00500'), which
 	  // helps to debounce when when moving label.
 	  value, {
@@ -59901,8 +65910,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var singleAxisHelper = __webpack_require__(331);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var XY = ['x', 'y'];
 	var WH = ['width', 'height'];
 	var SingleAxisPointer = BaseAxisPointer.extend({
@@ -60009,13 +66036,13 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var SeriesModel = __webpack_require__(103);
 
-	var createDimensions = __webpack_require__(124);
+	var createDimensions = __webpack_require__(125);
 
-	var _dimensionHelper = __webpack_require__(123);
+	var _dimensionHelper = __webpack_require__(124);
 
 	var getDimensionTypeByAxis = _dimensionHelper.getDimensionTypeByAxis;
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var zrUtil = __webpack_require__(6);
 
@@ -60023,7 +66050,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var encodeHTML = _format.encodeHTML;
 
-	var nest = __webpack_require__(290);
+	var nest = __webpack_require__(291);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file  Define the themeRiver view's series model
@@ -60283,7 +66329,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    animationEasing: 'linear',
 	    label: {
 	      margin: 4,
-	      textAlign: 'right',
 	      show: true,
 	      position: 'left',
 	      color: '#000',
@@ -60305,7 +66350,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/* WEBPACK VAR INJECTION */(function(process) {var echarts = __webpack_require__(1);
 
-	var _poly = __webpack_require__(150);
+	var _poly = __webpack_require__(152);
 
 	var Polygon = _poly.Polygon;
 
@@ -60316,7 +66361,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	var bind = _util.bind;
 	var extend = _util.extend;
 
-	var DataDiffer = __webpack_require__(122);
+	var DataDiffer = __webpack_require__(123);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @file  The file used to draw themeRiver view
@@ -60656,6 +66720,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var numberUtil = __webpack_require__(88);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file  Using layout algorithm transform the raw data to layout information.
 	 * @author Deqing Li(annong035@gmail.com)
@@ -60801,6 +66884,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createHashMap = _util.createHashMap;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file Visual encoding for themeRiver view
 	 * @author  Deqing Li(annong035@gmail.com)
@@ -60843,17 +66945,17 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphicUtil = __webpack_require__(51);
 
-	var _labelHelper = __webpack_require__(147);
+	var _labelHelper = __webpack_require__(149);
 
 	var getDefaultLabel = _labelHelper.getDefaultLabel;
 
-	var createListFromArray = __webpack_require__(120);
+	var createListFromArray = __webpack_require__(121);
 
-	var _barGrid = __webpack_require__(133);
+	var _barGrid = __webpack_require__(134);
 
 	var getLayoutOnAxis = _barGrid.getLayoutOnAxis;
 
-	var DataDiffer = __webpack_require__(122);
+	var DataDiffer = __webpack_require__(123);
 
 	var prepareCartesian2d = __webpack_require__(349);
 
@@ -60865,6 +66967,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var prepareCalendar = __webpack_require__(353);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var ITEM_STYLE_NORMAL_PATH = ['itemStyle'];
 	var ITEM_STYLE_EMPHASIS_PATH = ['emphasis', 'itemStyle'];
 	var LABEL_NORMAL = ['label'];
@@ -61334,6 +67454,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function dataToCoordSize(dataSize, dataItem) {
 	  // dataItem is necessary in log axis.
 	  dataItem = dataItem || [0, 0];
@@ -61374,6 +67512,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function dataToCoordSize(dataSize, dataItem) {
 	  dataItem = dataItem || [0, 0];
 	  return zrUtil.map([0, 1], function (dimIdx) {
@@ -61418,6 +67574,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function dataToCoordSize(dataSize, dataItem) {
 	  // dataItem is necessary in log axis.
 	  var axis = this.getAxis();
@@ -61454,6 +67628,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function dataToCoordSize(dataSize, dataItem) {
 	  // dataItem is necessary in log axis.
 	  return zrUtil.map(['Radius', 'Angle'], function (dim, dimIdx) {
@@ -61503,6 +67695,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 353 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(coordSys) {
 	  var rect = coordSys.getRect();
 	  var rangeInfo = coordSys.getRangeInfo();
@@ -61550,6 +67760,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var layoutUtil = __webpack_require__(87);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// -------------
 	// Preprocessor
 	// -------------
@@ -61987,7 +68215,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 355 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(154);
+	__webpack_require__(156);
 
 	__webpack_require__(339);
 
@@ -62021,6 +68249,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Component = __webpack_require__(85);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Do not contain scrollable legend, for sake of file size.
 	// Series Filter
 	echarts.registerProcessor(legendFilter);
@@ -62042,6 +68288,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _model = __webpack_require__(44);
 
 	var isNameSpecified = _model.isNameSpecified;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var LegendModel = echarts.extendComponentModel({
 	  type: 'legend.plain',
 	  dependencies: ['series'],
@@ -62258,6 +68523,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function legendSelectActionHandler(methodName, payload, ecModel) {
 	  var selectedMap = {};
 	  var isToggleSelect = methodName === 'toggleSelected';
@@ -62338,7 +68621,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
@@ -62350,6 +68633,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var layoutUtil = __webpack_require__(87);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var curry = zrUtil.curry;
 	var each = zrUtil.each;
 	var Group = graphic.Group;
@@ -62433,6 +68734,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var contentGroup = this.getContentGroup();
 	    var legendDrawnMap = zrUtil.createHashMap();
 	    var selectMode = legendModel.get('selectedMode');
+	    var excludeSeriesId = [];
+	    ecModel.eachRawSeries(function (seriesModel) {
+	      !seriesModel.get('legendHoverLink') && excludeSeriesId.push(seriesModel.id);
+	    });
 	    each(legendModel.getData(), function (itemModel, dataIndex) {
 	      var name = itemModel.get('name'); // Use empty string or \n as a newline string
 
@@ -62441,7 +68746,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          newline: true
 	        }));
 	        return;
-	      }
+	      } // Representitive series.
+
 
 	      var seriesModel = ecModel.getSeriesByName(name)[0];
 
@@ -62466,7 +68772,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	        var itemGroup = this._createItem(name, dataIndex, itemModel, legendModel, legendSymbolType, symbolType, itemAlign, color, selectMode);
 
-	        itemGroup.on('click', curry(dispatchSelectAction, name, api)).on('mouseover', curry(dispatchHighlightAction, seriesModel, null, api)).on('mouseout', curry(dispatchDownplayAction, seriesModel, null, api));
+	        itemGroup.on('click', curry(dispatchSelectAction, name, api)).on('mouseover', curry(dispatchHighlightAction, seriesModel, null, api, excludeSeriesId)).on('mouseout', curry(dispatchDownplayAction, seriesModel, null, api, excludeSeriesId));
 	        legendDrawnMap.set(name, true);
 	      } else {
 	        // Data legend of pie, funnel
@@ -62487,10 +68793,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var color = data.getItemVisual(idx, 'color');
 	            var legendSymbolType = 'roundRect';
 
-	            var itemGroup = this._createItem(name, dataIndex, itemModel, legendModel, legendSymbolType, null, itemAlign, color, selectMode);
+	            var itemGroup = this._createItem(name, dataIndex, itemModel, legendModel, legendSymbolType, null, itemAlign, color, selectMode); // FIXME: consider different series has items with the same name.
+
 
 	            itemGroup.on('click', curry(dispatchSelectAction, name, api)) // FIXME Should not specify the series name
-	            .on('mouseover', curry(dispatchHighlightAction, seriesModel, name, api)).on('mouseout', curry(dispatchDownplayAction, seriesModel, name, api));
+	            .on('mouseover', curry(dispatchHighlightAction, seriesModel, name, api, excludeSeriesId)).on('mouseout', curry(dispatchDownplayAction, seriesModel, name, api, excludeSeriesId));
 	            legendDrawnMap.set(name, true);
 	          }
 	        }, this);
@@ -62501,6 +68808,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var itemWidth = legendModel.get('itemWidth');
 	    var itemHeight = legendModel.get('itemHeight');
 	    var inactiveColor = legendModel.get('inactiveColor');
+	    var symbolKeepAspect = legendModel.get('symbolKeepAspect');
 	    var isSelected = legendModel.isSelected(name);
 	    var itemGroup = new Group();
 	    var textStyleModel = itemModel.getModel('textStyle');
@@ -62509,7 +68817,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var legendGlobalTooltipModel = tooltipModel.parentModel; // Use user given icon first
 
 	    legendSymbolType = itemIcon || legendSymbolType;
-	    itemGroup.add(createSymbol(legendSymbolType, 0, 0, itemWidth, itemHeight, isSelected ? color : inactiveColor, true)); // Compose symbols
+	    itemGroup.add(createSymbol(legendSymbolType, 0, 0, itemWidth, itemHeight, isSelected ? color : inactiveColor, // symbolKeepAspect default true for legend
+	    symbolKeepAspect == null ? true : symbolKeepAspect)); // Compose symbols
 	    // PENDING
 
 	    if (!itemIcon && symbolType // At least show one symbol, can't be all none
@@ -62521,7 +68830,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      } // Put symbol in the center
 
 
-	      itemGroup.add(createSymbol(symbolType, (itemWidth - size) / 2, (itemHeight - size) / 2, size, size, isSelected ? color : inactiveColor));
+	      itemGroup.add(createSymbol(symbolType, (itemWidth - size) / 2, (itemHeight - size) / 2, size, size, isSelected ? color : inactiveColor, // symbolKeepAspect default true for legend
+	      symbolKeepAspect == null ? true : symbolKeepAspect));
 	    }
 
 	    var textX = itemAlign === 'left' ? itemWidth + 5 : -5;
@@ -62594,28 +68904,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 	}
 
-	function dispatchHighlightAction(seriesModel, dataName, api) {
+	function dispatchHighlightAction(seriesModel, dataName, api, excludeSeriesId) {
 	  // If element hover will move to a hoverLayer.
 	  var el = api.getZr().storage.getDisplayList()[0];
 
 	  if (!(el && el.useHoverLayer)) {
-	    seriesModel.get('legendHoverLink') && api.dispatchAction({
+	    api.dispatchAction({
 	      type: 'highlight',
 	      seriesName: seriesModel.name,
-	      name: dataName
+	      name: dataName,
+	      excludeSeriesId: excludeSeriesId
 	    });
 	  }
 	}
 
-	function dispatchDownplayAction(seriesModel, dataName, api) {
+	function dispatchDownplayAction(seriesModel, dataName, api, excludeSeriesId) {
 	  // If element hover will move to a hoverLayer.
 	  var el = api.getZr().storage.getDisplayList()[0];
 
 	  if (!(el && el.useHoverLayer)) {
-	    seriesModel.get('legendHoverLink') && api.dispatchAction({
+	    api.dispatchAction({
 	      type: 'downplay',
 	      seriesName: seriesModel.name,
-	      name: dataName
+	      name: dataName,
+	      excludeSeriesId: excludeSeriesId
 	    });
 	  }
 	}
@@ -62635,6 +68947,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var formatUtil = __webpack_require__(89);
 
 	var graphic = __webpack_require__(51);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Layout list like component.
@@ -62685,6 +69016,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 362 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(ecModel) {
 	  var legendModels = ecModel.findComponents({
 	    mainType: 'legend'
@@ -62717,6 +69066,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var mergeLayoutParam = _layout.mergeLayoutParam;
 	var getLayoutParams = _layout.getLayoutParams;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var ScrollableLegendModel = LegendModel.extend({
 	  type: 'legend.scroll',
 
@@ -62799,6 +69167,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var layoutUtil = __webpack_require__(87);
 
 	var LegendView = __webpack_require__(360);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Separate legend and scrollable legend to reduce package size.
@@ -63133,6 +69520,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @event legendScroll
 	 * @type {Object}
@@ -63162,6 +69568,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(368);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// FIXME Better way to pack data in graphic element
 
 	/**
@@ -63191,6 +69615,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentModel({
 	  type: 'tooltip',
 	  dependencies: ['axisPointer'],
@@ -63294,10 +69736,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var globalListener = __webpack_require__(338);
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
 	var axisPointerViewHelper = __webpack_require__(341);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var bind = zrUtil.bind;
 	var each = zrUtil.each;
 	var parsePercent = numberUtil.parsePercent;
@@ -63842,7 +70302,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    });
 	  },
 	  dispose: function (ecModel, api) {
-	    if (env.node) {
+	    if (env.node || env.wxa) {
 	      return;
 	    }
 
@@ -64003,6 +70463,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var formatUtil = __webpack_require__(89);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var toCamelCase = formatUtil.toCamelCase;
 	var vendors = ['', '-webkit-', '-moz-', '-o-'];
@@ -64246,6 +70724,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(382);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// For reducing size of echarts.min, barLayoutPolar is required by polar.
 	echarts.registerLayout(zrUtil.curry(barPolar, 'bar')); // Polar view
 
@@ -64263,10 +70759,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var parsePercent = _number.parsePercent;
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var isDimensionStacked = _dataStackHelper.isDimensionStacked;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function getSeriesStackId(seriesModel) {
 	  return seriesModel.get('stack') || '__ec_stack_' + seriesModel.seriesIndex;
 	}
@@ -64523,7 +71037,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var parsePercent = _number.parsePercent;
 
-	var _axisHelper = __webpack_require__(127);
+	var _axisHelper = __webpack_require__(128);
 
 	var createScaleByModel = _axisHelper.createScaleByModel;
 	var niceScaleExtent = _axisHelper.niceScaleExtent;
@@ -64532,6 +71046,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(376);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO Axis scale
 	// 依赖 PolarModel 做预处理
 
@@ -64651,6 +71183,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var RadiusAxis = __webpack_require__(374);
 
 	var AngleAxis = __webpack_require__(375);
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * @module echarts/coord/polar/Polar
@@ -64875,8 +71426,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function RadiusAxis(scale, radiusExtent) {
 	  Axis.call(this, 'radius', scale, radiusExtent);
 	  /**
@@ -64913,8 +71482,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function AngleAxis(scale, angleExtent) {
 	  angleExtent = angleExtent || [0, 360];
 	  Axis.call(this, 'angle', scale, angleExtent);
@@ -64954,6 +71541,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(377);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentModel({
 	  type: 'polar',
 	  dependencies: ['polarAxis', 'angleAxis'],
@@ -64995,10 +71600,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var ComponentModel = __webpack_require__(85);
 
-	var axisModelCreator = __webpack_require__(161);
+	var axisModelCreator = __webpack_require__(163);
 
-	var axisModelCommonMixin = __webpack_require__(136);
+	var axisModelCommonMixin = __webpack_require__(137);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PolarAxisModel = ComponentModel.extend({
 	  type: 'polarAxis',
 
@@ -65063,8 +71686,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Model = __webpack_require__(45);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var elementList = ['axisLine', 'axisLabel', 'axisTick', 'splitLine', 'splitArea'];
 
 	function getAxisLineShape(polar, rExtent, angle) {
@@ -65082,6 +71723,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	function getRadiusIdx(polar) {
 	  var radiusAxis = polar.getRadiusAxis();
 	  return radiusAxis.inverse ? 0 : 1;
+	} // Remove the last tick which will overlap the first tick
+
+
+	function fixAngleOverlap(list) {
+	  var firstItem = list[0];
+	  var lastItem = list[list.length - 1];
+
+	  if (firstItem && lastItem && Math.abs(Math.abs(firstItem.coord - lastItem.coord) - 360) < 1e-4) {
+	    list.pop();
+	  }
 	}
 
 	var _default = AxisView.extend({
@@ -65098,15 +71749,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var polar = angleAxis.polar;
 	    var radiusExtent = polar.getRadiusAxis().getExtent();
 	    var ticksAngles = angleAxis.getTicksCoords();
-
-	    if (angleAxis.type !== 'category') {
-	      // Remove the last tick which will overlap the first tick
-	      ticksAngles.pop();
-	    }
-
+	    var labels = zrUtil.map(angleAxis.getViewLabels(), function (labelItem) {
+	      var labelItem = zrUtil.clone(labelItem);
+	      labelItem.coord = angleAxis.dataToCoord(labelItem.tickValue);
+	      return labelItem;
+	    });
+	    fixAngleOverlap(labels);
+	    fixAngleOverlap(ticksAngles);
 	    zrUtil.each(elementList, function (name) {
 	      if (angleAxisModel.get(name + '.show') && (!angleAxis.scale.isBlank() || name === 'axisLine')) {
-	        this['_' + name](angleAxisModel, polar, ticksAngles, radiusExtent);
+	        this['_' + name](angleAxisModel, polar, ticksAngles, radiusExtent, labels);
 	      }
 	    }, this);
 	  },
@@ -65137,9 +71789,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var tickModel = angleAxisModel.getModel('axisTick');
 	    var tickLen = (tickModel.get('inside') ? -1 : 1) * tickModel.get('length');
 	    var radius = radiusExtent[getRadiusIdx(polar)];
-	    var lines = zrUtil.map(ticksAngles, function (tickAngle) {
+	    var lines = zrUtil.map(ticksAngles, function (tickAngleItem) {
 	      return new graphic.Line({
-	        shape: getAxisLineShape(polar, [radius, radius + tickLen], tickAngle)
+	        shape: getAxisLineShape(polar, [radius, radius + tickLen], tickAngleItem.coord)
 	      });
 	    });
 	    this.group.add(graphic.mergePath(lines, {
@@ -65152,24 +71804,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	  /**
 	   * @private
 	   */
-	  _axisLabel: function (angleAxisModel, polar, ticksAngles, radiusExtent) {
-	    var axis = angleAxisModel.axis;
-	    var categoryData = angleAxisModel.getCategories();
-	    var labelModel = angleAxisModel.getModel('axisLabel');
-	    var labels = angleAxisModel.getFormattedLabels();
-	    var labelMargin = labelModel.get('margin');
-	    var labelsAngles = axis.getLabelsCoords(); // Use length of ticksAngles because it may remove the last tick to avoid overlapping
+	  _axisLabel: function (angleAxisModel, polar, ticksAngles, radiusExtent, labels) {
+	    var rawCategoryData = angleAxisModel.getCategories(true);
+	    var commonLabelModel = angleAxisModel.getModel('axisLabel');
+	    var labelMargin = commonLabelModel.get('margin'); // Use length of ticksAngles because it may remove the last tick to avoid overlapping
 
-	    for (var i = 0; i < ticksAngles.length; i++) {
+	    zrUtil.each(labels, function (labelItem, idx) {
+	      var labelModel = commonLabelModel;
+	      var tickValue = labelItem.tickValue;
 	      var r = radiusExtent[getRadiusIdx(polar)];
-	      var p = polar.coordToPoint([r + labelMargin, labelsAngles[i]]);
+	      var p = polar.coordToPoint([r + labelMargin, labelItem.coord]);
 	      var cx = polar.cx;
 	      var cy = polar.cy;
 	      var labelTextAlign = Math.abs(p[0] - cx) / r < 0.3 ? 'center' : p[0] > cx ? 'left' : 'right';
 	      var labelTextVerticalAlign = Math.abs(p[1] - cy) / r < 0.3 ? 'middle' : p[1] > cy ? 'top' : 'bottom';
 
-	      if (categoryData && categoryData[i] && categoryData[i].textStyle) {
-	        labelModel = new Model(categoryData[i].textStyle, labelModel, labelModel.ecModel);
+	      if (rawCategoryData && rawCategoryData[tickValue] && rawCategoryData[tickValue].textStyle) {
+	        labelModel = new Model(rawCategoryData[tickValue].textStyle, commonLabelModel, commonLabelModel.ecModel);
 	      }
 
 	      var textEl = new graphic.Text({
@@ -65180,11 +71831,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	        x: p[0],
 	        y: p[1],
 	        textFill: labelModel.getTextColor() || angleAxisModel.get('axisLine.lineStyle.color'),
-	        text: labels[i],
+	        text: labelItem.formattedLabel,
 	        textAlign: labelTextAlign,
 	        textVerticalAlign: labelTextVerticalAlign
 	      });
-	    }
+	    }, this);
 	  },
 
 	  /**
@@ -65202,7 +71853,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var colorIndex = lineCount++ % lineColors.length;
 	      splitLines[colorIndex] = splitLines[colorIndex] || [];
 	      splitLines[colorIndex].push(new graphic.Line({
-	        shape: getAxisLineShape(polar, radiusExtent, ticksAngles[i])
+	        shape: getAxisLineShape(polar, radiusExtent, ticksAngles[i].coord)
 	      }));
 	    } // Simple optimization
 	    // Batching the lines if color are the same
@@ -65223,6 +71874,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @private
 	   */
 	  _splitArea: function (angleAxisModel, polar, ticksAngles, radiusExtent) {
+	    if (!ticksAngles.length) {
+	      return;
+	    }
+
 	    var splitAreaModel = angleAxisModel.getModel('splitArea');
 	    var areaStyleModel = splitAreaModel.getModel('areaStyle');
 	    var areaColors = areaStyleModel.get('color');
@@ -65230,7 +71885,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    areaColors = areaColors instanceof Array ? areaColors : [areaColors];
 	    var splitAreas = [];
 	    var RADIAN = Math.PI / 180;
-	    var prevAngle = -ticksAngles[0] * RADIAN;
+	    var prevAngle = -ticksAngles[0].coord * RADIAN;
 	    var r0 = Math.min(radiusExtent[0], radiusExtent[1]);
 	    var r1 = Math.max(radiusExtent[0], radiusExtent[1]);
 	    var clockwise = angleAxisModel.get('clockwise');
@@ -65245,12 +71900,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	          r0: r0,
 	          r: r1,
 	          startAngle: prevAngle,
-	          endAngle: -ticksAngles[i] * RADIAN,
+	          endAngle: -ticksAngles[i].coord * RADIAN,
 	          clockwise: clockwise
 	        },
 	        silent: true
 	      }));
-	      prevAngle = -ticksAngles[i] * RADIAN;
+	      prevAngle = -ticksAngles[i].coord * RADIAN;
 	    } // Simple optimization
 	    // Batching the lines if color are the same
 
@@ -65284,10 +71939,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var axisBuilderAttrs = ['axisLine', 'axisTickLabel', 'axisName'];
 	var selfBuilderAttrs = ['splitLine', 'splitArea'];
 
@@ -65336,7 +72009,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        shape: {
 	          cx: polar.cx,
 	          cy: polar.cy,
-	          r: ticksCoords[i]
+	          r: ticksCoords[i].coord
 	        },
 	        silent: true
 	      }));
@@ -65359,13 +72032,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @private
 	   */
 	  _splitArea: function (radiusAxisModel, polar, axisAngle, radiusExtent, ticksCoords) {
+	    if (!ticksCoords.length) {
+	      return;
+	    }
+
 	    var splitAreaModel = radiusAxisModel.getModel('splitArea');
 	    var areaStyleModel = splitAreaModel.getModel('areaStyle');
 	    var areaColors = areaStyleModel.get('color');
 	    var lineCount = 0;
 	    areaColors = areaColors instanceof Array ? areaColors : [areaColors];
 	    var splitAreas = [];
-	    var prevRadius = ticksCoords[0];
+	    var prevRadius = ticksCoords[0].coord;
 
 	    for (var i = 1; i < ticksCoords.length; i++) {
 	      var colorIndex = lineCount++ % areaColors.length;
@@ -65375,13 +72052,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	          cx: polar.cx,
 	          cy: polar.cy,
 	          r0: prevRadius,
-	          r: ticksCoords[i],
+	          r: ticksCoords[i].coord,
 	          startAngle: 0,
 	          endAngle: Math.PI * 2
 	        },
 	        silent: true
 	      }));
-	      prevRadius = ticksCoords[i];
+	      prevRadius = ticksCoords[i].coord;
 	    } // Simple optimization
 	    // Batching the lines if color are the same
 
@@ -65430,10 +72107,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var matrix = __webpack_require__(15);
 
-	var AxisBuilder = __webpack_require__(165);
+	var AxisBuilder = __webpack_require__(167);
 
-	var AxisView = __webpack_require__(166);
+	var AxisView = __webpack_require__(168);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PolarAxisPointer = BaseAxisPointer.extend({
 	  /**
 	   * @override
@@ -65518,7 +72213,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	  },
 	  shadow: function (axis, polar, coordValue, otherExtent, elStyle) {
-	    var bandWidth = axis.getBandWidth();
+	    var bandWidth = Math.max(1, axis.getBandWidth());
 	    var radian = Math.PI / 180;
 	    return axis.dim === 'angle' ? {
 	      type: 'Sector',
@@ -65544,12 +72239,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(384);
 
-	__webpack_require__(201);
+	__webpack_require__(203);
 
 	__webpack_require__(385);
 
-	__webpack_require__(214);
+	__webpack_require__(216);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function makeAction(method, actionInfo) {
 	  actionInfo.update = 'updateView';
 	  echarts.registerAction(actionInfo, function (payload, ecModel) {
@@ -65596,10 +72309,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Model = __webpack_require__(45);
 
-	var selectableMixin = __webpack_require__(178);
+	var selectableMixin = __webpack_require__(180);
 
-	var geoCreator = __webpack_require__(201);
+	var geoCreator = __webpack_require__(203);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var GeoModel = ComponentModel.extend({
 	  type: 'geo',
 
@@ -65721,10 +72452,28 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 385 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MapDraw = __webpack_require__(209);
+	var MapDraw = __webpack_require__(211);
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentView({
 	  type: 'geo',
 	  init: function (ecModel, api) {
@@ -65773,6 +72522,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(395);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * Brush component entry
 	 */
@@ -65784,6 +72552,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var DEFAULT_TOOLBOX_BTNS = ['rect', 'polygon', 'keep', 'clear'];
 
 	function _default(option, isNew) {
@@ -65860,6 +72646,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var BrushTargetManager = __webpack_require__(391);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var STATE_LIST = ['inBrush', 'outOfBrush'];
 	var DISPATCH_METHOD = '__ecBrushSelect';
 	var DISPATCH_FLAG = '__ecInBrushSelectEvent';
@@ -66134,6 +72938,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var VisualMapping = __webpack_require__(239);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file Visual solution, for consistent option specification.
 	 */
@@ -66298,7 +73121,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      data.setItemVisual(dataIndex, key, value);
 	    }
 
-	    for (var dataIndex = params.start; dataIndex < params.end; dataIndex++) {
+	    var dataIndex;
+
+	    while ((dataIndex = params.next()) != null) {
 	      var rawDataItem = data.getRawDataItem(dataIndex); // Consider performance
 
 	      if (rawDataItem && rawDataItem.visualMap === false) {
@@ -66331,10 +73156,28 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 390 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var polygonContain = __webpack_require__(140);
+	var polygonContain = __webpack_require__(141);
 
 	var BoundingRect = __webpack_require__(24);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Key of the first level is brushType: `line`, `rect`, `polygon`.
 	// Key of the second level is chart element type: `point`, `rect`.
 	// See moudule:echarts/component/helper/BrushController
@@ -66469,6 +73312,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var brushHelper = __webpack_require__(282);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var indexOf = zrUtil.indexOf;
 	var curry = zrUtil.curry;
@@ -66854,6 +73715,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Model = __webpack_require__(45);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var DEFAULT_OUT_OF_BRUSH_COLOR = ['#ddd'];
 	var BrushModel = echarts.extendComponentModel({
 	  type: 'brush',
@@ -66930,11 +73809,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  optionUpdated: function (newOption, isInit) {
 	    var thisOption = this.option;
 	    !isInit && visualSolution.replaceVisualOption(thisOption, newOption, ['inBrush', 'outOfBrush']);
-	    thisOption.inBrush = thisOption.inBrush || {}; // Always give default visual, consider setOption at the second time.
+	    var inBrush = thisOption.inBrush = thisOption.inBrush || {}; // Always give default visual, consider setOption at the second time.
 
 	    thisOption.outOfBrush = thisOption.outOfBrush || {
 	      color: DEFAULT_OUT_OF_BRUSH_COLOR
 	    };
+
+	    if (!inBrush.hasOwnProperty('liftZ')) {
+	      // Bigger than the highlight z lift, otherwise it will
+	      // be effected by the highlight z when brush.
+	      inBrush.liftZ = 5;
+	    }
 	  },
 
 	  /**
@@ -66989,6 +73874,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var BrushController = __webpack_require__(281);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentView({
 	  type: 'brush',
 	  init: function (ecModel, api) {
@@ -67082,6 +73985,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * payload: {
 	 *      brushIndex: number, or,
@@ -67141,6 +74063,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var lang = __webpack_require__(113);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var brushLang = lang.toolbox.brush;
 
 	function Brush(model, ecModel, api) {
@@ -67249,6 +74189,24 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 396 */
 /***/ function(module, exports) {
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var features = {};
 
 	function register(name, ctor) {
@@ -67284,6 +74242,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var CoordinateSystem = __webpack_require__(98);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// (24*60*60*1000)
 	var PROXIMATE_ONE_DAY = 86400000;
 	/**
@@ -67440,7 +74416,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var range = this._rangeInfo;
 	    var date = dayInfo.formatedDate; // if not in range return [NaN, NaN]
 
-	    if (clamp && !(dayInfo.time >= range.start.time && dayInfo.time <= range.end.time)) {
+	    if (clamp && !(dayInfo.time >= range.start.time && dayInfo.time < range.end.time + PROXIMATE_ONE_DAY)) {
 	      return [NaN, NaN];
 	    }
 
@@ -67680,6 +74656,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var getLayoutParams = _layout.getLayoutParams;
 	var sizeCalculable = _layout.sizeCalculable;
 	var mergeLayoutParam = _layout.mergeLayoutParam;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var CalendarModel = ComponentModel.extend({
 	  type: 'calendar',
 
@@ -67810,6 +74805,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var numberUtil = __webpack_require__(88);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var MONTH_TEXT = {
 	  EN: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 	  CN: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
@@ -68225,6 +75238,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _layout = __webpack_require__(87);
 
 	var getLayoutRect = _layout.getLayoutRect;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Model
 	echarts.extendComponentModel({
 	  type: 'title',
@@ -68438,6 +75470,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Component = __webpack_require__(85);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	Component.registerSubTypeDefaulter('dataZoom', function () {
 	  // Default 'slider' when no type specified.
 	  return 'slider';
@@ -68463,6 +75513,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var AxisProxy = __webpack_require__(406);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var eachAxisDim = helper.eachAxisDim;
 	var DataZoomModel = echarts.extendComponentModel({
@@ -68985,6 +76053,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var formatUtil = __webpack_require__(89);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var AXIS_DIMS = ['x', 'y', 'z', 'radius', 'angle', 'single']; // Supported coords.
 
 	var COORDS = ['cartesian2d', 'polar', 'singleAxis'];
@@ -69127,6 +76213,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var helper = __webpack_require__(405);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var asc = numberUtil.asc;
 	/**
@@ -69584,6 +76688,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var ComponentView = __webpack_require__(107);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = ComponentView.extend({
 	  type: 'dataZoom',
 	  render: function (dataZoomModel, ecModel, api, payload) {
@@ -69656,6 +76778,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var DataZoomModel = __webpack_require__(404);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var SliderZoomModel = DataZoomModel.extend({
 	  type: 'dataZoom.slider',
 	  layoutMode: 'box',
@@ -69745,6 +76885,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var sliderMove = __webpack_require__(275);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var Rect = graphic.Rect;
 	var linearMap = numberUtil.linearMap;
 	var asc = numberUtil.asc;
@@ -70218,6 +77376,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @private
 	   * @param {(number|string)} handleIndex 0 or 1 or 'all'
 	   * @param {number} delta
+	   * @return {boolean} changed
 	   */
 	  _updateInterval: function (handleIndex, delta) {
 	    var dataZoomModel = this.dataZoomModel;
@@ -70228,7 +77387,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var minMaxSpan = dataZoomModel.findRepresentativeAxisProxy().getMinMaxSpan();
 	    var percentExtent = [0, 100];
 	    sliderMove(delta, handleEnds, viewExtend, dataZoomModel.get('zoomLock') ? 'all' : handleIndex, minMaxSpan.minSpan != null ? linearMap(minMaxSpan.minSpan, percentExtent, viewExtend, true) : null, minMaxSpan.maxSpan != null ? linearMap(minMaxSpan.maxSpan, percentExtent, viewExtend, true) : null);
-	    this._range = asc([linearMap(handleEnds[0], viewExtend, percentExtent, true), linearMap(handleEnds[1], viewExtend, percentExtent, true)]);
+	    var lastRange = this._range;
+	    var range = this._range = asc([linearMap(handleEnds[0], viewExtend, percentExtent, true), linearMap(handleEnds[1], viewExtend, percentExtent, true)]);
+	    return !lastRange || lastRange[0] !== range[0] || lastRange[1] !== range[1];
 	  },
 
 	  /**
@@ -70343,13 +77504,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var vertex = graphic.applyTransform([dx, dy], barTransform, true);
 
-	    this._updateInterval(handleIndex, vertex[0]);
+	    var changed = this._updateInterval(handleIndex, vertex[0]);
 
 	    var realtime = this.dataZoomModel.get('realtime');
 
-	    this._updateView(!realtime);
+	    this._updateView(!realtime); // Avoid dispatch dataZoom repeatly but range not changed,
+	    // which cause bad visual effect when progressive enabled.
 
-	    realtime && this._dispatchZoomAction();
+
+	    changed && realtime && this._dispatchZoomAction();
 	  },
 	  _onDragEnd: function () {
 	    this._dragging = false;
@@ -70373,11 +77536,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var handleEnds = this._handleEnds;
 	    var center = (handleEnds[0] + handleEnds[1]) / 2;
 
-	    this._updateInterval('all', localPoint[0] - center);
+	    var changed = this._updateInterval('all', localPoint[0] - center);
 
 	    this._updateView();
 
-	    this._dispatchZoomAction();
+	    changed && this._dispatchZoomAction();
 	  },
 
 	  /**
@@ -70448,6 +77611,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var DataZoomModel = __webpack_require__(404);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = DataZoomModel.extend({
 	  type: 'dataZoom.inside',
 
@@ -70481,6 +77662,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var roams = __webpack_require__(412);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var bind = zrUtil.bind;
 	var InsideZoomView = DataZoomView.extend({
 	  type: 'dataZoom.inside',
@@ -70502,14 +77701,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @override
 	   */
 	  render: function (dataZoomModel, ecModel, api, payload) {
-	    InsideZoomView.superApply(this, 'render', arguments); // Notice: origin this._range should be maintained, and should not be re-fetched
-	    // from dataZoomModel when payload.type is 'dataZoom', otherwise 'pan' or 'zoom'
-	    // info will be missed because of 'throttle' of this.dispatchAction.
+	    InsideZoomView.superApply(this, 'render', arguments); // Hance the `throttle` util ensures to preserve command order,
+	    // here simply updating range all the time will not cause missing
+	    // any of the the roam change.
 
-	    if (roams.shouldRecordRange(payload, dataZoomModel.id)) {
-	      this._range = dataZoomModel.getPercentRange();
-	    } // Reset controllers.
-
+	    this._range = dataZoomModel.getPercentRange(); // Reset controllers.
 
 	    zrUtil.each(this.getTargetCoordInfo(), function (coordInfoList, coordSysName) {
 	      var allCoordIds = zrUtil.map(coordInfoList, function (coordInfo) {
@@ -70553,8 +77749,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @private
 	   */
 	  _onPan: function (coordInfo, coordSysName, controller, dx, dy, oldX, oldY, newX, newY) {
-	    var range = this._range.slice(); // Calculate transform by the first axis.
-
+	    var lastRange = this._range;
+	    var range = lastRange.slice(); // Calculate transform by the first axis.
 
 	    var axisModel = coordInfo.axisModels[0];
 
@@ -70565,15 +77761,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var directionInfo = getDirectionInfo[coordSysName]([oldX, oldY], [newX, newY], axisModel, controller, coordInfo);
 	    var percentDelta = directionInfo.signal * (range[1] - range[0]) * directionInfo.pixel / directionInfo.pixelLength;
 	    sliderMove(percentDelta, range, [0, 100], 'all');
-	    return this._range = range;
+	    this._range = range;
+
+	    if (lastRange[0] !== range[0] || lastRange[1] !== range[1]) {
+	      return range;
+	    }
 	  },
 
 	  /**
 	   * @private
 	   */
 	  _onZoom: function (coordInfo, coordSysName, controller, scale, mouseX, mouseY) {
-	    var range = this._range.slice(); // Calculate transform by the first axis.
-
+	    var lastRange = this._range;
+	    var range = lastRange.slice(); // Calculate transform by the first axis.
 
 	    var axisModel = coordInfo.axisModels[0];
 
@@ -70589,7 +77789,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var minMaxSpan = this.dataZoomModel.findRepresentativeAxisProxy().getMinMaxSpan();
 	    sliderMove(0, range, [0, 100], 0, minMaxSpan.minSpan, minMaxSpan.maxSpan);
-	    return this._range = range;
+	    this._range = range;
+
+	    if (lastRange[0] !== range[0] || lastRange[1] !== range[1]) {
+	      return range;
+	    }
 	  }
 	});
 	var getDirectionInfo = {
@@ -70673,10 +77877,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var RoamController = __webpack_require__(210);
+	var RoamController = __webpack_require__(212);
 
 	var throttleUtil = __webpack_require__(110);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Only create one roam controller for each coordinate system.
 	// one roam controller might be refered by two inside data zoom
 	// components (for example, one for x and one for y). When user
@@ -70761,22 +77983,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 
-	function shouldRecordRange(payload, dataZoomId) {
-	  if (payload && payload.type === 'dataZoom' && payload.batch) {
-	    for (var i = 0, len = payload.batch.length; i < len; i++) {
-	      if (payload.batch[i].dataZoomId === dataZoomId) {
-	        return false;
-	      }
-	    }
-	  }
-
-	  return true;
-	}
-	/**
-	 * @public
-	 */
-
-
 	function generateCoordId(coordModel) {
 	  return coordModel.type + '\0_' + coordModel.id;
 	}
@@ -70831,7 +78037,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      end: range[1]
 	    });
 	  });
-	  record.dispatchAction(batch);
+	  batch.length && record.dispatchAction(batch);
 	}
 	/**
 	 * This action will be throttled.
@@ -70879,7 +78085,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	exports.register = register;
 	exports.unregister = unregister;
-	exports.shouldRecordRange = shouldRecordRange;
 	exports.generateCoordId = generateCoordId;
 
 /***/ },
@@ -70892,7 +78097,29 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var createHashMap = _util.createHashMap;
 	var each = _util.each;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerProcessor({
+	  // `dataZoomProcessor` will only be performed in needed series. Consider if
+	  // there is a line series and a pie series, it is better not to update the
+	  // line series if only pie series is needed to be updated.
 	  getTargetSeries: function (ecModel) {
 	    var seriesModelMap = createHashMap();
 	    ecModel.eachComponent('dataZoom', function (dataZoomModel) {
@@ -70905,7 +78132,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    });
 	    return seriesModelMap;
 	  },
-	  isOverallFilter: true,
+	  modifyOutputEnd: true,
 	  // Consider appendData, where filter should be performed. Because data process is
 	  // in block mode currently, it is not need to worry about that the overallProgress
 	  // execute every frame.
@@ -70961,6 +78188,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var helper = __webpack_require__(405);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerAction('dataZoom', function (payload, ecModel) {
 	  var linkedNodesFinder = helper.createLinkedNodesFinder(zrUtil.bind(ecModel.eachComponent, ecModel, 'dataZoom'), helper.eachAxisDim, function (model, dimNames) {
 	    return model.get(dimNames.axisIndex);
@@ -71008,6 +78253,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(426);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * DataZoom component entry
 	 */
@@ -71019,6 +78283,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 
 	function _default(option) {
@@ -71069,6 +78351,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Component = __webpack_require__(85);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	Component.registerSubTypeDefaulter('visualMap', function (option) {
 	  // Compatible with ec2, when splitNumber === 0, continuous visualMap will be used.
 	  return !option.categories && (!(option.pieces ? option.pieces.length > 0 : option.splitNumber > 0) || option.calculable) ? 'continuous' : 'piecewise';
@@ -71086,13 +78386,33 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var VisualMapping = __webpack_require__(239);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var VISUAL_PRIORITY = echarts.PRIORITY.VISUAL.COMPONENT;
 	echarts.registerVisual(VISUAL_PRIORITY, {
 	  createOnAllSeries: true,
 	  reset: function (seriesModel, ecModel) {
 	    var resetDefines = [];
 	    ecModel.eachComponent('visualMap', function (visualMapModel) {
-	      if (!visualMapModel.isTargetSeries(seriesModel)) {
+	      var pipelineContext = seriesModel.pipelineContext;
+
+	      if (!visualMapModel.isTargetSeries(seriesModel) || pipelineContext && pipelineContext.large) {
 	        return;
 	      }
 
@@ -71165,6 +78485,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var numberUtil = __webpack_require__(88);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Constant
 	var DEFAULT_BAR_BOUND = [20, 140];
 	var ContinuousModel = VisualMapModel.extend({
@@ -71416,6 +78754,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var numberUtil = __webpack_require__(88);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var mapVisual = VisualMapping.mapVisual;
 	var eachVisual = VisualMapping.eachVisual;
 	var isArray = zrUtil.isArray;
@@ -71912,6 +79268,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @file Visual mapping.
 	 */
@@ -71983,6 +79358,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var modelUtil = __webpack_require__(44);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var linearMap = numberUtil.linearMap;
 	var each = zrUtil.each;
 	var mathMin = Math.min;
@@ -72740,6 +80133,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var VisualMapping = __webpack_require__(239);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentView({
 	  type: 'visualMap',
 
@@ -72892,6 +80303,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var getLayoutRect = _layout.getLayoutRect;
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * @param {module:echarts/component/visualMap/VisualMapModel} visualMapModel\
 	 * @param {module:echarts/ExtensionAPI} api
@@ -72951,6 +80381,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var echarts = __webpack_require__(1);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var actionInfo = {
 	  type: 'selectDataRange',
 	  event: 'dataRangeSelected',
@@ -72984,6 +80432,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(426);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * DataZoom component entry
 	 */
@@ -73008,6 +80475,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _number = __webpack_require__(88);
 
 	var reformIntervals = _number.reformIntervals;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PiecewiseModel = VisualMapModel.extend({
 	  type: 'visualMap.piecewise',
 
@@ -73508,7 +80994,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var graphic = __webpack_require__(51);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
@@ -73516,6 +81002,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var helper = __webpack_require__(425);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var PiecewiseVisualMapView = VisualMapView.extend({
 	  type: 'visualMap.piecewise',
 
@@ -73714,6 +81218,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(433);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// HINT Markpoint can't be used too much
 	echarts.registerPreprocessor(function (opt) {
 	  // Make sure markPoint component is enabled
@@ -73726,6 +81248,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var MarkerModel = __webpack_require__(432);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = MarkerModel.extend({
 	  type: 'markPoint',
 	  defaultOption: {
@@ -73775,6 +81315,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var dataFormatMixin = __webpack_require__(104);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var addCommas = formatUtil.addCommas;
 	var encodeHTML = formatUtil.encodeHTML;
 
@@ -73811,7 +81369,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    if (!createdBySelf) {
 	      ecModel.eachSeries(function (seriesModel) {
-	        var markerOpt = seriesModel.get(this.mainType);
+	        var markerOpt = seriesModel.get(this.mainType, true);
 	        var markerModel = seriesModel[modelPropName];
 
 	        if (!markerOpt || !markerOpt.data) {
@@ -73893,16 +81451,34 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var SymbolDraw = __webpack_require__(145);
+	var SymbolDraw = __webpack_require__(147);
 
 	var numberUtil = __webpack_require__(88);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var markerHelper = __webpack_require__(434);
 
 	var MarkerView = __webpack_require__(435);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function updateMarkerLayout(mpData, seriesModel, api) {
 	  var coordSys = seriesModel.coordinateSystem;
 	  mpData.each(function (idx) {
@@ -74045,9 +81621,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var numberUtil = __webpack_require__(88);
 
-	var _dataStackHelper = __webpack_require__(126);
+	var _dataStackHelper = __webpack_require__(127);
 
 	var isDimensionStacked = _dataStackHelper.isDimensionStacked;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var indexOf = zrUtil.indexOf;
 
 	function hasXOrY(item) {
@@ -74238,7 +81833,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    });
 	    return sum / count;
+	  } else if (type === 'median') {
+	    return data.getMedian(valueDataDim);
 	  } else {
+	    // max & min
 	    return data.getDataExtent(valueDataDim, true)[type === 'max' ? 1 : 0];
 	  }
 	}
@@ -74257,6 +81855,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentView({
 	  type: 'marker',
 	  init: function () {
@@ -74296,6 +81912,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(438);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerPreprocessor(function (opt) {
 	  // Make sure markLine component is enabled
 	  opt.markLine = opt.markLine || {};
@@ -74307,6 +81941,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var MarkerModel = __webpack_require__(432);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = MarkerModel.extend({
 	  type: 'markLine',
 	  defaultOption: {
@@ -74346,7 +81998,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var numberUtil = __webpack_require__(88);
 
@@ -74356,12 +82008,30 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var MarkerView = __webpack_require__(435);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var markLineTransform = function (seriesModel, coordSys, mlModel, item) {
-	  var data = seriesModel.getData(); // Special type markLine like 'min', 'max', 'average'
+	  var data = seriesModel.getData(); // Special type markLine like 'min', 'max', 'average', 'median'
 
 	  var mlType = item.type;
 
-	  if (!zrUtil.isArray(item) && (mlType === 'min' || mlType === 'max' || mlType === 'average' // In case
+	  if (!zrUtil.isArray(item) && (mlType === 'min' || mlType === 'max' || mlType === 'average' || mlType === 'median' // In case
 	  // data: [{
 	  //   yAxis: 10
 	  // }]
@@ -74681,6 +82351,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(441);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerPreprocessor(function (opt) {
 	  // Make sure markArea component is enabled
 	  opt.markArea = opt.markArea || {};
@@ -74692,6 +82380,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var MarkerModel = __webpack_require__(432);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = MarkerModel.extend({
 	  type: 'markArea',
 	  defaultOption: {
@@ -74732,7 +82438,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var colorUtil = __webpack_require__(20);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var numberUtil = __webpack_require__(88);
 
@@ -74742,6 +82448,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var MarkerView = __webpack_require__(435);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// TODO Better on polar
 	var markAreaTransform = function (seriesModel, coordSys, maModel, item) {
 	  var lt = markerHelper.dataTransform(seriesModel, item[0]);
@@ -74890,10 +82614,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 	  renderSeries: function (seriesModel, maModel, ecModel, api) {
 	    var coordSys = seriesModel.coordinateSystem;
-	    var seriesName = seriesModel.name;
+	    var seriesId = seriesModel.id;
 	    var seriesData = seriesModel.getData();
 	    var areaGroupMap = this.markerGroupMap;
-	    var polygonGroup = areaGroupMap.get(seriesName) || areaGroupMap.set(seriesName, {
+	    var polygonGroup = areaGroupMap.get(seriesId) || areaGroupMap.set(seriesId, {
 	      group: new graphic.Group()
 	    });
 	    this.group.add(polygonGroup.group);
@@ -75026,6 +82750,25 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(448);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
+
 	/**
 	 * DataZoom component entry
 	 */
@@ -75037,6 +82780,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	function _default(option) {
 	  var timelineOpt = option && option.timeline;
 
@@ -75128,6 +82889,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Component = __webpack_require__(85);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	Component.registerSubTypeDefaulter('timeline', function () {
 	  // Only slider now.
 	  return 'slider';
@@ -75141,6 +82920,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	echarts.registerAction({
 	  type: 'timelineChange',
 	  event: 'timelineChanged',
@@ -75184,6 +82981,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var dataFormatMixin = __webpack_require__(104);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var SliderTimelineModel = TimelineModel.extend({
 	  type: 'timeline.slider',
 
@@ -75291,10 +83106,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var ComponentModel = __webpack_require__(85);
 
-	var List = __webpack_require__(121);
+	var List = __webpack_require__(122);
 
 	var modelUtil = __webpack_require__(44);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var TimelineModel = ComponentModel.extend({
 	  type: 'timeline',
 	  layoutMode: 'box',
@@ -75489,17 +83322,36 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var TimelineAxis = __webpack_require__(450);
 
-	var _symbol = __webpack_require__(137);
+	var _symbol = __webpack_require__(138);
 
 	var createSymbol = _symbol.createSymbol;
 
-	var axisHelper = __webpack_require__(127);
+	var axisHelper = __webpack_require__(128);
 
 	var numberUtil = __webpack_require__(88);
 
 	var _format = __webpack_require__(89);
 
 	var encodeHTML = _format.encodeHTML;
+
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var bind = zrUtil.bind;
 	var each = zrUtil.each;
 	var PI = Math.PI;
@@ -75749,27 +83601,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  _createAxis: function (layoutInfo, timelineModel) {
 	    var data = timelineModel.getData();
 	    var axisType = timelineModel.get('axisType');
-	    var scale = axisHelper.createScaleByModel(timelineModel, axisType);
-	    var dataExtent = data.getDataExtent('value');
-	    scale.setExtent(dataExtent[0], dataExtent[1]);
+	    var scale = axisHelper.createScaleByModel(timelineModel, axisType); // Customize scale. The `tickValue` is `dataIndex`.
 
-	    this._customizeScale(scale, data);
-
-	    scale.niceTicks();
-	    var axis = new TimelineAxis('value', scale, layoutInfo.axisExtent, axisType);
-	    axis.model = timelineModel;
-	    return axis;
-	  },
-	  _customizeScale: function (scale, data) {
 	    scale.getTicks = function () {
 	      return data.mapArray(['value'], function (value) {
 	        return value;
 	      });
 	    };
 
-	    scale.getTicksLabels = function () {
-	      return zrUtil.map(this.getTicks(), scale.getLabel, scale);
-	    };
+	    var dataExtent = data.getDataExtent('value');
+	    scale.setExtent(dataExtent[0], dataExtent[1]);
+	    scale.niceTicks();
+	    var axis = new TimelineAxis('value', scale, layoutInfo.axisExtent, axisType);
+	    axis.model = timelineModel;
+	    return axis;
 	  },
 	  _createGroup: function (name) {
 	    var newGroup = this['_' + name] = new graphic.Group();
@@ -75802,22 +83647,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @private
 	   */
 	  _renderAxisTick: function (layoutInfo, group, axis, timelineModel) {
-	    var data = timelineModel.getData();
-	    var ticks = axis.scale.getTicks();
-	    each(ticks, function (value, dataIndex) {
+	    var data = timelineModel.getData(); // Show all ticks, despite ignoring strategy.
+
+	    var ticks = axis.scale.getTicks(); // The value is dataIndex, see the costomized scale.
+
+	    each(ticks, function (value) {
 	      var tickCoord = axis.dataToCoord(value);
-	      var itemModel = data.getItemModel(dataIndex);
+	      var itemModel = data.getItemModel(value);
 	      var itemStyleModel = itemModel.getModel('itemStyle');
 	      var hoverStyleModel = itemModel.getModel('emphasis.itemStyle');
 	      var symbolOpt = {
 	        position: [tickCoord, 0],
-	        onclick: bind(this._changeTimeline, this, dataIndex)
+	        onclick: bind(this._changeTimeline, this, value)
 	      };
 	      var el = giveSymbol(itemModel, itemStyleModel, group, symbolOpt);
 	      graphic.setHoverStyle(el, hoverStyleModel.getItemStyle());
 
 	      if (itemModel.get('tooltip')) {
-	        el.dataIndex = dataIndex;
+	        el.dataIndex = value;
 	        el.dataModel = timelineModel;
 	      } else {
 	        el.dataIndex = el.dataModel = null;
@@ -75829,25 +83676,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @private
 	   */
 	  _renderAxisLabel: function (layoutInfo, group, axis, timelineModel) {
-	    var labelModel = timelineModel.getModel('label');
+	    var labelModel = axis.getLabelModel();
 
 	    if (!labelModel.get('show')) {
 	      return;
 	    }
 
 	    var data = timelineModel.getData();
-	    var ticks = axis.scale.getTicks();
-	    var labels = axisHelper.getFormattedLabels(axis, labelModel.get('formatter'));
-	    var labelInterval = axis.getLabelInterval();
-	    each(ticks, function (tick, dataIndex) {
-	      if (axis.isLabelIgnored(dataIndex, labelInterval)) {
-	        return;
-	      }
-
+	    var labels = axis.getViewLabels();
+	    each(labels, function (labelItem) {
+	      // The tickValue is dataIndex, see the costomized scale.
+	      var dataIndex = labelItem.tickValue;
 	      var itemModel = data.getItemModel(dataIndex);
 	      var normalLabelModel = itemModel.getModel('label');
 	      var hoverLabelModel = itemModel.getModel('emphasis.label');
-	      var tickCoord = axis.dataToCoord(tick);
+	      var tickCoord = axis.dataToCoord(labelItem.tickValue);
 	      var textEl = new graphic.Text({
 	        position: [tickCoord, 0],
 	        rotation: layoutInfo.labelRotation - layoutInfo.rotation,
@@ -75855,7 +83698,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        silent: false
 	      });
 	      graphic.setTextStyle(textEl.style, normalLabelModel, {
-	        text: labels[dataIndex],
+	        text: labelItem.formattedLabel,
 	        textAlign: layoutInfo.labelAlign,
 	        textVerticalAlign: layoutInfo.labelBaseline
 	      });
@@ -76105,6 +83948,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var ComponentView = __webpack_require__(107);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = ComponentView.extend({
 	  type: 'timeline'
 	});
@@ -76117,9 +83978,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
-	var Axis = __webpack_require__(141);
+	var Axis = __webpack_require__(142);
 
-	var axisHelper = __webpack_require__(127);
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 
 	/**
 	 * Extend axis 2d
@@ -76144,12 +84022,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  this.type = axisType || 'value';
 	  /**
-	   * @private
-	   * @type {number}
-	   */
-
-	  this._autoLabelInterval;
-	  /**
 	   * Axis model
 	   * @param {module:echarts/component/TimelineModel}
 	   */
@@ -76161,39 +84033,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  constructor: TimelineAxis,
 
 	  /**
-	   * @public
-	   * @return {number}
+	   * @override
 	   */
-	  getLabelInterval: function () {
-	    var timelineModel = this.model;
-	    var labelModel = timelineModel.getModel('label');
-	    var labelInterval = labelModel.get('interval');
-
-	    if (labelInterval != null && labelInterval != 'auto') {
-	      return labelInterval;
-	    }
-
-	    var labelInterval = this._autoLabelInterval;
-
-	    if (!labelInterval) {
-	      labelInterval = this._autoLabelInterval = axisHelper.getAxisLabelInterval(zrUtil.map(this.scale.getTicks(), this.dataToCoord, this), axisHelper.getFormattedLabels(this, labelModel.get('formatter')), labelModel.getFont(), timelineModel.get('orient') === 'horizontal' ? 0 : 90, labelModel.get('rotate'));
-	    }
-
-	    return labelInterval;
+	  getLabelModel: function () {
+	    return this.model.getModel('label');
 	  },
 
 	  /**
-	   * If label is ignored.
-	   * Automatically used when axis is category and label can not be all shown
-	   * @public
-	   * @param  {number} idx
-	   * @return {boolean}
+	   * @override
 	   */
-	  isLabelIgnored: function (idx) {
-	    if (this.type === 'category') {
-	      var labelInterval = this.getLabelInterval();
-	      return typeof labelInterval === 'function' && !labelInterval(idx, this.scale.getLabel(idx)) || idx % (labelInterval + 1);
-	    }
+	  isHorizontal: function () {
+	    return this.model.get('orient') === 'horizontal';
 	  }
 	};
 	zrUtil.inherits(TimelineAxis, Axis);
@@ -76228,14 +84078,32 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var featureManager = __webpack_require__(396);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var ToolboxModel = echarts.extendComponentModel({
 	  type: 'toolbox',
 	  layoutMode: {
 	    type: 'box',
 	    ignoreSize: true
 	  },
-	  mergeDefaultAndTheme: function (option) {
-	    ToolboxModel.superApply(this, 'mergeDefaultAndTheme', arguments);
+	  optionUpdated: function () {
+	    ToolboxModel.superApply(this, 'optionUpdated', arguments);
 	    zrUtil.each(this.option.feature, function (featureOpt, featureName) {
 	      var Feature = featureManager.get(featureName);
 	      Feature && zrUtil.merge(featureOpt, Feature.defaultOption);
@@ -76290,10 +84158,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var Model = __webpack_require__(45);
 
-	var DataDiffer = __webpack_require__(122);
+	var DataDiffer = __webpack_require__(123);
 
 	var listComponentHelper = __webpack_require__(361);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = echarts.extendComponentView({
 	  type: 'toolbox',
 	  render: function (toolboxModel, ecModel, api, payload) {
@@ -76513,6 +84399,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var featureManager = __webpack_require__(396);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var saveAsImageLang = lang.toolbox.saveAsImage;
 
 	function SaveAsImage(model) {
@@ -76594,6 +84498,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var featureManager = __webpack_require__(396);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var magicTypeLang = lang.toolbox.magicType;
 
 	function MagicType(model) {
@@ -76771,6 +84693,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var featureManager = __webpack_require__(396);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var dataViewLang = lang.toolbox.dataView;
 	var BLOCK_SPLITER = new Array(60).join('-');
 	var ITEM_SPLITER = '\t';
@@ -77257,6 +85197,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	__webpack_require__(459);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	// Use dataZoomSelect
 	var dataZoomLang = lang.toolbox.dataZoom;
 	var each = zrUtil.each; // Spectial component id start with \0ec\0, see echarts/model/Global.js~hasInnerId
@@ -77454,6 +85412,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	featureManager.register('dataZoom', DataZoom); // Create special dataZoom option for select
+	// FIXME consider the case of merge option, where axes options are not exists.
 
 	echarts.registerPreprocessor(function (option) {
 	  if (!option) {
@@ -77475,7 +85434,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 
 	    if (toolboxOpt && toolboxOpt.feature) {
-	      var dataZoomOpt = toolboxOpt.feature.dataZoom;
+	      var dataZoomOpt = toolboxOpt.feature.dataZoom; // FIXME: If add dataZoom when setOption in merge mode,
+	      // no axis info to be added. See `test/dataZoom-extreme.html`
+
 	      addForAxis('xAxis', dataZoomOpt);
 	      addForAxis('yAxis', dataZoomOpt);
 	    }
@@ -77531,6 +85492,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var zrUtil = __webpack_require__(6);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var each = zrUtil.each;
 	var ATTR = '\0_ec_hist_store';
 	/**
@@ -77661,6 +85640,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var DataZoomModel = __webpack_require__(404);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = DataZoomModel.extend({
 	  type: 'dataZoom.select'
 	});
@@ -77673,6 +85670,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var DataZoomView = __webpack_require__(407);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var _default = DataZoomView.extend({
 	  type: 'dataZoom.select'
 	});
@@ -77691,6 +85706,24 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var featureManager = __webpack_require__(396);
 
+	/*
+	* Licensed to the Apache Software Foundation (ASF) under one
+	* or more contributor license agreements.  See the NOTICE file
+	* distributed with this work for additional information
+	* regarding copyright ownership.  The ASF licenses this file
+	* to you under the Apache License, Version 2.0 (the
+	* "License"); you may not use this file except in compliance
+	* with the License.  You may obtain a copy of the License at
+	*
+	*   http://www.apache.org/licenses/LICENSE-2.0
+	*
+	* Unless required by applicable law or agreed to in writing,
+	* software distributed under the License is distributed on an
+	* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+	* KIND, either express or implied.  See the License for the
+	* specific language governing permissions and limitations
+	* under the License.
+	*/
 	var restoreLang = lang.toolbox.restore;
 
 	function Restore(model) {
@@ -79014,6 +87047,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var BoundingRect = __webpack_require__(24);
 
+	var matrix = __webpack_require__(15);
+
 	var textContain = __webpack_require__(36);
 
 	var textHelper = __webpack_require__(35);
@@ -79061,6 +87096,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	function attr(el, key, val) {
 	  if (!val || val.type !== 'linear' && val.type !== 'radial') {
 	    // Don't set attribute for gradient, since it need new dom nodes
+	    if (typeof val === 'string' && val.indexOf('NaN') > -1) {
+	      console.log(val);
+	    }
+
 	    el.setAttribute(key, val);
 	  }
 	}
@@ -79411,8 +87450,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      y = origin[1] + y;
 	    }
 
-	    var rotate = -style.textRotation * 180 / Math.PI;
-	    attr(textSvgEl, 'transform', 'rotate(' + rotate + ',' + x + ',' + y + ')');
+	    var rotate = -style.textRotation || 0;
+	    var transform = matrix.create(); // Apply textRotate to element matrix
+
+	    matrix.rotate(transform, el.transform, rotate);
+	    setTransform(textSvgEl, transform);
 	  }
 
 	  var textLines = text.split('\n');
@@ -79676,6 +87718,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    this._paintList(list);
 	  },
+	  setBackgroundColor: function (backgroundColor) {
+	    // TODO gradient
+	    this._viewport.style.background = backgroundColor;
+	  },
 	  _paintList: function (list) {
 	    this.gradientManager.markAllUnused();
 	    this.clipPathManager.markAllUnused();
@@ -79873,10 +87919,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      this.root.removeChild(this._viewport);
 	    }
 	  },
-	  pathToSvg: function () {
+	  pathToDataUrl: function () {
 	    this.refresh();
 	    var html = this._svgRoot.outerHTML;
-	    return 'data:img/svg+xml;utf-8,' + unescape(html);
+	    return 'data:image/svg+xml;charset=UTF-8,' + html;
 	  }
 	}; // Not supported methods
 
