@@ -1,2 +1,3 @@
 # echarts-boilerplate
-Boilerplates of echarts.
+
+Boilerplates of [Apache ECharts (incubating)](https://github.com/apache/incubator-echarts).
